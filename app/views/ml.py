@@ -1152,35 +1152,94 @@ def single_column_view(project_id, sheet_id):
         File.project_id == project.id
     ).first_or_404()
     
+    # Parametro colonna specifica
+    column_name = request.args.get('column_name')
+    
     try:
         # Carica i dati dal file Excel
         file_path = sheet.file.get_file_path()
         df = pd.read_excel(file_path, sheet_name=sheet.name)
         
-        # Prepara i dati delle colonne
-        columns_data = {}
-        for col in df.columns:
-            columns_data[col] = {
-                'name': col,
-                'type': str(df[col].dtype),
-                'unique_values': len(df[col].unique()),
-                'null_count': df[col].isnull().sum(),
-                'total_rows': len(df),
-                'sample_values': df[col].dropna().head(5).tolist(),
-                'all_values': df[col].dropna().tolist()
-            }
+        # Se non è specificata una colonna, mostra l'elenco per selezionarla
+        if not column_name:
+            available_columns = [
+                {
+                    'name': col,
+                    'type': str(df[col].dtype),
+                    'unique_values': len(df[col].unique()),
+                    'null_count': df[col].isnull().sum(),
+                    'total_rows': len(df)
+                }
+                for col in df.columns
+            ]
+            
+            if request.is_json:
+                return jsonify({
+                    'project': project.to_dict(),
+                    'sheet': sheet.to_dict(),
+                    'available_columns': available_columns
+                })
+            
+            return render_template('ml/select_column.html',
+                                project=project,
+                                sheet=sheet,
+                                available_columns=available_columns)
+        
+        # Verifica che la colonna esista
+        if column_name not in df.columns:
+            error_msg = f'Colonna "{column_name}" non trovata nel foglio'
+            if request.is_json:
+                return jsonify({'error': error_msg}), 400
+            flash(error_msg, 'error')
+            return redirect(url_for('ml.single_column_view', project_id=project.id, sheet_id=sheet.id))
+        
+        # Prepara i dati della colonna specifica
+        col_data = {
+            'name': column_name,
+            'type': str(df[column_name].dtype),
+            'unique_values': len(df[column_name].unique()),
+            'null_count': df[column_name].isnull().sum(),
+            'total_rows': len(df),
+            'all_values': df[column_name].tolist()
+        }
+        
+        # Recupera etichette applicate per questa colonna
+        applied_labels = {}
+        ml_analysis = MLAnalysis.query.filter_by(
+            project_id=project.id,
+            sheet_id=sheet.id,
+            status='completed'
+        ).first()
+        
+        if ml_analysis:
+            label_applications = AutoLabelApplication.query.join(AutoLabel).filter(
+                AutoLabel.ml_analysis_id == ml_analysis.id,
+                AutoLabelApplication.column_name == column_name,
+                AutoLabelApplication.status == 'applied'
+            ).all()
+            
+            for app in label_applications:
+                applied_labels[app.row_index] = {
+                    'label_name': app.auto_label.label_name,
+                    'label_description': app.auto_label.label_description,
+                    'confidence': app.confidence_score
+                }
         
         if request.is_json:
             return jsonify({
                 'project': project.to_dict(),
                 'sheet': sheet.to_dict(),
-                'columns_data': columns_data
+                'column_data': col_data,
+                'applied_labels': applied_labels
             })
         
-        return render_template('ml/single_column_view.html',
+        return render_template('ml/view_columns.html',
                             project=project,
                             sheet=sheet,
-                            columns_data=columns_data)
+                            columns_data={column_name: col_data},
+                            applied_labels=applied_labels,
+                            single_column_mode=True,
+                            selected_column=column_name)
     
     except Exception as e:
         logger.error(f"Errore nella vista singola colonna del foglio {sheet_id}: {str(e)}")
