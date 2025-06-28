@@ -10,16 +10,38 @@ class User(UserMixin, db.Model):
     
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     username = db.Column(db.String(80), unique=True, nullable=False, index=True)
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
+    
+    # Profile information
+    first_name = db.Column(db.String(100))
+    last_name = db.Column(db.String(100))
+    
+    # Legacy role field (mantenuto per compatibilità)
     role = db.Column(db.String(20), nullable=False, default='user')
+    
+    # Status
     is_active = db.Column(db.Boolean, default=True)
+    admin_flag = db.Column(db.Boolean, default=False)  # Renamed to avoid conflict with is_admin() method
+    is_superuser = db.Column(db.Boolean, default=False)
+    
+    # Login tracking
     last_login = db.Column(db.DateTime)
+    login_attempts = db.Column(db.Integer, default=0)
+    locked_until = db.Column(db.DateTime)
+    
+    # Email verification
+    email_verified = db.Column(db.Boolean, default=False)
+    email_verification_token = db.Column(db.String(100))
+    email_verified_at = db.Column(db.DateTime)
     
     # Relationships
     projects = db.relationship('Project', backref='owner', lazy='dynamic', cascade='all, delete-orphan')
     uploaded_files = db.relationship('File', backref='uploader', lazy='dynamic')
+    role_assignments = db.relationship('UserRoleAssignment', foreign_keys='UserRoleAssignment.user_id', backref='user', lazy='dynamic', cascade='all, delete-orphan')
+    created_audit_logs = db.relationship('AuditLog', foreign_keys='AuditLog.user_id', backref='audit_user', lazy='dynamic')
     
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -27,18 +49,107 @@ class User(UserMixin, db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
     
-    def is_admin(self):
-        return self.role == 'admin'
+    def get_full_name(self):
+        """Restituisce il nome completo dell'utente"""
+        if self.first_name and self.last_name:
+            return f"{self.first_name} {self.last_name}"
+        elif self.first_name:
+            return self.first_name
+        elif self.last_name:
+            return self.last_name
+        else:
+            return self.username
     
-    def to_dict(self):
-        return {
+    def is_admin(self):
+        """Controlla se l'utente è admin (legacy o nuovo sistema)"""
+        return self.role == 'admin' or self.admin_flag or self.is_superuser
+    
+    def has_role(self, role_name):
+        """Controlla se l'utente ha un ruolo specifico"""
+        # Prima controlla il ruolo legacy
+        if self.role == role_name:
+            return True
+        
+        # Poi controlla i nuovi ruoli nel sistema admin
+        from app.models_admin import UserRole
+        return self.role_assignments.join(UserRole).filter(
+            UserRole.name == role_name,
+            UserRole.is_active == True
+        ).first() is not None
+    
+    def get_permissions(self):
+        """Restituisce tutte le permissioni dell'utente"""
+        permissions = set()
+        
+        # Permissioni legacy per admin
+        if self.is_admin():
+            permissions.update(['admin_access', 'user_management', 'system_settings'])
+        
+        # Permissioni dal nuovo sistema di ruoli
+        from app.models_admin import UserRole
+        for assignment in self.role_assignments:
+            if assignment.role.is_active:
+                permissions.update(assignment.role.permissions or [])
+        
+        return list(permissions)
+    
+    def has_permission(self, permission):
+        """Controlla se l'utente ha una permissione specifica"""
+        return permission in self.get_permissions()
+    
+    def is_account_locked(self):
+        """Controlla se l'account è bloccato"""
+        if self.locked_until and self.locked_until > datetime.utcnow():
+            return True
+        return False
+    
+    def update_last_login(self):
+        """Aggiorna l'ultimo login e resetta i tentativi falliti"""
+        self.last_login = datetime.utcnow()
+        self.login_attempts = 0
+        self.locked_until = None
+        db.session.commit()
+    
+    def increment_login_attempts(self):
+        """Incrementa i tentativi di login falliti"""
+        self.login_attempts = (self.login_attempts or 0) + 1
+        
+        # Blocca l'account dopo 5 tentativi falliti per 30 minuti
+        if self.login_attempts >= 5:
+            from datetime import timedelta
+            self.locked_until = datetime.utcnow() + timedelta(minutes=30)
+        
+        db.session.commit()
+    
+    def to_dict(self, include_sensitive=False):
+        """Converte l'utente in dizionario"""
+        data = {
             'id': str(self.id),
             'username': self.username,
             'email': self.email,
+            'first_name': self.first_name,
+            'last_name': self.last_name,
+            'full_name': self.get_full_name(),
             'role': self.role,
+            'is_active': self.is_active,
+            'is_admin': self.is_admin(),
+            'is_superuser': self.is_superuser,
+            'email_verified': self.email_verified,
             'created_at': self.created_at.isoformat() if self.created_at else None,
-            'last_login': self.last_login.isoformat() if self.last_login else None
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'last_login': self.last_login.isoformat() if self.last_login else None,
+            'email_verified_at': self.email_verified_at.isoformat() if self.email_verified_at else None
         }
+        
+        if include_sensitive:
+            data.update({
+                'login_attempts': self.login_attempts,
+                'is_locked': self.is_account_locked(),
+                'locked_until': self.locked_until.isoformat() if self.locked_until else None,
+                'permissions': self.get_permissions()
+            })
+        
+        return data
 
 class Project(db.Model):
     __tablename__ = 'projects'
@@ -231,6 +342,10 @@ class CellLabel(db.Model):
 # Database indexes for performance
 db.Index('idx_users_username', User.username)
 db.Index('idx_users_email', User.email)
+db.Index('idx_users_is_active', User.is_active)
+db.Index('idx_users_admin_flag', User.admin_flag)
+db.Index('idx_users_email_verified', User.email_verified)
+db.Index('idx_users_role', User.role)
 db.Index('idx_projects_owner', Project.owner_id)
 db.Index('idx_files_project', File.project_id)
 db.Index('idx_excel_sheets_file', ExcelSheet.file_id)
@@ -500,3 +615,23 @@ db.Index('idx_auto_labels_column_analysis', AutoLabel.column_analysis_id)
 db.Index('idx_auto_label_applications_auto_label', AutoLabelApplication.auto_label_id)
 db.Index('idx_auto_label_applications_row', AutoLabelApplication.row_id)
 db.Index('idx_ml_configurations_project', MLConfiguration.project_id)
+
+# Import dei nuovi modelli admin per le relazioni
+try:
+    from app.models_admin import (
+        GlobalLLMConfiguration, UserRole, UserRoleAssignment,
+        SystemSettings, AuditLog
+    )
+except ImportError:
+    # I modelli admin potrebbero non essere ancora disponibili durante la prima migrazione
+    pass
+
+# Import dei nuovi modelli di labeling
+try:
+    from app.models_labeling import (
+        LabelTemplate, LabelGeneration, LabelSuggestion,
+        LabelApplication, AILabelingSession, LabelAnalytics
+    )
+except ImportError:
+    # I modelli di labeling potrebbero non essere ancora disponibili
+    pass

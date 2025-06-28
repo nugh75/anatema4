@@ -1,0 +1,434 @@
+{% extends "base.html" %}
+
+{% block title %}Gestione Utenti - Amministrazione{% endblock %}
+
+{% block extra_css %}
+<style>
+.admin-header {
+    background: linear-gradient(135deg, #1565c0 0%, #0d47a1 100%);
+    color: white;
+    padding: 30px 0;
+    margin-bottom: 30px;
+}
+
+.admin-nav {
+    background: #fff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 30px;
+}
+
+.admin-nav .nav-item {
+    display: inline-block;
+    margin-right: 20px;
+}
+
+.admin-nav .nav-item a {
+    color: #1976d2;
+    text-decoration: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.admin-nav .nav-item a:hover {
+    background: #e3f2fd;
+}
+
+.admin-nav .nav-item.active a {
+    background: #1976d2;
+    color: white;
+}
+
+.user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #2196f3;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    margin-right: 15px;
+}
+
+.status-badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    font-weight: 500;
+}
+
+.status-active {
+    background: #e8f5e8;
+    color: #2e7d32;
+}
+
+.status-inactive {
+    background: #ffebee;
+    color: #c62828;
+}
+
+.role-chip {
+    background: #e3f2fd;
+    color: #1976d2;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    margin-right: 4px;
+    display: inline-block;
+}
+
+.filter-section {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.user-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.user-actions .btn-small {
+    margin: 0;
+}
+
+.search-box {
+    margin-bottom: 0;
+}
+
+.pagination-wrapper {
+    text-align: center;
+    margin-top: 30px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="admin-header">
+    <div class="container">
+        <div class="row">
+            <div class="col s12">
+                <h3><i class="material-icons left">people</i>Gestione Utenti</h3>
+                <p class="flow-text">Visualizza e gestisci tutti gli utenti del sistema</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <!-- Navigation -->
+    <div class="admin-nav">
+        <div class="nav-item">
+            <a href="{{ url_for('admin.dashboard') }}">
+                <i class="material-icons left">dashboard</i>Dashboard
+            </a>
+        </div>
+        <div class="nav-item active">
+            <a href="{{ url_for('admin.manage_users') }}">
+                <i class="material-icons left">people</i>Utenti
+            </a>
+        </div>
+        <div class="nav-item">
+            <a href="{{ url_for('admin.manage_llm_configs') }}">
+                <i class="material-icons left">psychology</i>Configurazioni LLM
+            </a>
+        </div>
+        <div class="nav-item">
+            <a href="{{ url_for('admin.system_settings') }}">
+                <i class="material-icons left">settings</i>Impostazioni
+            </a>
+        </div>
+        <div class="nav-item">
+            <a href="{{ url_for('admin.audit_logs') }}">
+                <i class="material-icons left">history</i>Log Audit
+            </a>
+        </div>
+    </div>
+
+    <!-- Filtri e Ricerca -->
+    <div class="filter-section">
+        <form method="GET" id="filterForm">
+            <div class="row">
+                <div class="col s12 m4">
+                    <div class="input-field search-box">
+                        <i class="material-icons prefix">search</i>
+                        <input type="text" id="search" name="search" value="{{ search or '' }}">
+                        <label for="search">Cerca per nome, email, username...</label>
+                    </div>
+                </div>
+                <div class="col s12 m3">
+                    <div class="input-field">
+                        <select name="status" id="status">
+                            <option value="">Tutti gli stati</option>
+                            <option value="active" {{ 'selected' if status_filter == 'active' }}>Attivi</option>
+                            <option value="inactive" {{ 'selected' if status_filter == 'inactive' }}>Inattivi</option>
+                        </select>
+                        <label>Stato</label>
+                    </div>
+                </div>
+                <div class="col s12 m3">
+                    <div class="input-field">
+                        <select name="role" id="role">
+                            <option value="">Tutti i ruoli</option>
+                            {% for role in roles %}
+                            <option value="{{ role.name }}" {{ 'selected' if role_filter == role.name }}>{{ role.display_name or role.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <label>Ruolo</label>
+                    </div>
+                </div>
+                <div class="col s12 m2">
+                    <button type="submit" class="btn blue waves-effect waves-light" style="margin-top: 20px;">
+                        <i class="material-icons left">filter_list</i>Filtra
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Statistiche Rapide -->
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <div class="row">
+                        <div class="col s6 m3 center-align">
+                            <h4 class="blue-text">{{ users.total }}</h4>
+                            <p class="grey-text">Utenti Totali</p>
+                        </div>
+                        <div class="col s6 m3 center-align">
+                            <h4 class="green-text">{{ users.items|selectattr('is_active')|list|length }}</h4>
+                            <p class="grey-text">Attivi</p>
+                        </div>
+                        <div class="col s6 m3 center-align">
+                            <h4 class="orange-text">{{ users.items|rejectattr('is_active')|list|length }}</h4>
+                            <p class="grey-text">Inattivi</p>
+                        </div>
+                        <div class="col s6 m3 center-align">
+                            <a href="{{ url_for('auth.register') }}" class="btn green">
+                                <i class="material-icons left">person_add</i>Nuovo Utente
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista Utenti -->
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <div class="card-title">
+                        <i class="material-icons left">people</i>Utenti
+                        <span class="right grey-text">
+                            Pagina {{ users.page }} di {{ users.pages }} ({{ users.total }} totali)
+                        </span>
+                    </div>
+
+                    {% if users.items %}
+                    <div class="collection">
+                        {% for user in users.items %}
+                        <div class="collection-item">
+                            <div class="row valign-wrapper" style="margin-bottom: 0;">
+                                <div class="col s12 m8 l9">
+                                    <div style="display: flex; align-items: center;">
+                                        <div class="user-avatar">
+                                            {{ user.first_name[0] if user.first_name else user.username[0] }}
+                                        </div>
+                                        <div>
+                                            <div style="font-weight: 500; font-size: 1.1em;">
+                                                {{ user.first_name }} {{ user.last_name }}
+                                                {% if not user.first_name and not user.last_name %}
+                                                    {{ user.username }}
+                                                {% endif %}
+                                                <span class="status-badge {{ 'status-active' if user.is_active else 'status-inactive' }}">
+                                                    {{ 'Attivo' if user.is_active else 'Inattivo' }}
+                                                </span>
+                                            </div>
+                                            <div style="color: #666; margin-top: 4px;">
+                                                <i class="material-icons tiny">alternate_email</i> {{ user.email }}
+                                                <span style="margin-left: 15px;">
+                                                    <i class="material-icons tiny">person</i> {{ user.username }}
+                                                </span>
+                                            </div>
+                                            <div style="margin-top: 8px;">
+                                                {% for assignment in user.role_assignments %}
+                                                <span class="role-chip">{{ assignment.role.display_name or assignment.role.name }}</span>
+                                                {% endfor %}
+                                                {% if not user.role_assignments %}
+                                                <span class="grey-text">Nessun ruolo assegnato</span>
+                                                {% endif %}
+                                            </div>
+                                            <div style="margin-top: 4px; color: #999; font-size: 0.9em;">
+                                                Registrato: {{ user.created_at.strftime('%d/%m/%Y') }}
+                                                {% if user.last_login %}
+                                                | Ultimo accesso: {{ user.last_login.strftime('%d/%m/%Y %H:%M') }}
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col s12 m4 l3">
+                                    <div class="user-actions right-align">
+                                        <a href="{{ url_for('admin.user_detail', user_id=user.id) }}" 
+                                           class="btn-small blue waves-effect waves-light">
+                                            <i class="material-icons">visibility</i>
+                                        </a>
+                                        <a href="{{ url_for('admin.edit_user', user_id=user.id) }}" 
+                                           class="btn-small orange waves-effect waves-light">
+                                            <i class="material-icons">edit</i>
+                                        </a>
+                                        {% if user.id != current_user.id %}
+                                        <button type="button" 
+                                                class="btn-small red waves-effect waves-light" 
+                                                onclick="toggleUserStatus({{ user.id }}, {{ user.is_active|lower }})">
+                                            <i class="material-icons">{{ 'block' if user.is_active else 'check_circle' }}</i>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="center-align" style="padding: 40px;">
+                        <i class="material-icons large grey-text">people_outline</i>
+                        <h5 class="grey-text">Nessun utente trovato</h5>
+                        <p class="grey-text">Prova a modificare i filtri di ricerca</p>
+                        <a href="{{ url_for('admin.manage_users') }}" class="btn blue">
+                            <i class="material-icons left">refresh</i>Rimuovi Filtri
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Paginazione -->
+    {% if users.pages > 1 %}
+    <div class="pagination-wrapper">
+        <ul class="pagination">
+            {% if users.has_prev %}
+            <li class="waves-effect">
+                <a href="{{ url_for('admin.manage_users', page=users.prev_num, search=search, status=status_filter, role=role_filter) }}">
+                    <i class="material-icons">chevron_left</i>
+                </a>
+            </li>
+            {% else %}
+            <li class="disabled">
+                <a href="#!"><i class="material-icons">chevron_left</i></a>
+            </li>
+            {% endif %}
+
+            {% for page_num in users.iter_pages() %}
+                {% if page_num %}
+                    {% if page_num != users.page %}
+                    <li class="waves-effect">
+                        <a href="{{ url_for('admin.manage_users', page=page_num, search=search, status=status_filter, role=role_filter) }}">{{ page_num }}</a>
+                    </li>
+                    {% else %}
+                    <li class="active blue">
+                        <a href="#!">{{ page_num }}</a>
+                    </li>
+                    {% endif %}
+                {% else %}
+                <li class="disabled">
+                    <a href="#!">…</a>
+                </li>
+                {% endif %}
+            {% endfor %}
+
+            {% if users.has_next %}
+            <li class="waves-effect">
+                <a href="{{ url_for('admin.manage_users', page=users.next_num, search=search, status=status_filter, role=role_filter) }}">
+                    <i class="material-icons">chevron_right</i>
+                </a>
+            </li>
+            {% else %}
+            <li class="disabled">
+                <a href="#!"><i class="material-icons">chevron_right</i></a>
+            </li>
+            {% endif %}
+        </ul>
+    </div>
+    {% endif %}
+</div>
+
+<div style="height: 50px;"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Inizializza select
+    const selects = document.querySelectorAll('select');
+    M.FormSelect.init(selects);
+
+    // Auto-submit del form quando cambiano i filtri
+    const statusSelect = document.getElementById('status');
+    const roleSelect = document.getElementById('role');
+    
+    statusSelect.addEventListener('change', function() {
+        document.getElementById('filterForm').submit();
+    });
+    
+    roleSelect.addEventListener('change', function() {
+        document.getElementById('filterForm').submit();
+    });
+
+    // Search con debounce
+    const searchInput = document.getElementById('search');
+    let searchTimeout;
+    
+    searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(function() {
+            document.getElementById('filterForm').submit();
+        }, 500);
+    });
+});
+
+function toggleUserStatus(userId, isActive) {
+    const action = isActive ? 'disattivare' : 'attivare';
+    const confirmMessage = `Sei sicuro di voler ${action} questo utente?`;
+    
+    if (confirm(confirmMessage)) {
+        // Implementare chiamata AJAX per toggle status
+        fetch(`/admin/users/${userId}/toggle-status`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                M.toast({html: data.message, classes: 'green'});
+                location.reload();
+            } else {
+                M.toast({html: data.error || 'Errore durante l\'operazione', classes: 'red'});
+            }
+        })
+        .catch(error => {
+            M.toast({html: 'Errore di rete', classes: 'red'});
+        });
+    }
+}
+
+function getCSRFToken() {
+    // Implementare recupero CSRF token se necessario
+    return '';
+}
+</script>
+{% endblock %}

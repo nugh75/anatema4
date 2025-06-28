@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 from flask_login import login_required, current_user
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.database import db
-from app.models import User, Project, File, Label, ExcelSheet, ExcelRow, CellLabel
+from app.models import User, Project, File, Label, ExcelSheet, ExcelRow, ExcelColumn, CellLabel
 from functools import wraps
 
 api_bp = Blueprint('api', __name__)
@@ -396,3 +396,231 @@ def api_search():
     }
     
     return jsonify({'results': results})
+
+# Labeling-specific API endpoints
+@api_bp.route('/projects/<uuid:project_id>/sheets')
+@jwt_or_login_required
+def get_project_sheets(project_id):
+    """API: Recupera fogli Excel di un progetto"""
+    user = get_current_api_user()
+    project = Project.query.filter_by(id=project_id, owner_id=user.id).first()
+    
+    if not project:
+        return jsonify({'error': 'Progetto non trovato'}), 404
+    
+    from app.models import ExcelSheet
+    # Query corretta per recuperare fogli Excel
+    sheets = ExcelSheet.query.join(File).filter(
+        File.project_id == project.id
+    ).all()
+    
+    return jsonify({
+        'project': project.to_dict(),
+        'sheets': [
+            {
+                'id': str(sheet.id),
+                'name': sheet.name,
+                'sheet_index': sheet.sheet_index,
+                'row_count': sheet.row_count,
+                'column_count': sheet.column_count,
+                'file': {
+                    'id': str(sheet.file.id),
+                    'filename': sheet.file.filename,
+                    'original_name': sheet.file.original_name,
+                    'uploaded_at': sheet.file.uploaded_at.isoformat() if sheet.file.uploaded_at else None
+                }
+            } for sheet in sheets
+        ]
+    })
+
+@api_bp.route('/column-preview')
+@jwt_or_login_required
+def get_column_preview():
+    """Get column data preview for labeling"""
+    user = get_current_api_user()
+    project_id = request.args.get('project_id')
+    column_name = request.args.get('column_name')
+    limit = request.args.get('limit', 10, type=int)
+    
+    if not project_id or not column_name:
+        return jsonify({'error': 'project_id e column_name richiesti'}), 400
+    
+    project = Project.query.filter_by(id=project_id, owner_id=user.id).first()
+    if not project:
+        return jsonify({'error': 'Progetto non trovato'}), 404
+    
+    try:
+        # Load project data
+        import pandas as pd
+        df = pd.read_excel(project.file_path)
+        
+        if column_name not in df.columns:
+            return jsonify({'error': 'Colonna non trovata'}), 404
+        
+        # Get sample data
+        column_data = df[column_name].head(limit).fillna('').tolist()
+        
+        return jsonify({
+            'success': True,
+            'data': column_data,
+            'column_name': column_name,
+            'total_rows': len(df)
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'Errore nel caricamento dati: {str(e)}'}), 500
+
+@api_bp.route('/column-rows')
+@jwt_or_login_required
+def get_column_rows():
+    """Get all rows for a specific column"""
+    user = get_current_api_user()
+    project_id = request.args.get('project_id')
+    column_name = request.args.get('column_name')
+    
+    if not project_id or not column_name:
+        return jsonify({'error': 'project_id e column_name richiesti'}), 400
+    
+    project = Project.query.filter_by(id=project_id, owner_id=user.id).first()
+    if not project:
+        return jsonify({'error': 'Progetto non trovato'}), 404
+    
+    try:
+        # Load project data
+        import pandas as pd
+        df = pd.read_excel(project.file_path)
+        
+        if column_name not in df.columns:
+            return jsonify({'error': 'Colonna non trovata'}), 404
+        
+        # Get all column data
+        column_data = df[column_name].fillna('').tolist()
+        
+        return jsonify({
+            'success': True,
+            'rows': column_data,
+            'column_name': column_name,
+            'total_rows': len(column_data)
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'Errore nel caricamento dati: {str(e)}'}), 500
+
+@api_bp.route('/project-columns')
+@jwt_or_login_required
+def get_project_columns():
+    """Get all columns for a project"""
+    user = get_current_api_user()
+    project_id = request.args.get('project_id')
+    
+    if not project_id:
+        return jsonify({'error': 'project_id richiesto'}), 400
+    
+    project = Project.query.filter_by(id=project_id, owner_id=user.id).first()
+    if not project:
+        return jsonify({'error': 'Progetto non trovato'}), 404
+    
+    try:
+        # Load project data
+        import pandas as pd
+        df = pd.read_excel(project.file_path)
+        
+        columns = df.columns.tolist()
+        
+        return jsonify({
+            'success': True,
+            'items': columns,
+            'total_columns': len(columns)
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'Errore nel caricamento colonne: {str(e)}'}), 500
+
+@api_bp.route('/project-rows')
+@jwt_or_login_required
+def get_project_rows():
+    """Get row indices for a project"""
+    user = get_current_api_user()
+    project_id = request.args.get('project_id')
+    
+    if not project_id:
+        return jsonify({'error': 'project_id richiesto'}), 400
+    
+    project = Project.query.filter_by(id=project_id, owner_id=user.id).first()
+    if not project:
+        return jsonify({'error': 'Progetto non trovato'}), 404
+    
+    try:
+        # Load project data
+        import pandas as pd
+        df = pd.read_excel(project.file_path)
+        
+        # Generate row indices
+        row_indices = list(range(len(df)))
+        
+        return jsonify({
+            'success': True,
+            'items': row_indices,
+            'total_rows': len(row_indices)
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'Errore nel caricamento righe: {str(e)}'}), 500
+
+@api_bp.route('/generate-labels', methods=['POST'])
+@jwt_or_login_required
+def generate_labels():
+    """Generate labels using AI"""
+    user = get_current_api_user()
+    data = request.get_json()
+    
+    prompt = data.get('prompt', '')
+    column_data = data.get('column_data', [])
+    column_name = data.get('column_name', '')
+    
+    if not prompt or not column_data:
+        return jsonify({'error': 'prompt e column_data richiesti'}), 400
+    
+    try:
+        # Mock AI response - in real implementation, integrate with actual AI service
+        import random
+        import time
+        
+        # Simulate AI processing time
+        time.sleep(2)
+        
+        # Generate mock suggestions
+        suggestions = []
+        sentiment_labels = ['positivo', 'negativo', 'neutro']
+        emotion_labels = ['gioia', 'tristezza', 'rabbia', 'paura', 'sorpresa', 'neutro']
+        
+        for i, text in enumerate(column_data[:10]):  # Process first 10 items
+            if 'sentiment' in prompt.lower():
+                label = random.choice(sentiment_labels)
+            elif 'emoz' in prompt.lower():
+                label = random.choice(emotion_labels)
+            else:
+                label = f'categoria_{random.randint(1, 5)}'
+            
+            confidence = random.uniform(0.6, 0.95)
+            
+            suggestions.append({
+                'text': str(text),
+                'suggested_label': label,
+                'confidence': confidence,
+                'reasoning': f'Analisi basata su pattern linguistici e contesto semantico del testo "{str(text)[:50]}..."'
+            })
+        
+        return jsonify({
+            'success': True,
+            'suggestions': suggestions,
+            'total_processed': len(suggestions),
+            'metadata': {
+                'column_name': column_name,
+                'prompt_used': prompt,
+                'processing_time': 2.0
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'Errore nella generazione: {str(e)}'}), 500

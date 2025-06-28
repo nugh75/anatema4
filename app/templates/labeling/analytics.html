@@ -1,0 +1,491 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics Etichettatura - Anatema{% endblock %}
+
+{% block content %}
+<div class="container" style="margin-top: 30px;">
+    <div class="row">
+        <div class="col s12">
+            <h4 class="purple-text text-darken-2">
+                <i class="material-icons left">analytics</i>
+                Analytics Etichettatura
+            </h4>
+            <p class="grey-text">Analisi dettagliate delle etichette e dei pattern di utilizzo</p>
+        </div>
+    </div>
+
+    <!-- Summary Statistics -->
+    <div class="row">
+        <div class="col s12 m6 l3">
+            <div class="card blue lighten-4">
+                <div class="card-content center-align">
+                    <i class="material-icons large blue-text">label</i>
+                    <h5 class="blue-text">{{ analytics.total_labels }}</h5>
+                    <p>Etichette Totali</p>
+                </div>
+            </div>
+        </div>
+        <div class="col s12 m6 l3">
+            <div class="card green lighten-4">
+                <div class="card-content center-align">
+                    <i class="material-icons large green-text">assignment_turned_in</i>
+                    <h5 class="green-text">{{ analytics.total_applications }}</h5>
+                    <p>Applicazioni Totali</p>
+                </div>
+            </div>
+        </div>
+        <div class="col s12 m6 l3">
+            <div class="card orange lighten-4">
+                <div class="card-content center-align">
+                    <i class="material-icons large orange-text">auto_awesome</i>
+                    <h5 class="orange-text">{{ analytics.ai_applications }}</h5>
+                    <p>Applicazioni AI</p>
+                </div>
+            </div>
+        </div>
+        <div class="col s12 m6 l3">
+            <div class="card purple lighten-4">
+                <div class="card-content center-align">
+                    <i class="material-icons large purple-text">trending_up</i>
+                    <h5 class="purple-text">{{ "%.1f"|format(analytics.avg_confidence * 100) }}%</h5>
+                    <p>Confidenza Media</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Controls -->
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">Filtri Analisi</span>
+                    <form id="analytics-filters">
+                        <div class="row">
+                            <div class="input-field col s12 m4">
+                                <select id="project-filter">
+                                    <option value="">Tutti i progetti</option>
+                                    {% for project in projects %}
+                                    <option value="{{ project.id }}">{{ project.name }}</option>
+                                    {% endfor %}
+                                </select>
+                                <label>Progetto</label>
+                            </div>
+                            <div class="input-field col s12 m4">
+                                <select id="timeframe-filter">
+                                    <option value="">Tutto il periodo</option>
+                                    <option value="today">Oggi</option>
+                                    <option value="week">Ultima settimana</option>
+                                    <option value="month">Ultimo mese</option>
+                                    <option value="quarter">Ultimo trimestre</option>
+                                </select>
+                                <label>Periodo</label>
+                            </div>
+                            <div class="input-field col s12 m4">
+                                <select id="type-filter">
+                                    <option value="">Tutti i tipi</option>
+                                    <option value="manual">Solo Manuali</option>
+                                    <option value="ai_batch">Solo AI Batch</option>
+                                </select>
+                                <label>Tipo Applicazione</label>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col s12">
+                                <button type="button" class="btn purple waves-effect waves-light" onclick="updateAnalytics()">
+                                    <i class="material-icons left">refresh</i>Aggiorna Analisi
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="row">
+        <!-- Label Distribution -->
+        <div class="col s12 l6">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">Distribuzione Etichette</span>
+                    <canvas id="labelDistributionChart" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Applications Over Time -->
+        <div class="col s12 l6">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">Applicazioni nel Tempo</span>
+                    <canvas id="applicationsTimeChart" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Confidence Distribution -->
+        <div class="col s12 l6">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">Distribuzione Confidenza</span>
+                    <canvas id="confidenceChart" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Manual vs AI Applications -->
+        <div class="col s12 l6">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">Applicazioni: Manuale vs AI</span>
+                    <canvas id="applicationTypeChart" width="400" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detailed Tables -->
+    <div class="row">
+        <!-- Top Labels -->
+        <div class="col s12 l6">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">Etichette Più Utilizzate</span>
+                    <table class="striped">
+                        <thead>
+                            <tr>
+                                <th>Etichetta</th>
+                                <th>Utilizzi</th>
+                                <th>Confidenza Media</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in analytics.top_labels %}
+                            <tr>
+                                <td>
+                                    <span class="chip orange white-text">{{ item.label_name }}</span>
+                                </td>
+                                <td>{{ item.count }}</td>
+                                <td>
+                                    <div class="progress">
+                                        <div class="determinate {{ 'green' if item.avg_confidence > 0.8 else 'orange' if item.avg_confidence > 0.5 else 'red' }}"
+                                             style="width: {{ (item.avg_confidence * 100)|round }}%"></div>
+                                    </div>
+                                    <small>{{ (item.avg_confidence * 100)|round }}%</small>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Project Statistics -->
+        <div class="col s12 l6">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">Statistiche per Progetto</span>
+                    <table class="striped">
+                        <thead>
+                            <tr>
+                                <th>Progetto</th>
+                                <th>Etichette</th>
+                                <th>Applicazioni</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in analytics.project_stats %}
+                            <tr>
+                                <td>{{ item.project_name }}</td>
+                                <td>{{ item.unique_labels }}</td>
+                                <td>{{ item.total_applications }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quality Metrics -->
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">Metriche di Qualità</span>
+                    
+                    <div class="row">
+                        <div class="col s12 m6 l3">
+                            <div class="card-panel blue lighten-5 center-align">
+                                <h6 class="blue-text">Approvazione Suggerimenti</h6>
+                                <h4 class="blue-text">{{ "%.1f"|format(analytics.approval_rate * 100) }}%</h4>
+                                <p>{{ analytics.approved_suggestions }}/{{ analytics.total_suggestions }} suggerimenti approvati</p>
+                            </div>
+                        </div>
+                        
+                        <div class="col s12 m6 l3">
+                            <div class="card-panel green lighten-5 center-align">
+                                <h6 class="green-text">Precisione AI</h6>
+                                <h4 class="green-text">{{ "%.1f"|format(analytics.ai_precision * 100) }}%</h4>
+                                <p>Applicazioni AI ad alta confidenza</p>
+                            </div>
+                        </div>
+                        
+                        <div class="col s12 m6 l3">
+                            <div class="card-panel orange lighten-5 center-align">
+                                <h6 class="orange-text">Efficienza</h6>
+                                <h4 class="orange-text">{{ "%.1f"|format(analytics.efficiency_score * 100) }}%</h4>
+                                <p>Rapporto AI/Manuale ottimale</p>
+                            </div>
+                        </div>
+                        
+                        <div class="col s12 m6 l3">
+                            <div class="card-panel purple lighten-5 center-align">
+                                <h6 class="purple-text">Completezza</h6>
+                                <h4 class="purple-text">{{ "%.1f"|format(analytics.completeness * 100) }}%</h4>
+                                <p>Copertura dati etichettati</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity Timeline -->
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">Timeline Attività Recenti</span>
+                    
+                    <ul class="collection">
+                        {% for activity in analytics.recent_activities %}
+                        <li class="collection-item avatar">
+                            <i class="material-icons circle {{ 'blue' if activity.type == 'generation' else 'green' if activity.type == 'approval' else 'orange' if activity.type == 'application' else 'purple' }}">
+                                {{ 'auto_awesome' if activity.type == 'generation' else 'check_circle' if activity.type == 'approval' else 'label' if activity.type == 'application' else 'analytics' }}
+                            </i>
+                            <span class="title">{{ activity.description }}</span>
+                            <p>{{ activity.project_name }}<br>
+                               <time>{{ activity.timestamp.strftime('%d/%m/%Y alle %H:%M') }}</time>
+                            </p>
+                            {% if activity.type == 'application' %}
+                            <div class="secondary-content">
+                                <div class="progress">
+                                    <div class="determinate {{ 'green' if activity.confidence > 0.8 else 'orange' if activity.confidence > 0.5 else 'red' }}"
+                                         style="width: {{ (activity.confidence * 100)|round }}%"></div>
+                                </div>
+                                <small>{{ (activity.confidence * 100)|round }}% confidenza</small>
+                            </div>
+                            {% endif %}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Options -->
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">Esporta Dati</span>
+                    <p>Esporta i dati analitici in diversi formati per ulteriori analisi</p>
+                    
+                    <div class="row">
+                        <div class="col s12 m6 l3">
+                            <a href="{{ url_for('labeling.export_analytics', format='csv') }}" 
+                               class="btn blue waves-effect waves-light">
+                                <i class="material-icons left">file_download</i>CSV
+                            </a>
+                        </div>
+                        <div class="col s12 m6 l3">
+                            <a href="{{ url_for('labeling.export_analytics', format='excel') }}" 
+                               class="btn green waves-effect waves-light">
+                                <i class="material-icons left">file_download</i>Excel
+                            </a>
+                        </div>
+                        <div class="col s12 m6 l3">
+                            <a href="{{ url_for('labeling.export_analytics', format='json') }}" 
+                               class="btn orange waves-effect waves-light">
+                                <i class="material-icons left">file_download</i>JSON
+                            </a>
+                        </div>
+                        <div class="col s12 m6 l3">
+                            <button class="btn purple waves-effect waves-light" onclick="generateReport()">
+                                <i class="material-icons left">picture_as_pdf</i>Report PDF
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+// Chart data from backend
+const chartData = {{ chart_data|tojsonfilter|safe }};
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Material Design components
+    M.FormSelect.init(document.querySelectorAll('select'));
+    
+    // Initialize charts
+    initCharts();
+});
+
+function initCharts() {
+    // Label Distribution Pie Chart
+    const labelCtx = document.getElementById('labelDistributionChart').getContext('2d');
+    new Chart(labelCtx, {
+        type: 'doughnut',
+        data: {
+            labels: chartData.labelDistribution.labels,
+            datasets: [{
+                data: chartData.labelDistribution.values,
+                backgroundColor: [
+                    '#2196F3', '#4CAF50', '#FF9800', '#9C27B0', '#F44336',
+                    '#00BCD4', '#FFEB3B', '#795548', '#607D8B', '#E91E63'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+    
+    // Applications Over Time Line Chart
+    const timeCtx = document.getElementById('applicationsTimeChart').getContext('2d');
+    new Chart(timeCtx, {
+        type: 'line',
+        data: {
+            labels: chartData.timelineData.labels,
+            datasets: [{
+                label: 'Applicazioni',
+                data: chartData.timelineData.values,
+                borderColor: '#2196F3',
+                backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+    
+    // Confidence Distribution Histogram
+    const confidenceCtx = document.getElementById('confidenceChart').getContext('2d');
+    new Chart(confidenceCtx, {
+        type: 'bar',
+        data: {
+            labels: ['0-20%', '21-40%', '41-60%', '61-80%', '81-100%'],
+            datasets: [{
+                label: 'Numero Applicazioni',
+                data: chartData.confidenceDistribution,
+                backgroundColor: ['#F44336', '#FF9800', '#FFC107', '#8BC34A', '#4CAF50']
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+    
+    // Manual vs AI Applications
+    const typeCtx = document.getElementById('applicationTypeChart').getContext('2d');
+    new Chart(typeCtx, {
+        type: 'pie',
+        data: {
+            labels: ['Manuali', 'AI Batch'],
+            datasets: [{
+                data: [chartData.manualApplications, chartData.aiApplications],
+                backgroundColor: ['#2196F3', '#9C27B0']
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+}
+
+function updateAnalytics() {
+    const projectId = document.getElementById('project-filter').value;
+    const timeframe = document.getElementById('timeframe-filter').value;
+    const type = document.getElementById('type-filter').value;
+    
+    const params = new URLSearchParams();
+    if (projectId) params.append('project_id', projectId);
+    if (timeframe) params.append('timeframe', timeframe);
+    if (type) params.append('type', type);
+    
+    window.location.href = `{{ url_for('labeling.label_analytics') }}?${params.toString()}`;
+}
+
+function generateReport() {
+    // Trigger PDF report generation
+    window.open(`{{ url_for('labeling.generate_pdf_report') }}`, '_blank');
+}
+</script>
+
+{% block extra_css %}
+<style>
+.progress {
+    height: 8px;
+    margin: 5px 0;
+}
+
+.collection .collection-item.avatar .secondary-content {
+    right: 16px;
+    top: 16px;
+}
+
+.card-panel h4 {
+    margin: 10px 0;
+}
+
+.card-panel h6 {
+    margin-bottom: 10px;
+    font-weight: 500;
+}
+
+.chip {
+    margin: 2px;
+}
+
+canvas {
+    max-height: 300px;
+}
+</style>
+{% endblock %}
+{% endblock %}

@@ -5,6 +5,7 @@ from app.database import db
 from app.models import User
 from datetime import datetime
 import re
+import uuid
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -41,23 +42,107 @@ def login():
             (User.username == username) | (User.email == username)
         ).first()
         
-        if user and user.check_password(password) and user.is_active:
-            user.last_login = datetime.utcnow()
-            db.session.commit()
+        if user:
+            # Controlla se l'account è bloccato
+            if user.is_account_locked():
+                error_msg = f'Account temporaneamente bloccato fino alle {user.locked_until.strftime("%H:%M:%S")} per troppi tentativi falliti'
+                if request.is_json:
+                    return jsonify({'error': error_msg}), 423
+                flash(error_msg, 'error')
+                return render_template('auth/login.html')
             
-            if request.is_json:
-                access_token = create_access_token(identity=str(user.id))
-                refresh_token = create_refresh_token(identity=str(user.id))
-                return jsonify({
-                    'access_token': access_token,
-                    'refresh_token': refresh_token,
-                    'user': user.to_dict()
-                })
+            # Controlla se l'account è attivo
+            if not user.is_active:
+                error_msg = 'Account disattivato. Contatta l\'amministratore.'
+                if request.is_json:
+                    return jsonify({'error': error_msg}), 403
+                flash(error_msg, 'error')
+                return render_template('auth/login.html')
+            
+            # Verifica la password
+            if user.check_password(password):
+                # Login riuscito - aggiorna ultimo login e resetta tentativi
+                user.update_last_login()
+                
+                # Log dell'accesso riuscito
+                try:
+                    from app.models_admin import AuditLog
+                    log_entry = AuditLog(
+                        user_id=user.id,
+                        action='user_login',
+                        resource_type='auth',
+                        resource_id=str(user.id),
+                        details={'username': user.username, 'success': True},
+                        ip_address=request.remote_addr,
+                        user_agent=request.user_agent.string,
+                        created_at=datetime.utcnow()
+                    )
+                    db.session.add(log_entry)
+                    db.session.commit()
+                except ImportError:
+                    # I modelli admin potrebbero non essere ancora disponibili
+                    pass
+                
+                if request.is_json:
+                    access_token = create_access_token(identity=str(user.id))
+                    refresh_token = create_refresh_token(identity=str(user.id))
+                    return jsonify({
+                        'access_token': access_token,
+                        'refresh_token': refresh_token,
+                        'user': user.to_dict()
+                    })
+                else:
+                    login_user(user, remember=True)
+                    next_page = request.args.get('next')
+                    return redirect(next_page) if next_page else redirect(url_for('main.dashboard'))
             else:
-                login_user(user, remember=True)
-                next_page = request.args.get('next')
-                return redirect(next_page) if next_page else redirect(url_for('main.dashboard'))
+                # Password errata - incrementa tentativi falliti
+                user.increment_login_attempts()
+                
+                # Log del tentativo fallito
+                try:
+                    from app.models_admin import AuditLog
+                    log_entry = AuditLog(
+                        user_id=user.id,
+                        action='user_login_failed',
+                        resource_type='auth',
+                        resource_id=str(user.id),
+                        details={'username': user.username, 'reason': 'invalid_password'},
+                        ip_address=request.remote_addr,
+                        user_agent=request.user_agent.string,
+                        created_at=datetime.utcnow()
+                    )
+                    db.session.add(log_entry)
+                    db.session.commit()
+                except ImportError:
+                    pass
+                
+                error_msg = 'Password non corretta'
+                if user.login_attempts >= 3:
+                    remaining = 5 - user.login_attempts
+                    if remaining > 0:
+                        error_msg += f'. Attenzione: rimangono {remaining} tentativi prima del blocco dell\'account.'
+                
+                if request.is_json:
+                    return jsonify({'error': error_msg}), 401
+                flash(error_msg, 'error')
         else:
+            # Utente non trovato
+            try:
+                from app.models_admin import AuditLog
+                log_entry = AuditLog(
+                    action='user_login_failed',
+                    resource_type='auth',
+                    details={'username': username, 'reason': 'user_not_found'},
+                    ip_address=request.remote_addr,
+                    user_agent=request.user_agent.string,
+                    created_at=datetime.utcnow()
+                )
+                db.session.add(log_entry)
+                db.session.commit()
+            except ImportError:
+                pass
+            
             if request.is_json:
                 return jsonify({'error': 'Credenziali non valide'}), 401
             flash('Credenziali non valide', 'error')
@@ -113,13 +198,44 @@ def register():
         
         # Create new user
         user = User(
+            id=uuid.uuid4(),
             username=username,
             email=email,
-            role='user'
+            role='user',
+            is_active=True,
+            is_admin=False,
+            is_superuser=False,
+            email_verified=False,  # Richiederà verifica se abilitata
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
         )
         user.set_password(password)
         
         db.session.add(user)
+        db.session.flush()  # Per ottenere l'ID
+        
+        # Log della registrazione
+        try:
+            from app.models_admin import AuditLog
+            log_entry = AuditLog(
+                user_id=user.id,
+                action='user_registered',
+                resource_type='user',
+                resource_id=str(user.id),
+                details={
+                    'username': user.username,
+                    'email': user.email,
+                    'registration_method': 'web_form' if not request.is_json else 'api'
+                },
+                ip_address=request.remote_addr,
+                user_agent=request.user_agent.string,
+                created_at=datetime.utcnow()
+            )
+            db.session.add(log_entry)
+        except ImportError:
+            # I modelli admin potrebbero non essere ancora disponibili
+            pass
+        
         db.session.commit()
         
         if request.is_json:
@@ -156,16 +272,21 @@ def update_profile():
     if request.is_json:
         data = request.get_json()
         email = data.get('email', '').strip().lower()
+        first_name = data.get('first_name', '').strip()
+        last_name = data.get('last_name', '').strip()
         current_password = data.get('current_password', '')
         new_password = data.get('new_password', '')
     else:
         email = request.form.get('email', '').strip().lower()
+        first_name = request.form.get('first_name', '').strip()
+        last_name = request.form.get('last_name', '').strip()
         current_password = request.form.get('current_password', '')
         new_password = request.form.get('new_password', '')
     
     errors = []
+    updated_fields = []
     
-    # Validate email
+    # Validate and update email
     if email and email != current_user.email:
         if not validate_email(email):
             errors.append('Email non valida')
@@ -173,6 +294,16 @@ def update_profile():
             errors.append('Email già utilizzata da un altro utente')
         else:
             current_user.email = email
+            updated_fields.append('email')
+    
+    # Update profile information
+    if first_name != (current_user.first_name or ''):
+        current_user.first_name = first_name if first_name else None
+        updated_fields.append('first_name')
+    
+    if last_name != (current_user.last_name or ''):
+        current_user.last_name = last_name if last_name else None
+        updated_fields.append('last_name')
     
     # Change password if provided
     if new_password:
@@ -184,6 +315,7 @@ def update_profile():
             errors.append('Nuova password deve essere di almeno 6 caratteri')
         else:
             current_user.set_password(new_password)
+            updated_fields.append('password')
     
     if errors:
         if request.is_json:
@@ -191,6 +323,27 @@ def update_profile():
         for error in errors:
             flash(error, 'error')
         return render_template('auth/profile.html', user=current_user)
+    
+    # Update timestamp
+    if updated_fields:
+        current_user.updated_at = datetime.utcnow()
+        
+        # Log dell'aggiornamento profilo
+        try:
+            from app.models_admin import AuditLog
+            log_entry = AuditLog(
+                user_id=current_user.id,
+                action='profile_updated',
+                resource_type='user',
+                resource_id=str(current_user.id),
+                details={'updated_fields': updated_fields},
+                ip_address=request.remote_addr,
+                user_agent=request.user_agent.string,
+                created_at=datetime.utcnow()
+            )
+            db.session.add(log_entry)
+        except ImportError:
+            pass
     
     db.session.commit()
     

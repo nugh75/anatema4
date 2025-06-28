@@ -1,0 +1,387 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard Amministrazione - Anatema{% endblock %}
+
+{% block extra_css %}
+<style>
+.admin-header {
+    background: linear-gradient(135deg, #1565c0 0%, #0d47a1 100%);
+    color: white;
+    padding: 30px 0;
+    margin-bottom: 30px;
+}
+
+.stat-card {
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: transform 0.2s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+}
+
+.stat-icon {
+    font-size: 48px;
+    opacity: 0.8;
+}
+
+.stat-number {
+    font-size: 2.5rem;
+    font-weight: 300;
+    margin: 10px 0;
+}
+
+.quick-action-card {
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.quick-action-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.log-entry {
+    padding: 12px;
+    border-left: 4px solid #2196f3;
+    margin-bottom: 8px;
+    background: #f8f9fa;
+    border-radius: 4px;
+}
+
+.log-entry.error {
+    border-left-color: #f44336;
+}
+
+.log-entry.success {
+    border-left-color: #4caf50;
+}
+
+.log-entry.warning {
+    border-left-color: #ff9800;
+}
+
+.admin-nav {
+    background: #fff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 30px;
+}
+
+.admin-nav .nav-item {
+    display: inline-block;
+    margin-right: 20px;
+}
+
+.admin-nav .nav-item a {
+    color: #1976d2;
+    text-decoration: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.admin-nav .nav-item a:hover {
+    background: #e3f2fd;
+}
+
+.admin-nav .nav-item.active a {
+    background: #1976d2;
+    color: white;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="admin-header">
+    <div class="container">
+        <div class="row">
+            <div class="col s12">
+                <h3><i class="material-icons left">admin_panel_settings</i>Pannello di Amministrazione</h3>
+                <p class="flow-text">Gestisci utenti, configurazioni LLM e impostazioni sistema</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <!-- Navigation -->
+    <div class="admin-nav">
+        <div class="nav-item active">
+            <a href="{{ url_for('admin.dashboard') }}">
+                <i class="material-icons left">dashboard</i>Dashboard
+            </a>
+        </div>
+        <div class="nav-item">
+            <a href="{{ url_for('admin.manage_users') }}">
+                <i class="material-icons left">people</i>Utenti
+            </a>
+        </div>
+        <div class="nav-item">
+            <a href="{{ url_for('admin.manage_llm_configs') }}">
+                <i class="material-icons left">psychology</i>Configurazioni LLM
+            </a>
+        </div>
+        <div class="nav-item">
+            <a href="{{ url_for('admin.system_settings') }}">
+                <i class="material-icons left">settings</i>Impostazioni
+            </a>
+        </div>
+        <div class="nav-item">
+            <a href="{{ url_for('admin.audit_logs') }}">
+                <i class="material-icons left">history</i>Log Audit
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistiche -->
+    <div class="row">
+        <div class="col s12 m6 l3">
+            <div class="card stat-card blue lighten-5">
+                <div class="card-content center-align">
+                    <i class="material-icons stat-icon blue-text">people</i>
+                    <div class="stat-number blue-text">{{ stats.total_users }}</div>
+                    <p class="grey-text">Utenti Totali</p>
+                    <small class="green-text">{{ stats.active_users }} attivi</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col s12 m6 l3">
+            <div class="card stat-card green lighten-5">
+                <div class="card-content center-align">
+                    <i class="material-icons stat-icon green-text">folder</i>
+                    <div class="stat-number green-text">{{ stats.total_projects }}</div>
+                    <p class="grey-text">Progetti Totali</p>
+                    <small class="blue-text">{{ stats.recent_projects }} negli ultimi 30gg</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col s12 m6 l3">
+            <div class="card stat-card orange lighten-5">
+                <div class="card-content center-align">
+                    <i class="material-icons stat-icon orange-text">psychology</i>
+                    <div class="stat-number orange-text">{{ stats.active_llm_configs }}</div>
+                    <p class="grey-text">Config LLM Attive</p>
+                    <small class="grey-text">{{ stats.total_llm_configs }} totali</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="col s12 m6 l3">
+            <div class="card stat-card purple lighten-5">
+                <div class="card-content center-align">
+                    <i class="material-icons stat-icon purple-text">person_add</i>
+                    <div class="stat-number purple-text">{{ stats.recent_users }}</div>
+                    <p class="grey-text">Nuovi Utenti</p>
+                    <small class="grey-text">Ultimi 30 giorni</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Azioni Rapide -->
+    <div class="row">
+        <div class="col s12">
+            <h5><i class="material-icons left">flash_on</i>Azioni Rapide</h5>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col s12 m6 l4">
+            <div class="card quick-action-card hoverable" onclick="window.location.href='{{ url_for('admin.manage_users') }}'">
+                <div class="card-content center-align">
+                    <i class="material-icons large blue-text">people</i>
+                    <h6>Gestisci Utenti</h6>
+                    <p class="grey-text">Aggiungi, modifica o disattiva utenti</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col s12 m6 l4">
+            <div class="card quick-action-card hoverable" onclick="window.location.href='{{ url_for('admin.create_llm_config') }}'">
+                <div class="card-content center-align">
+                    <i class="material-icons large green-text">add_circle</i>
+                    <h6>Nuova Config LLM</h6>
+                    <p class="grey-text">Configura un nuovo provider LLM</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col s12 m6 l4">
+            <div class="card quick-action-card hoverable" onclick="window.location.href='{{ url_for('admin.system_settings') }}'">
+                <div class="card-content center-align">
+                    <i class="material-icons large orange-text">settings</i>
+                    <h6>Impostazioni Sistema</h6>
+                    <p class="grey-text">Configura l'applicazione</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Configurazione LLM Attiva -->
+    {% if active_llm_config %}
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <div class="card-title">
+                        <i class="material-icons left">psychology</i>Configurazione LLM Attiva
+                        <span class="badge green white-text right">ATTIVA</span>
+                    </div>
+                    <div class="row">
+                        <div class="col s12 m6">
+                            <p><strong>Nome:</strong> {{ active_llm_config.name }}</p>
+                            <p><strong>Provider:</strong> {{ active_llm_config.provider }}</p>
+                            <p><strong>Modello:</strong> {{ active_llm_config.model_name }}</p>
+                        </div>
+                        <div class="col s12 m6">
+                            <p><strong>Max Tokens:</strong> {{ active_llm_config.max_tokens }}</p>
+                            <p><strong>Temperature:</strong> {{ active_llm_config.temperature }}</p>
+                            <p><strong>Limite giornaliero:</strong> {{ active_llm_config.max_requests_per_day }}</p>
+                        </div>
+                    </div>
+                    <div class="card-action">
+                        <a href="{{ url_for('admin.manage_llm_configs') }}" class="btn blue">
+                            <i class="material-icons left">edit</i>Gestisci Configurazioni
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="row">
+        <div class="col s12">
+            <div class="card orange lighten-4">
+                <div class="card-content">
+                    <div class="card-title orange-text">
+                        <i class="material-icons left">warning</i>Nessuna Configurazione LLM Attiva
+                    </div>
+                    <p>Non è stata configurata nessuna configurazione LLM predefinita. Le funzionalità AI potrebbero non funzionare correttamente.</p>
+                    <div class="card-action">
+                        <a href="{{ url_for('admin.create_llm_config') }}" class="btn orange">
+                            <i class="material-icons left">add</i>Crea Configurazione
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Log di Audit Recenti -->
+    <div class="row">
+        <div class="col s12">
+            <h5><i class="material-icons left">history</i>Attività Recenti</h5>
+            <div class="card">
+                <div class="card-content">
+                    {% if recent_logs %}
+                        {% for log in recent_logs %}
+                        <div class="log-entry {{ 'error' if 'error' in log.action.lower() else 'success' if 'created' in log.action.lower() or 'updated' in log.action.lower() else 'warning' if 'deleted' in log.action.lower() else '' }}">
+                            <div class="row valign-wrapper" style="margin-bottom: 0;">
+                                <div class="col s8">
+                                    <strong>{{ log.action }}</strong>
+                                    {% if log.description %}
+                                    - {{ log.description }}
+                                    {% endif %}
+                                </div>
+                                <div class="col s4 right-align">
+                                    <small class="grey-text">
+                                        {{ log.timestamp.strftime('%d/%m/%Y %H:%M') }}
+                                    </small>
+                                </div>
+                            </div>
+                            {% if log.user %}
+                            <div class="row" style="margin-bottom: 0;">
+                                <div class="col s12">
+                                    <small class="grey-text">
+                                        <i class="material-icons tiny">person</i>
+                                        {{ log.user.username }}
+                                        {% if log.ip_address %}
+                                        da {{ log.ip_address }}
+                                        {% endif %}
+                                    </small>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                    <p class="grey-text center-align">Nessuna attività recente</p>
+                    {% endif %}
+                    
+                    <div class="card-action center-align">
+                        <a href="{{ url_for('admin.audit_logs') }}" class="btn-flat blue-text">
+                            <i class="material-icons left">visibility</i>Visualizza Tutti i Log
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Impostazioni Sistema -->
+    {% if system_settings %}
+    <div class="row">
+        <div class="col s12">
+            <h5><i class="material-icons left">info</i>Stato Sistema</h5>
+            <div class="card">
+                <div class="card-content">
+                    <div class="row">
+                        <div class="col s12 m6">
+                            <p><strong>Nome Applicazione:</strong> {{ system_settings.app_name }}</p>
+                            <p><strong>Modalità Manutenzione:</strong> 
+                                <span class="badge {{ 'red' if system_settings.maintenance_mode else 'green' }} white-text">
+                                    {{ 'ATTIVA' if system_settings.maintenance_mode else 'INATTIVA' }}
+                                </span>
+                            </p>
+                        </div>
+                        <div class="col s12 m6">
+                            <p><strong>Timeout Sessione:</strong> {{ system_settings.session_timeout_minutes }} minuti</p>
+                            <p><strong>Log Sistema:</strong> 
+                                <span class="badge {{ 'green' if system_settings.enable_system_logs else 'grey' }} white-text">
+                                    {{ 'ABILITATI' if system_settings.enable_system_logs else 'DISABILITATI' }}
+                                </span>
+                            </p>
+                        </div>
+                    </div>
+                    <div class="card-action">
+                        <a href="{{ url_for('admin.system_settings') }}" class="btn blue">
+                            <i class="material-icons left">settings</i>Modifica Impostazioni
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<div style="height: 50px;"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-refresh delle statistiche ogni 5 minuti
+    setInterval(function() {
+        // Implementare refresh AJAX se necessario
+        // location.reload();
+    }, 300000);
+    
+    // Tooltip per le azioni rapide
+    const quickActions = document.querySelectorAll('.quick-action-card');
+    quickActions.forEach(card => {
+        card.addEventListener('mouseenter', function() {
+            this.style.cursor = 'pointer';
+        });
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,604 @@
+{% extends "base.html" %}
+
+{% block title %}Log Audit - Amministrazione{% endblock %}
+
+{% block extra_css %}
+<style>
+.admin-header {
+    background: linear-gradient(135deg, #1565c0 0%, #0d47a1 100%);
+    color: white;
+    padding: 30px 0;
+    margin-bottom: 30px;
+}
+
+.admin-nav {
+    background: #fff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 30px;
+}
+
+.admin-nav .nav-item {
+    display: inline-block;
+    margin-right: 20px;
+}
+
+.admin-nav .nav-item a {
+    color: #1976d2;
+    text-decoration: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.admin-nav .nav-item a:hover {
+    background: #e3f2fd;
+}
+
+.admin-nav .nav-item.active a {
+    background: #1976d2;
+    color: white;
+}
+
+.filter-section {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.log-entry {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    overflow: hidden;
+    transition: box-shadow 0.2s ease;
+}
+
+.log-entry:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.log-header {
+    padding: 15px 20px;
+    background: #fafafa;
+    border-bottom: 1px solid #e0e0e0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.log-content {
+    padding: 15px 20px;
+}
+
+.log-details {
+    padding: 15px 20px;
+    background: #f8f9fa;
+    border-top: 1px solid #e0e0e0;
+    display: none;
+}
+
+.log-details.show {
+    display: block;
+}
+
+.action-badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    font-weight: 500;
+}
+
+.action-create { background: #d4edda; color: #155724; }
+.action-update { background: #cce5ff; color: #004085; }
+.action-delete { background: #f8d7da; color: #721c24; }
+.action-login { background: #fff3cd; color: #856404; }
+.action-error { background: #f8d7da; color: #721c24; }
+.action-default { background: #e2e3e5; color: #383d41; }
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #2196f3;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.8em;
+}
+
+.log-meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.meta-item {
+    background: #f8f9fa;
+    padding: 10px;
+    border-radius: 4px;
+}
+
+.meta-label {
+    font-size: 0.8em;
+    color: #666;
+    margin-bottom: 5px;
+}
+
+.meta-value {
+    font-family: monospace;
+    font-size: 0.9em;
+    word-break: break-all;
+}
+
+.changes-diff {
+    background: #f8f9fa;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    padding: 15px;
+    margin-top: 15px;
+}
+
+.diff-section {
+    margin-bottom: 15px;
+}
+
+.diff-section:last-child {
+    margin-bottom: 0;
+}
+
+.diff-label {
+    font-weight: 500;
+    margin-bottom: 8px;
+    color: #495057;
+}
+
+.diff-content {
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 10px;
+    font-family: monospace;
+    font-size: 0.9em;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.diff-old {
+    background: #ffeaa7;
+    border-color: #fdcb6e;
+}
+
+.diff-new {
+    background: #81ecec;
+    border-color: #00cec9;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin: 40px 0;
+}
+
+.pagination-wrapper {
+    text-align: center;
+    margin-top: 30px;
+}
+
+.export-section {
+    background: #e3f2fd;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.stat-card {
+    background: #fff;
+    padding: 15px;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.stat-number {
+    font-size: 1.5em;
+    font-weight: bold;
+    color: #1976d2;
+}
+
+.stat-label {
+    font-size: 0.9em;
+    color: #666;
+    margin-top: 5px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="admin-header">
+    <div class="container">
+        <div class="row">
+            <div class="col s12">
+                <h3><i class="material-icons left">history</i>Log Audit</h3>
+                <p class="flow-text">Monitora tutte le attività del sistema e degli utenti</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <!-- Navigation -->
+    <div class="admin-nav">
+        <div class="nav-item">
+            <a href="{{ url_for('admin.dashboard') }}">
+                <i class="material-icons left">dashboard</i>Dashboard
+            </a>
+        </div>
+        <div class="nav-item">
+            <a href="{{ url_for('admin.manage_users') }}">
+                <i class="material-icons left">people</i>Utenti
+            </a>
+        </div>
+        <div class="nav-item">
+            <a href="{{ url_for('admin.manage_llm_configs') }}">
+                <i class="material-icons left">psychology</i>Configurazioni LLM
+            </a>
+        </div>
+        <div class="nav-item">
+            <a href="{{ url_for('admin.system_settings') }}">
+                <i class="material-icons left">settings</i>Impostazioni
+            </a>
+        </div>
+        <div class="nav-item active">
+            <a href="{{ url_for('admin.audit_logs') }}">
+                <i class="material-icons left">history</i>Log Audit
+            </a>
+        </div>
+    </div>
+
+    <!-- Statistiche Rapide -->
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-number">{{ logs.total if logs else 0 }}</div>
+            <div class="stat-label">Log Totali</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{ users|length if users else 0 }}</div>
+            <div class="stat-label">Utenti Attivi</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{ actions|length if actions else 0 }}</div>
+            <div class="stat-label">Tipi Azione</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-number">{{ resource_types|length if resource_types else 0 }}</div>
+            <div class="stat-label">Tipi Risorsa</div>
+        </div>
+    </div>
+
+    <!-- Export -->
+    <div class="export-section">
+        <div class="row valign-wrapper">
+            <div class="col s12 m8">
+                <h6><i class="material-icons left">file_download</i>Esporta Log</h6>
+                <p>Scarica i log di audit in formato CSV o JSON per analisi offline</p>
+            </div>
+            <div class="col s12 m4 right-align">
+                <button class="btn blue waves-effect waves-light" onclick="exportLogs('csv')">
+                    <i class="material-icons left">table_chart</i>CSV
+                </button>
+                <button class="btn green waves-effect waves-light" style="margin-left: 10px;" onclick="exportLogs('json')">
+                    <i class="material-icons left">code</i>JSON
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtri -->
+    <div class="filter-section">
+        <form method="GET" id="filterForm">
+            <div class="row">
+                <div class="col s12 m3">
+                    <div class="input-field">
+                        <select name="user" id="user">
+                            <option value="">Tutti gli utenti</option>
+                            {% for user in users %}
+                            <option value="{{ user.id }}" {{ 'selected' if filters.user == user.id|string }}>
+                                {{ user.username }} ({{ user.first_name }} {{ user.last_name }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <label>Utente</label>
+                    </div>
+                </div>
+                <div class="col s12 m3">
+                    <div class="input-field">
+                        <select name="action" id="action">
+                            <option value="">Tutte le azioni</option>
+                            {% for action in actions %}
+                            <option value="{{ action }}" {{ 'selected' if filters.action == action }}>{{ action }}</option>
+                            {% endfor %}
+                        </select>
+                        <label>Azione</label>
+                    </div>
+                </div>
+                <div class="col s12 m2">
+                    <div class="input-field">
+                        <select name="resource_type" id="resource_type">
+                            <option value="">Tutte le risorse</option>
+                            {% for resource_type in resource_types %}
+                            <option value="{{ resource_type }}" {{ 'selected' if filters.resource_type == resource_type }}>{{ resource_type }}</option>
+                            {% endfor %}
+                        </select>
+                        <label>Tipo Risorsa</label>
+                    </div>
+                </div>
+                <div class="col s12 m2">
+                    <div class="input-field">
+                        <input type="date" id="date_from" name="date_from" value="{{ filters.date_from or '' }}">
+                        <label for="date_from">Da</label>
+                    </div>
+                </div>
+                <div class="col s12 m2">
+                    <div class="input-field">
+                        <input type="date" id="date_to" name="date_to" value="{{ filters.date_to or '' }}">
+                        <label for="date_to">A</label>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col s12 right-align">
+                    <button type="submit" class="btn blue waves-effect waves-light">
+                        <i class="material-icons left">filter_list</i>Applica Filtri
+                    </button>
+                    <a href="{{ url_for('admin.audit_logs') }}" class="btn grey waves-effect waves-light" style="margin-left: 10px;">
+                        <i class="material-icons left">clear</i>Cancella Filtri
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Lista Log -->
+    {% if logs and logs.items %}
+    <div class="row">
+        <div class="col s12">
+            <h5>Log di Audit</h5>
+            <p class="grey-text">
+                Pagina {{ logs.page }} di {{ logs.pages }} ({{ logs.total }} totali)
+            </p>
+
+            {% for log in logs.items %}
+            <div class="log-entry">
+                <div class="log-header">
+                    <div>
+                        <span class="action-badge action-{{ log.action.split('_')[0] if '_' in log.action else 'default' }}">
+                            {{ log.action }}
+                        </span>
+                        {% if log.description %}
+                        <span style="margin-left: 10px; color: #666;">{{ log.description }}</span>
+                        {% endif %}
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        {% if log.user %}
+                        <div class="user-info">
+                            <div class="user-avatar">
+                                {{ log.user.username[0].upper() }}
+                            </div>
+                            <span>{{ log.user.username }}</span>
+                        </div>
+                        {% else %}
+                        <span class="grey-text">Sistema</span>
+                        {% endif %}
+                        <span class="grey-text">{{ log.timestamp.strftime('%d/%m/%Y %H:%M:%S') }}</span>
+                        <button type="button" class="btn-flat" onclick="toggleLogDetails('{{ log.id }}')">
+                            <i class="material-icons">expand_more</i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="log-details" id="details-{{ log.id }}">
+                    <div class="log-meta">
+                        {% if log.resource_type %}
+                        <div class="meta-item">
+                            <div class="meta-label">Tipo Risorsa</div>
+                            <div class="meta-value">{{ log.resource_type }}</div>
+                        </div>
+                        {% endif %}
+                        {% if log.resource_id %}
+                        <div class="meta-item">
+                            <div class="meta-label">ID Risorsa</div>
+                            <div class="meta-value">{{ log.resource_id }}</div>
+                        </div>
+                        {% endif %}
+                        {% if log.ip_address %}
+                        <div class="meta-item">
+                            <div class="meta-label">Indirizzo IP</div>
+                            <div class="meta-value">{{ log.ip_address }}</div>
+                        </div>
+                        {% endif %}
+                        {% if log.user_agent %}
+                        <div class="meta-item">
+                            <div class="meta-label">User Agent</div>
+                            <div class="meta-value">{{ log.user_agent[:100] }}{% if log.user_agent|length > 100 %}...{% endif %}</div>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    {% if log.old_values or log.new_values %}
+                    <div class="changes-diff">
+                        <h6><i class="material-icons left">compare_arrows</i>Modifiche</h6>
+                        
+                        {% if log.old_values %}
+                        <div class="diff-section">
+                            <div class="diff-label">Valori Precedenti:</div>
+                            <pre class="diff-content diff-old">{{ log.old_values|tojsonfilter }}</pre>
+                        </div>
+                        {% endif %}
+
+                        {% if log.new_values %}
+                        <div class="diff-section">
+                            <div class="diff-label">Nuovi Valori:</div>
+                            <pre class="diff-content diff-new">{{ log.new_values|tojsonfilter }}</pre>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+
+            <!-- Paginazione -->
+            {% if logs.pages > 1 %}
+            <div class="pagination-wrapper">
+                <ul class="pagination">
+                    {% if logs.has_prev %}
+                    <li class="waves-effect">
+                        <a href="{{ url_for('admin.audit_logs', page=logs.prev_num, **filters) }}">
+                            <i class="material-icons">chevron_left</i>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="disabled">
+                        <a href="#!"><i class="material-icons">chevron_left</i></a>
+                    </li>
+                    {% endif %}
+
+                    {% for page_num in logs.iter_pages() %}
+                        {% if page_num %}
+                            {% if page_num != logs.page %}
+                            <li class="waves-effect">
+                                <a href="{{ url_for('admin.audit_logs', page=page_num, **filters) }}">{{ page_num }}</a>
+                            </li>
+                            {% else %}
+                            <li class="active blue">
+                                <a href="#!">{{ page_num }}</a>
+                            </li>
+                            {% endif %}
+                        {% else %}
+                        <li class="disabled">
+                            <a href="#!">…</a>
+                        </li>
+                        {% endif %}
+                    {% endfor %}
+
+                    {% if logs.has_next %}
+                    <li class="waves-effect">
+                        <a href="{{ url_for('admin.audit_logs', page=logs.next_num, **filters) }}">
+                            <i class="material-icons">chevron_right</i>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="disabled">
+                        <a href="#!"><i class="material-icons">chevron_right</i></a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% else %}
+    <!-- Stato Vuoto -->
+    <div class="empty-state">
+        <i class="material-icons large grey-text">history</i>
+        <h4 class="grey-text">Nessun log trovato</h4>
+        <p class="grey-text">
+            {% if filters.user or filters.action or filters.resource_type or filters.date_from or filters.date_to %}
+            Nessun log corrisponde ai filtri selezionati.
+            {% else %}
+            Non ci sono ancora log di audit nel sistema.
+            {% endif %}
+        </p>
+        {% if filters.user or filters.action or filters.resource_type or filters.date_from or filters.date_to %}
+        <a href="{{ url_for('admin.audit_logs') }}" class="btn blue">
+            <i class="material-icons left">clear</i>Rimuovi Filtri
+        </a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<div style="height: 50px;"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Inizializza select
+    M.FormSelect.init(document.querySelectorAll('select'));
+    
+    // Auto-submit quando cambiano i filtri
+    const selects = ['user', 'action', 'resource_type'];
+    selects.forEach(id => {
+        document.getElementById(id).addEventListener('change', function() {
+            document.getElementById('filterForm').submit();
+        });
+    });
+    
+    const dates = ['date_from', 'date_to'];
+    dates.forEach(id => {
+        document.getElementById(id).addEventListener('change', function() {
+            document.getElementById('filterForm').submit();
+        });
+    });
+});
+
+function toggleLogDetails(logId) {
+    const details = document.getElementById(`details-${logId}`);
+    const button = details.previousElementSibling.querySelector('button i');
+    
+    if (details.classList.contains('show')) {
+        details.classList.remove('show');
+        button.textContent = 'expand_more';
+    } else {
+        details.classList.add('show');
+        button.textContent = 'expand_less';
+    }
+}
+
+function exportLogs(format) {
+    const urlParams = new URLSearchParams(window.location.search);
+    urlParams.set('export', format);
+    
+    const exportUrl = `/admin/audit-logs/export?${urlParams.toString()}`;
+    
+    M.toast({html: `Esportazione ${format.toUpperCase()} in corso...`, classes: 'blue'});
+    
+    // Crea un link temporaneo per il download
+    const link = document.createElement('a');
+    link.href = exportUrl;
+    link.download = `audit_logs_${new Date().toISOString().split('T')[0]}.${format}`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    setTimeout(() => {
+        M.toast({html: 'Esportazione completata!', classes: 'green'});
+    }, 1000);
+}
+</script>
+{% endblock %}

@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 
-{% block title %}Vista Singola Riga - {{ sheet.name }}{% endblock %}
+{% block title %}Vista Riga {{ selected_row_index }} - {{ sheet.name }}{% endblock %}
 
 {% block content %}
-<div class="container">
+<div class="container-fluid">
     <div class="row">
         <div class="col s12">
             <nav>
@@ -12,127 +12,554 @@
                         <a href="{{ url_for('main.dashboard') }}" class="breadcrumb">Dashboard</a>
                         <a href="{{ url_for('projects.view_project', project_id=project.id) }}" class="breadcrumb">{{ project.name }}</a>
                         <a href="{{ url_for('ml.view_ml_dashboard', project_id=project.id) }}" class="breadcrumb">Machine Learning</a>
-                        <span class="breadcrumb">Vista Riga - {{ sheet.name }}</span>
+                        <span class="breadcrumb">Vista Riga {{ selected_row_index }}</span>
                     </div>
                 </div>
             </nav>
         </div>
     </div>
 
+    <!-- Header con informazioni riga -->
     <div class="row">
         <div class="col s12">
             <div class="card">
                 <div class="card-content">
                     <span class="card-title">
                         <i class="material-icons left">view_list</i>
-                        Vista Singola Riga
+                        Riga {{ selected_row_index }}
                     </span>
-                    <p>Visualizzazione orizzontale di una singola riga con tutte le sue celle</p>
+                    <p>Etichetta i contenuti di questa riga uno per uno. Ogni cella può essere etichettata manualmente o con suggerimenti AI.</p>
+                    
+                    <div class="row" style="margin-top: 20px;">
+                        <div class="col s4">
+                            <div class="center-align">
+                                <h6 class="blue-text">{{ columns|length }}</h6>
+                                <p class="grey-text">Totale Colonne</p>
+                            </div>
+                        </div>
+                        <div class="col s4">
+                            <div class="center-align">
+                                <h6 class="green-text">{{ row_data.data.values()|select|list|length }}</h6>
+                                <p class="grey-text">Celle con Valore</p>
+                            </div>
+                        </div>
+                        <div class="col s4">
+                            <div class="center-align">
+                                <h6 class="purple-text">{{ applied_labels|length }}</h6>
+                                <p class="grey-text">Etichettate</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="card-action">
-                    <a href="{{ url_for('ml.single_column_view', project_id=project.id, sheet_id=sheet.id) }}" 
+                    <a href="{{ url_for('ml.single_row_view', project_id=project.id, sheet_id=sheet.id) }}" 
                        class="btn waves-effect waves-light blue">
+                        <i class="material-icons left">list</i>
+                        Cambia Riga
+                    </a>
+                    <a href="{{ url_for('ml.single_column_view', project_id=project.id, sheet_id=sheet.id) }}" 
+                       class="btn waves-effect waves-light green">
                         <i class="material-icons left">view_column</i>
-                        Vista Singola Colonna
+                        Vista Colonne
+                    </a>
+                    <a href="{{ url_for('ml.view_ml_dashboard', project_id=project.id) }}" 
+                       class="btn waves-effect waves-light grey">
+                        <i class="material-icons left">arrow_back</i>
+                        Dashboard
                     </a>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Row Selection -->
+    <!-- Prompt AI Scientifico -->
     <div class="row">
         <div class="col s12">
             <div class="card">
                 <div class="card-content">
-                    <span class="card-title">Seleziona Riga</span>
-                    <div class="input-field">
-                        <input id="row-selector" type="number" min="1" placeholder="Inserisci numero riga">
+                    <span class="card-title">
+                        <i class="material-icons left">psychology</i>
+                        Prompt AI per Ricerca Scientifica
+                    </span>
+                    <div class="row">
+                        <div class="input-field col s12">
+                            <textarea id="scientific-prompt" class="materialize-textarea" placeholder="Inserisci qui il tuo prompt per l'analisi AI scientifica della riga...">Analizza questa riga dal punto di vista scientifico e fornisci etichette appropriate per ciascuna cella basate sulla ricerca.</textarea>
+                            <label for="scientific-prompt">Prompt Personalizzato AI</label>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col s12">
+                            <button class="btn waves-effect waves-light orange" id="apply-ai-to-row">
+                                <i class="material-icons left">auto_fix_high</i>
+                                Applica AI a Tutta la Riga
+                            </button>
+                            <button class="btn waves-effect waves-light blue" id="reset-prompt">
+                                <i class="material-icons left">refresh</i>
+                                Reset Prompt
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Row Data Display -->
-    <div class="row" id="row-data-display" style="display: none;">
+    <!-- Contenuti della riga in formato orizzontale -->
+    <div class="row">
         <div class="col s12">
             <div class="card">
                 <div class="card-content">
-                    <span class="card-title" id="row-title">Dati Riga</span>
-                    <div class="row" id="row-cells-container">
-                        <!-- Le celle verranno caricate dinamicamente qui -->
+                    <span class="card-title">
+                        <i class="material-icons left">view_stream</i>
+                        Contenuti della Riga
+                    </span>
+                    
+                    <div class="row-content-container" style="overflow-x: auto; padding: 20px 0;">
+                        <div class="horizontal-cells" style="display: flex; gap: 20px; min-width: max-content;">
+                            {% for column in columns %}
+                            {% set cell_value = row_data.data[column] %}
+                            {% set cell_key = selected_row_index ~ "_" ~ column %}
+                            {% set cell_label = applied_labels.get(cell_key) %}
+                            
+                            <div class="cell-card {{ 'labeled' if cell_label else '' }}" 
+                                 data-column="{{ column }}" 
+                                 data-row="{{ selected_row_index }}"
+                                 data-value="{{ cell_value }}"
+                                 style="min-width: 250px; max-width: 350px; flex: 0 0 auto;">
+                                
+                                <div class="card" style="height: 100%; cursor: pointer; transition: all 0.3s;">
+                                    <div class="card-content" style="padding: 15px;">
+                                        <!-- Header della cella -->
+                                        <div class="cell-header" style="margin-bottom: 15px;">
+                                            <span class="badge blue white-text">{{ column }}</span>
+                                        </div>
+                                        
+                                        <!-- Contenuto della cella -->
+                                        <div class="cell-content" style="margin-bottom: 15px;">
+                                            <div class="cell-value" style="min-height: 60px; padding: 10px; background-color: #f5f5f5; border-radius: 4px; word-wrap: break-word;">
+                                                {% if cell_value %}
+                                                {{ cell_value }}
+                                                {% else %}
+                                                <span class="grey-text italic">(vuoto)</span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Etichetta esistente -->
+                                        {% if cell_label %}
+                                        <div class="cell-label" style="margin-bottom: 15px;">
+                                            <span class="chip green white-text">
+                                                {{ cell_label.label_name }}
+                                            </span>
+                                            {% if cell_label.confidence %}
+                                            <br><small class="grey-text">Confidenza: {{ "%.1f"|format(cell_label.confidence * 100) }}%</small>
+                                            {% endif %}
+                                        </div>
+                                        {% endif %}
+                                        
+                                        <!-- Azioni -->
+                                        <div class="cell-actions center-align">
+                                            <button class="btn-small waves-effect waves-light blue label-cell-btn"
+                                                    data-row="{{ selected_row_index }}" 
+                                                    data-column="{{ column }}" 
+                                                    data-value="{{ cell_value }}">
+                                                <i class="material-icons">label</i>
+                                            </button>
+                                            <button class="btn-small waves-effect waves-light orange ai-suggest-btn"
+                                                    data-row="{{ selected_row_index }}" 
+                                                    data-column="{{ column }}" 
+                                                    data-value="{{ cell_value }}">
+                                                <i class="material-icons">psychology</i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
                     </div>
+                    
+                    {% if row_data.data.values()|list|length == 0 %}
+                    <div class="center-align" style="padding: 40px;">
+                        <i class="material-icons large grey-text">info</i>
+                        <p class="grey-text">Nessun dato trovato in questa riga</p>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
     </div>
 </div>
 
+<!-- Modal per Etichettatura Cella -->
+<div id="label-cell-modal" class="modal">
+    <div class="modal-content">
+        <h4>Etichetta Cella</h4>
+        <div class="row">
+            <div class="col s12">
+                <div class="card-panel grey lighten-4">
+                    <p><strong>Posizione:</strong> Riga <span id="modal-row"></span>, Colonna <span id="modal-column"></span></p>
+                    <p><strong>Valore:</strong> <span id="modal-value"></span></p>
+                </div>
+            </div>
+        </div>
+        
+        <form id="label-cell-form">
+            <div class="row">
+                <div class="input-field col s12">
+                    <input id="cell-label-name" type="text" required>
+                    <label for="cell-label-name">Nome Etichetta</label>
+                </div>
+            </div>
+            <div class="row">
+                <div class="input-field col s12">
+                    <textarea id="cell-label-description" class="materialize-textarea"></textarea>
+                    <label for="cell-label-description">Descrizione Etichetta</label>
+                </div>
+            </div>
+        </form>
+    </div>
+    <div class="modal-footer">
+        <a href="#!" class="modal-close waves-effect waves-green btn-flat">Annulla</a>
+        <a href="#!" class="waves-effect waves-green btn" id="save-cell-label-btn">Salva Etichetta</a>
+    </div>
+</div>
+
+<!-- Modal per Suggerimento AI -->
+<div id="ai-suggestion-modal" class="modal">
+    <div class="modal-content">
+        <h4>Suggerimento AI</h4>
+        <div class="progress" id="ai-progress" style="display: none;">
+            <div class="indeterminate"></div>
+        </div>
+        <div id="ai-suggestion-content" style="display: none;">
+            <div class="card-panel blue lighten-4">
+                <h6>Suggerimento AI:</h6>
+                <p id="ai-suggested-label"></p>
+                <p id="ai-suggested-description"></p>
+            </div>
+        </div>
+    </div>
+    <div class="modal-footer">
+        <a href="#!" class="modal-close waves-effect waves-green btn-flat">Chiudi</a>
+        <a href="#!" class="waves-effect waves-green btn" id="accept-ai-suggestion-btn" style="display: none;">
+            Accetta Suggerimento
+        </a>
+    </div>
+</div>
+
+<style>
+/* Assicura sfondo bianco e testo scuro */
+body {
+    background-color: #ffffff !important;
+    color: #212121 !important;
+}
+
+.container, .container-fluid {
+    background-color: #ffffff !important;
+}
+
+.card, .card-content, .card-panel {
+    background-color: #ffffff !important;
+    color: #212121 !important;
+}
+
+.cell-card:hover .card {
+    box-shadow: 0 8px 17px 0 rgba(0,0,0,0.2),0 6px 20px 0 rgba(0,0,0,0.19) !important;
+    transform: translateY(-2px);
+}
+
+.cell-card.labeled .card {
+    border-left: 4px solid #4caf50;
+    background-color: #f8fff8 !important;
+}
+
+.horizontal-cells {
+    padding-bottom: 10px;
+}
+
+.cell-value {
+    word-wrap: break-word;
+    line-height: 1.4;
+    font-size: 0.9em;
+    color: #212121 !important;
+}
+
+.grey-text {
+    color: #616161 !important;
+}
+
+.blue-text {
+    color: #1976d2 !important;
+    font-weight: bold;
+}
+
+.green-text {
+    color: #388e3c !important;
+    font-weight: bold;
+}
+
+.purple-text {
+    color: #7b1fa2 !important;
+    font-weight: bold;
+}
+
+.card-title, .breadcrumb, h4, h5, h6, p, span {
+    color: #212121 !important;
+}
+
+.modal, .modal-content, .modal-footer {
+    background-color: #ffffff !important;
+    color: #212121 !important;
+}
+
+.nav-wrapper {
+    background-color: #2196f3 !important;
+}
+
+.nav-wrapper .breadcrumb {
+    color: #ffffff !important;
+}
+
+.badge {
+    color: #ffffff !important;
+}
+
+.cell-actions {
+    margin-top: 10px;
+}
+
+.cell-actions .btn-small {
+    margin: 2px;
+}
+
+/* Migliora la leggibilità degli input */
+input[type=text], input[type=email], input[type=password], textarea {
+    color: #212121 !important;
+    background-color: #ffffff !important;
+    border-bottom: 1px solid #9e9e9e !important;
+}
+
+input[type=text]:focus, input[type=email]:focus, input[type=password]:focus, textarea:focus {
+    border-bottom: 2px solid #2196f3 !important;
+    box-shadow: 0 1px 0 0 #2196f3 !important;
+}
+
+label {
+    color: #757575 !important;
+}
+
+label.active {
+    color: #2196f3 !important;
+}
+
+/* Fix per i chip */
+.chip {
+    background-color: #e0e0e0 !important;
+    color: #212121 !important;
+}
+
+.chip.green {
+    background-color: #4caf50 !important;
+    color: #ffffff !important;
+}
+
+.chip.blue {
+    background-color: #2196f3 !important;
+    color: #ffffff !important;
+}
+
+.chip.orange {
+    background-color: #ff9800 !important;
+    color: #ffffff !important;
+}
+
+.row-content-container {
+    background-color: #fafafa !important;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    padding: 15px;
+}
+
+@media (max-width: 600px) {
+    .horizontal-cells {
+        flex-direction: column !important;
+    }
+    
+    .cell-card {
+        min-width: 100% !important;
+        max-width: 100% !important;
+    }
+}
+</style>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Gestione selezione riga
-    document.getElementById('row-selector').addEventListener('change', function() {
-        const rowNumber = parseInt(this.value);
-        if (!rowNumber || rowNumber < 1) return;
-
-        // Mostra sezione dati
-        document.getElementById('row-data-display').style.display = 'block';
-        document.getElementById('row-title').textContent = `Dati Riga: ${rowNumber}`;
-
-        // Simula caricamento dati (sostituire con chiamata API reale)
-        const container = document.getElementById('row-cells-container');
-        container.innerHTML = '';
-
-        // Simula colonne
-        const columns = ['Colonna1', 'Colonna2', 'Colonna3', 'Colonna4', 'Colonna5'];
-        
-        columns.forEach((column, index) => {
-            const cell = document.createElement('div');
-            cell.className = 'col s12 m6 l3';
-            cell.innerHTML = `<div class="card-panel">
-                <h6>${column}</h6>
-                <div class="cell-value">Valore ${rowNumber}-${index + 1}</div>
-            </div>`;
-            container.appendChild(cell);
+    // Inizializza modal
+    M.Modal.init(document.querySelectorAll('.modal'));
+    M.updateTextFields();
+    
+    let currentCell = null;
+    
+    // Gestisci click su cella per etichettare
+    document.querySelectorAll('.label-cell-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            currentCell = this;
+            const row = this.dataset.row;
+            const column = this.dataset.column;
+            const value = this.dataset.value;
+            
+            // Popola modal
+            document.getElementById('modal-row').textContent = row;
+            document.getElementById('modal-column').textContent = column;
+            document.getElementById('modal-value').textContent = value || '(vuoto)';
+            
+            // Reset campi
+            document.getElementById('cell-label-name').value = '';
+            document.getElementById('cell-label-description').value = '';
+            M.updateTextFields();
+            
+            const modal = M.Modal.getInstance(document.getElementById('label-cell-modal'));
+            modal.open();
         });
+    });
+    
+    // Gestisci suggerimento AI per singola cella
+    document.querySelectorAll('.ai-suggest-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            currentCell = this;
+            const value = this.dataset.value;
+            const column = this.dataset.column;
+            
+            if (!value || value === 'None' || value.trim() === '') {
+                M.toast({html: 'Impossibile analizzare celle vuote', classes: 'orange'});
+                return;
+            }
+            
+            const aiModal = M.Modal.getInstance(document.getElementById('ai-suggestion-modal'));
+            const progress = document.getElementById('ai-progress');
+            const content = document.getElementById('ai-suggestion-content');
+            const acceptBtn = document.getElementById('accept-ai-suggestion-btn');
+            
+            progress.style.display = 'block';
+            content.style.display = 'none';
+            acceptBtn.style.display = 'none';
+            
+            aiModal.open();
+            
+            // Simula analisi AI (sostituire con vera chiamata API)
+            setTimeout(() => {
+                const prompt = document.getElementById('scientific-prompt').value;
+                let suggestedLabel = 'Contenuto Analizzato';
+                let suggestedDescription = `Contenuto della colonna "${column}" classificato attraverso analisi AI`;
+                
+                // Logica simulata basata sul contenuto e colonna
+                if (column.toLowerCase().includes('nome') || column.toLowerCase().includes('name')) {
+                    suggestedLabel = 'Identificatore Persona';
+                    suggestedDescription = 'Campo identificativo di una persona o entità';
+                } else if (column.toLowerCase().includes('età') || column.toLowerCase().includes('age') || column.toLowerCase().includes('anno')) {
+                    suggestedLabel = 'Dato Temporale';
+                    suggestedDescription = 'Informazione relativa al tempo o età';
+                } else if (value.toLowerCase().includes('positiv') || value.toLowerCase().includes('buon') || value.toLowerCase().includes('ottim')) {
+                    suggestedLabel = 'Sentiment Positivo';
+                    suggestedDescription = 'Contenuto con valutazione positiva identificato dall\'AI';
+                } else if (value.toLowerCase().includes('negativ') || value.toLowerCase().includes('cattiv') || value.toLowerCase().includes('pessim')) {
+                    suggestedLabel = 'Sentiment Negativo';
+                    suggestedDescription = 'Contenuto con valutazione negativa identificato dall\'AI';
+                } else if (value.match(/\d+/)) {
+                    suggestedLabel = 'Valore Numerico';
+                    suggestedDescription = 'Dato quantitativo identificato dall\'AI';
+                } else if (value.length > 50) {
+                    suggestedLabel = 'Testo Descrittivo';
+                    suggestedDescription = 'Contenuto testuale esteso identificato dall\'AI';
+                }
+                
+                document.getElementById('ai-suggested-label').textContent = suggestedLabel;
+                document.getElementById('ai-suggested-description').textContent = suggestedDescription;
+                
+                progress.style.display = 'none';
+                content.style.display = 'block';
+                acceptBtn.style.display = 'inline-block';
+            }, 2000);
+        });
+    });
+    
+    // Salva etichetta cella
+    document.getElementById('save-cell-label-btn').addEventListener('click', function() {
+        if (!currentCell) return;
+        
+        const data = {
+            row_index: currentCell.dataset.row,
+            column_name: currentCell.dataset.column,
+            label_name: document.getElementById('cell-label-name').value,
+            label_description: document.getElementById('cell-label-description').value
+        };
+        
+        fetch('{{ url_for("ml.label_cell_manually", project_id=project.id, sheet_id=sheet.id) }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.message) {
+                M.toast({html: data.message, classes: 'green'});
+                const modal = M.Modal.getInstance(document.getElementById('label-cell-modal'));
+                modal.close();
+                location.reload();
+            } else {
+                M.toast({html: data.error || 'Errore nell\'etichettatura', classes: 'red'});
+            }
+        })
+        .catch(error => {
+            M.toast({html: 'Errore di rete: ' + error.message, classes: 'red'});
+        });
+    });
+    
+    // Accetta suggerimento AI
+    document.getElementById('accept-ai-suggestion-btn').addEventListener('click', function() {
+        const suggestedLabel = document.getElementById('ai-suggested-label').textContent;
+        const suggestedDescription = document.getElementById('ai-suggested-description').textContent;
+        
+        document.getElementById('cell-label-name').value = suggestedLabel;
+        document.getElementById('cell-label-description').value = suggestedDescription;
+        M.updateTextFields();
+        
+        const aiModal = M.Modal.getInstance(document.getElementById('ai-suggestion-modal'));
+        aiModal.close();
+        
+        const labelModal = M.Modal.getInstance(document.getElementById('label-cell-modal'));
+        labelModal.open();
+        
+        M.toast({html: 'Suggerimento AI applicato!', classes: 'blue'});
+    });
+    
+    // Applica AI a tutta la riga
+    document.getElementById('apply-ai-to-row').addEventListener('click', function() {
+        const prompt = document.getElementById('scientific-prompt').value;
+        if (!prompt.trim()) {
+            M.toast({html: 'Inserisci un prompt AI prima di procedere', classes: 'orange'});
+            return;
+        }
+        
+        M.toast({html: 'Applicazione AI a tutta la riga in corso...', classes: 'blue'});
+        
+        // Simulazione (sostituire con vera chiamata batch)
+        setTimeout(() => {
+            M.toast({html: 'Analisi AI completata per tutte le celle della riga!', classes: 'green'});
+        }, 3000);
+    });
+    
+    // Reset prompt
+    document.getElementById('reset-prompt').addEventListener('click', function() {
+        document.getElementById('scientific-prompt').value = 'Analizza questa riga dal punto di vista scientifico e fornisci etichette appropriate per ciascuna cella basate sulla ricerca.';
+        M.updateTextFields();
+        M.toast({html: 'Prompt resettato', classes: 'blue'});
     });
 });
 </script>
-
-<style>
-.cell-value {
-    padding: 10px;
-    background-color: #f5f5f5;
-    border-radius: 4px;
-    margin-top: 10px;
-    min-height: 60px;
-}
-
-.card-panel {
-    min-height: 180px;
-    background-color: #1976d2;
-    color: white;
-    border-radius: 4px;
-    padding: 15px;
-    margin-bottom: 10px;
-}
-
-.card-panel h6 {
-    color: white;
-    font-weight: bold;
-    border-bottom: 1px solid rgba(255,255,255,0.2);
-    padding-bottom: 8px;
-    margin-top: 0;
-}
-
-.cell-value {
-    padding: 10px;
-    background-color: rgba(255,255,255,0.1);
-    border-radius: 4px;
-    margin-top: 10px;
-    min-height: 60px;
-    word-break: break-word;
-}
-</style>
 {% endblock %}

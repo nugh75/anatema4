@@ -1,0 +1,281 @@
+{% extends "base.html" %}
+
+{% block title %}Crea Template Prompt - Anatema{% endblock %}
+
+{% block content %}
+<div class="container" style="margin-top: 30px;">
+    <div class="row">
+        <div class="col s12">
+            <h4 class="blue-text text-darken-2">
+                <i class="material-icons left">settings</i>
+                Crea Template Prompt
+            </h4>
+            <p class="grey-text">Configura template di prompt per diversi tipi di analisi AI</p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col s12 l8">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">Nuovo Template</span>
+                    
+                    <form action="{{ url_for('labeling.create_template') }}" method="POST">
+                        <div class="row">
+                            <div class="input-field col s12 m6">
+                                <input id="name" name="name" type="text" class="validate" required>
+                                <label for="name">Nome Template</label>
+                                <span class="helper-text">Nome descrittivo per il template</span>
+                            </div>
+                            
+                            <div class="input-field col s12 m6">
+                                <select name="category" id="category" required>
+                                    <option value="" disabled selected>Seleziona categoria</option>
+                                    <option value="sentiment">Analisi Sentiment</option>
+                                    <option value="emotion">Riconoscimento Emozioni</option>
+                                    <option value="tone">Tono di Comunicazione</option>
+                                    <option value="behavior">Analisi Comportamentale</option>
+                                    <option value="topic">Classificazione Tematiche</option>
+                                    <option value="intent">Riconoscimento Intenti</option>
+                                    <option value="priority">Urgenza e Priorità</option>
+                                    <option value="quality">Qualità del Feedback</option>
+                                    <option value="expertise">Livello di Expertise</option>
+                                    <option value="personality">Analisi Personalità</option>
+                                    <option value="custom">Personalizzato</option>
+                                </select>
+                                <label>Categoria</label>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="input-field col s12">
+                                <textarea id="description" name="description" class="materialize-textarea"></textarea>
+                                <label for="description">Descrizione</label>
+                                <span class="helper-text">Descrizione dettagliata dell'analisi che questo template effettua</span>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="input-field col s12">
+                                <textarea id="prompt_template" name="prompt_template" class="materialize-textarea" required style="min-height: 150px;"></textarea>
+                                <label for="prompt_template">Template Prompt</label>
+                                <span class="helper-text">
+                                    Usa <code>{column_data}</code> per inserire i dati della colonna, 
+                                    <code>{column_name}</code> per il nome della colonna, 
+                                    <code>{project_name}</code> per il nome del progetto
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="input-field col s12">
+                                <textarea id="output_format" name="output_format" class="materialize-textarea" required></textarea>
+                                <label for="output_format">Formato Output Atteso</label>
+                                <span class="helper-text">Specifica il formato JSON atteso per la risposta dell'AI</span>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col s12">
+                                <p>
+                                    <label>
+                                        <input type="checkbox" name="is_active" checked />
+                                        <span>Template Attivo</span>
+                                    </label>
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col s12">
+                                <button type="submit" class="btn blue waves-effect waves-light">
+                                    <i class="material-icons left">save</i>
+                                    Salva Template
+                                </button>
+                                <a href="{{ url_for('labeling.dashboard') }}" class="btn grey waves-effect waves-light">
+                                    <i class="material-icons left">arrow_back</i>
+                                    Annulla
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Template Predefiniti -->
+        <div class="col s12 l4">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">Template Predefiniti</span>
+                    <p class="grey-text">Seleziona un template predefinito per iniziare rapidamente</p>
+                    
+                    <div class="collection">
+                        <a href="#" class="collection-item waves-effect preset-template"
+                           data-category="sentiment"
+                           data-name="Sentiment Base (3 livelli)"
+                           data-description="Classifica il sentiment in positivo, negativo, neutro"
+                           data-prompt="Analizza i seguenti dati della colonna '{column_name}' e genera 3-4 etichette per classificare il sentiment:\n\n{sample_data}\n\nGenera etichette chiare come: Positivo, Negativo, Neutro, Misto.\nRispondi in formato JSON con: name, description, category, color."
+                           data-output='{"name": "etichetta", "description": "descrizione", "category": "sentiment", "color": "#1976d2"}'>
+                            <i class="material-icons left">sentiment_satisfied</i>
+                            Sentiment Base
+                        </a>
+                        
+                        <a href="#" class="collection-item waves-effect preset-template"
+                           data-category="sentiment"
+                           data-name="Sentiment Avanzato (5 livelli)"
+                           data-description="Sentiment analysis su scala a 5 livelli per analisi più dettagliate"
+                           data-prompt="Analizza i seguenti dati della colonna '{column_name}' e genera 5 etichette per sentiment su scala dettagliata:\n\n{sample_data}\n\nGenera etichette come: Molto Positivo, Positivo, Neutro, Negativo, Molto Negativo.\nRispondi in formato JSON con: name, description, category, color."
+                           data-output='{"name": "etichetta", "description": "descrizione", "category": "sentiment", "color": "#1976d2"}'>
+                            <i class="material-icons left">sentiment_very_satisfied</i>
+                            Sentiment 5 Scale
+                        </a>
+                        
+                        <a href="#" class="collection-item waves-effect preset-template"
+                           data-category="emotion"
+                           data-name="Emozioni Base - Ekman"
+                           data-description="Classifica secondo le 6 emozioni base di Paul Ekman"
+                           data-prompt="Analizza i seguenti dati della colonna '{column_name}' e identifica le emozioni base presenti:\n\n{sample_data}\n\nGenera etichette per le 6 emozioni base: Gioia, Tristezza, Rabbia, Paura, Sorpresa, Disgusto.\nRispondi in formato JSON con: name, description, category, color."
+                           data-output='{"name": "etichetta", "description": "descrizione", "category": "emotion", "color": "#ff9800"}'>
+                            <i class="material-icons left">mood</i>
+                            Emozioni Base
+                        </a>
+                        
+                        <a href="#" class="collection-item waves-effect preset-template"
+                           data-category="emotion"
+                           data-name="Emozioni Complesse"
+                           data-description="Identifica emozioni complesse e sfaccettate nel testo"
+                           data-prompt="Analizza i seguenti dati della colonna '{column_name}' e identifica emozioni complesse:\n\n{sample_data}\n\nGenera etichette per emozioni come: Nostalgia, Frustrazione, Entusiasmo, Ansia, Soddisfazione, Delusione, Speranza.\nRispondi in formato JSON con: name, description, category, color."
+                           data-output='{"name": "etichetta", "description": "descrizione", "category": "emotion", "color": "#ff9800"}'>
+                            <i class="material-icons left">psychology</i>
+                            Emozioni Avanzate
+                        </a>
+                        
+                        <a href="#" class="collection-item waves-effect preset-template"
+                           data-category="tone"
+                           data-name="Tono di Comunicazione"
+                           data-description="Classifica il tono e stile di comunicazione del testo"
+                           data-prompt="Analizza i seguenti dati della colonna '{column_name}' e identifica il tono di comunicazione:\n\n{sample_data}\n\nGenera etichette per toni come: Formale, Informale, Professionale, Colloquiale, Ironico, Serio, Scherzoso.\nRispondi in formato JSON con: name, description, category, color."
+                           data-output='{"name": "etichetta", "description": "descrizione", "category": "tone", "color": "#9c27b0"}'>
+                            <i class="material-icons left">record_voice_over</i>
+                            Tono
+                        </a>
+                        
+                        <a href="#" class="collection-item waves-effect preset-template"
+                           data-category="topic"
+                           data-name="Classificazione Tematiche"
+                           data-description="Identifica i temi e argomenti principali del contenuto"
+                           data-prompt="Analizza i seguenti dati della colonna '{column_name}' e identifica i temi principali:\n\n{sample_data}\n\nGenera etichette per i temi più ricorrenti nel contenuto.\nRispondi in formato JSON con: name, description, category, color."
+                           data-output='{"name": "etichetta", "description": "descrizione", "category": "topic", "color": "#4caf50"}'>
+                            <i class="material-icons left">category</i>
+                            Tematiche
+                        </a>
+                        
+                        <a href="#" class="collection-item waves-effect preset-template"
+                           data-category="intent"
+                           data-name="Intenzioni Utente"
+                           data-description="Identifica le intenzioni o obiettivi dell'utente nel testo"
+                           data-prompt="Analizza i seguenti dati della colonna '{column_name}' e identifica le intenzioni:\n\n{sample_data}\n\nGenera etichette per intenzioni come: Richiesta Info, Reclamo, Complimento, Suggerimento, Richiesta Supporto.\nRispondi in formato JSON con: name, description, category, color."
+                           data-output='{"name": "etichetta", "description": "descrizione", "category": "intent", "color": "#2196f3"}'>
+                            <i class="material-icons left">psychology</i>
+                            Intenzioni
+                        </a>
+                        
+                        <a href="#" class="collection-item waves-effect preset-template"
+                           data-category="priority"
+                           data-name="Urgenza e Priorità"
+                           data-description="Classifica il livello di urgenza o priorità del contenuto"
+                           data-prompt="Analizza i seguenti dati della colonna '{column_name}' e classifica per urgenza/priorità:\n\n{sample_data}\n\nGenera etichette come: Urgente, Alta Priorità, Media Priorità, Bassa Priorità, Non Urgente.\nRispondi in formato JSON con: name, description, category, color."
+                           data-output='{"name": "etichetta", "description": "descrizione", "category": "priority", "color": "#f44336"}'>
+                            <i class="material-icons left">priority_high</i>
+                            Priorità
+                        </a>
+                        
+                        <a href="#" class="collection-item waves-effect preset-template"
+                           data-category="quality"
+                           data-name="Qualità Feedback"
+                           data-description="Valuta la qualità e utilità di feedback o recensioni"
+                           data-prompt="Analizza i seguenti dati della colonna '{column_name}' e valuta la qualità del feedback:\n\n{sample_data}\n\nGenera etichette come: Molto Utile, Utile, Moderatamente Utile, Poco Utile, Non Utile.\nRispondi in formato JSON con: name, description, category, color."
+                           data-output='{"name": "etichetta", "description": "descrizione", "category": "quality", "color": "#ff5722"}'>
+                            <i class="material-icons left">star_rate</i>
+                            Qualità
+                        </a>
+                        
+                        <a href="#" class="collection-item waves-effect preset-template"
+                           data-category="expertise"
+                           data-name="Livello Expertise"
+                           data-description="Classifica il livello di competenza tecnica mostrato nel testo"
+                           data-prompt="Analizza i seguenti dati della colonna '{column_name}' e valuta il livello di expertise:\n\n{sample_data}\n\nGenera etichette come: Principiante, Intermedio, Avanzato, Esperto, Specialista.\nRispondi in formato JSON con: name, description, category, color."
+                           data-output='{"name": "etichetta", "description": "descrizione", "category": "expertise", "color": "#607d8b"}'>
+                            <i class="material-icons left">school</i>
+                            Expertise
+                        </a>
+                        
+                        <a href="#" class="collection-item waves-effect preset-template"
+                           data-category="personality"
+                           data-name="Big Five Personalità"
+                           data-description="Identifica tratti di personalità secondo il modello Big Five"
+                           data-prompt="Analizza i seguenti dati della colonna '{column_name}' e identifica tratti di personalità:\n\n{sample_data}\n\nGenera etichette per: Estroversione, Gradevolezza, Coscienziosità, Neuroticismo, Apertura.\nRispondi in formato JSON con: name, description, category, color."
+                           data-output='{"name": "etichetta", "description": "descrizione", "category": "personality", "color": "#795548"}'>
+                            <i class="material-icons left">person</i>
+                            Personalità
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Material Design components
+    M.FormSelect.init(document.querySelectorAll('select'));
+    M.textareaAutoResize(document.querySelectorAll('textarea'));
+    
+    // Handle preset template selection
+    document.querySelectorAll('.preset-template').forEach(function(link) {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // Fill form with preset data
+            document.getElementById('name').value = this.dataset.name;
+            document.getElementById('description').value = this.dataset.description;
+            document.getElementById('prompt_template').value = this.dataset.prompt;
+            document.getElementById('output_format').value = this.dataset.output;
+            
+            // Update category select
+            const categorySelect = document.getElementById('category');
+            categorySelect.value = this.dataset.category;
+            M.FormSelect.init(categorySelect);
+            
+            // Update labels
+            M.updateTextFields();
+            
+            // Show feedback
+            M.toast({html: 'Template predefinito caricato!', classes: 'green'});
+        });
+    });
+});
+</script>
+
+{% block extra_css %}
+<style>
+.preset-template:hover {
+    background-color: #f5f5f5;
+}
+
+code {
+    background-color: #f5f5f5;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-family: 'Courier New', monospace;
+}
+
+textarea {
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+}
+</style>
+{% endblock %}
+{% endblock %}

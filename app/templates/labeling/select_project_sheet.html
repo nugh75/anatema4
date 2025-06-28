@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+
+{% block title %}Seleziona Progetto e Foglio - Sistema Etichettatura{% endblock %}
+
+{% block content %}
+<div class="container" style="margin-top: 30px;">
+    <div class="row">
+        <div class="col s12">
+            <h4 class="blue-text text-darken-2">
+                <i class="material-icons left">label</i>
+                Sistema Etichettatura
+            </h4>
+            <p class="grey-text">Seleziona progetto e foglio Excel per continuare</p>
+        </div>
+    </div>
+    
+    <form method="GET" id="projectSheetForm">
+        <div class="row">
+            <!-- Selezione Progetto -->
+            <div class="col s12 m6">
+                <div class="card">
+                    <div class="card-content">
+                        <span class="card-title">
+                            <i class="material-icons left">folder</i>
+                            Seleziona Progetto
+                        </span>
+                        
+                        <div class="input-field">
+                            <select name="project_id" id="projectSelect" required>
+                                <option value="" disabled selected>Scegli progetto</option>
+                                {% for project in projects %}
+                                <option value="{{ project.id }}" 
+                                        {% if projects|length == 1 %}selected{% endif %}>
+                                    {{ project.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <label>Progetto</label>
+                        </div>
+                        
+                        {% if projects|length == 1 %}
+                        <div class="card-panel grey lighten-4">
+                            <p><strong>{{ projects[0].name }}</strong></p>
+                            <p class="grey-text">{{ projects[0].description or 'Nessuna descrizione' }}</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Selezione Foglio -->
+            <div class="col s12 m6">
+                <div class="card">
+                    <div class="card-content">
+                        <span class="card-title">
+                            <i class="material-icons left">description</i>
+                            Seleziona Foglio Excel
+                        </span>
+                        
+                        <div class="input-field">
+                            <select name="sheet_id" id="sheetSelect" required>
+                                <option value="" disabled selected>Seleziona prima un progetto</option>
+                                {% if sheets %}
+                                    {% for sheet in sheets %}
+                                    <option value="{{ sheet.id }}">
+                                        {{ sheet.name }} ({{ sheet.file.filename }})
+                                    </option>
+                                    {% endfor %}
+                                {% endif %}
+                            </select>
+                            <label>Foglio Excel</label>
+                        </div>
+                        
+                        <div id="sheetInfo" style="display: none;">
+                            <div id="sheetDetails" class="card-panel grey lighten-4"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Selezione Azione -->
+        <div class="row">
+            <div class="col s12">
+                <div class="card">
+                    <div class="card-content">
+                        <span class="card-title">
+                            <i class="material-icons left">settings</i>
+                            Seleziona Azione
+                        </span>
+                        
+                        <div class="row" style="margin-top: 20px;">
+                            <div class="col s12 m4">
+                                <button type="button" class="btn-large blue waves-effect waves-light btn-action" 
+                                        onclick="submitAction('generate')" id="generateBtn" disabled 
+                                        style="width: 100%; height: 100px; margin-bottom: 10px;">
+                                    <i class="material-icons" style="font-size: 2rem;">auto_awesome</i><br>
+                                    <span style="font-size: 0.9rem;">Fase 1</span><br>
+                                    <strong>Genera Etichette AI</strong>
+                                </button>
+                                <p class="grey-text center-align" style="font-size: 0.9rem;">
+                                    Analizza dati e genera suggerimenti di etichette
+                                </p>
+                            </div>
+                            
+                            <div class="col s12 m4">
+                                <button type="button" class="btn-large orange waves-effect waves-light btn-action" 
+                                        onclick="submitAction('apply')" id="applyBtn" disabled
+                                        style="width: 100%; height: 100px; margin-bottom: 10px;">
+                                    <i class="material-icons" style="font-size: 2rem;">label</i><br>
+                                    <span style="font-size: 0.9rem;">Fase 2</span><br>
+                                    <strong>Applica Etichette</strong>
+                                </button>
+                                <p class="grey-text center-align" style="font-size: 0.9rem;">
+                                    Applica etichette esistenti ai dati
+                                </p>
+                            </div>
+                            
+                            <div class="col s12 m4">
+                                <button type="button" class="btn-large purple waves-effect waves-light btn-action" 
+                                        onclick="submitAction('analytics')" id="analyticsBtn" disabled
+                                        style="width: 100%; height: 100px; margin-bottom: 10px;">
+                                    <i class="material-icons" style="font-size: 2rem;">analytics</i><br>
+                                    <span style="font-size: 0.9rem;">Analisi</span><br>
+                                    <strong>Visualizza Analytics</strong>
+                                </button>
+                                <p class="grey-text center-align" style="font-size: 0.9rem;">
+                                    Analizza utilizzo delle etichette
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+    
+    <!-- Navigazione -->
+    <div class="row">
+        <div class="col s12">
+            <a href="{{ url_for('labeling.dashboard') }}" class="btn grey waves-effect waves-light">
+                <i class="material-icons left">arrow_back</i>
+                Torna alla Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+
+<script>
+function loadSheets() {
+    const projectId = document.getElementById('projectSelect').value;
+    const sheetSelect = document.getElementById('sheetSelect');
+    
+    if (!projectId) {
+        sheetSelect.innerHTML = '<option value="" disabled selected>Seleziona prima un progetto</option>';
+        M.FormSelect.init(sheetSelect);
+        toggleButtons(false);
+        return;
+    }
+    
+    // Carica fogli via API
+    fetch(`/api/projects/${projectId}/sheets`)
+        .then(response => response.json())
+        .then(data => {
+            sheetSelect.innerHTML = '<option value="" disabled selected>Scegli foglio Excel</option>';
+            
+            if (data.sheets && data.sheets.length > 0) {
+                data.sheets.forEach(sheet => {
+                    const option = document.createElement('option');
+                    option.value = sheet.id;
+                    option.textContent = `${sheet.name} (${sheet.file.filename})`;
+                    sheetSelect.appendChild(option);
+                });
+            } else {
+                sheetSelect.innerHTML = '<option value="" disabled>Nessun foglio Excel trovato</option>';
+            }
+            
+            // Reinizializza il componente Material
+            M.FormSelect.init(sheetSelect);
+            checkFormComplete();
+        })
+        .catch(error => {
+            console.error('Errore nel caricamento fogli:', error);
+            sheetSelect.innerHTML = '<option value="" disabled>Errore nel caricamento</option>';
+            M.FormSelect.init(sheetSelect);
+            M.toast({html: 'Errore nel caricamento dei fogli Excel', classes: 'red'});
+        });
+}
+
+function checkFormComplete() {
+    const projectId = document.getElementById('projectSelect').value;
+    const sheetId = document.getElementById('sheetSelect').value;
+    const isComplete = projectId && sheetId;
+    
+    toggleButtons(isComplete);
+    
+    if (isComplete) {
+        M.toast({html: 'Progetto e foglio selezionati. Scegli un\'azione.', classes: 'green'});
+    }
+}
+
+function toggleButtons(enabled) {
+    const buttons = ['generateBtn', 'applyBtn', 'analyticsBtn'];
+    buttons.forEach(btnId => {
+        const btn = document.getElementById(btnId);
+        btn.disabled = !enabled;
+        if (enabled) {
+            btn.classList.remove('disabled');
+        } else {
+            btn.classList.add('disabled');
+        }
+    });
+}
+
+function submitAction(action) {
+    const projectId = document.getElementById('projectSelect').value;
+    const sheetId = document.getElementById('sheetSelect').value;
+    
+    if (!projectId || !sheetId) {
+        M.toast({html: 'Seleziona progetto e foglio prima di continuare', classes: 'red'});
+        return;
+    }
+    
+    let url;
+    switch(action) {
+        case 'generate':
+            url = `{{ url_for('labeling.generate_labels_phase1', project_id='PROJECT_ID', sheet_id='SHEET_ID') }}`;
+            break;
+        case 'apply':
+            url = `{{ url_for('labeling.apply_labels_phase2', project_id='PROJECT_ID', sheet_id='SHEET_ID') }}`;
+            break;
+        case 'analytics':
+            url = `{{ url_for('labeling.label_analytics', project_id='PROJECT_ID') }}`;
+            break;
+    }
+    
+    url = url.replace('PROJECT_ID', projectId);
+    if (action !== 'analytics') {
+        url = url.replace('SHEET_ID', sheetId);
+    }
+    
+    // Mostra feedback di caricamento
+    M.toast({html: 'Caricamento...', classes: 'blue'});
+    window.location.href = url;
+}
+
+// Event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    // Inizializza componenti Material
+    M.FormSelect.init(document.querySelectorAll('select'));
+    
+    // Event listener per selezione progetto
+    document.getElementById('projectSelect').addEventListener('change', loadSheets);
+    
+    // Event listener per selezione foglio
+    document.getElementById('sheetSelect').addEventListener('change', checkFormComplete);
+    
+    // Se c'è solo un progetto, carica automaticamente i fogli
+    {% if projects|length == 1 %}
+    setTimeout(loadSheets, 100); // Piccolo delay per permettere l'inizializzazione
+    {% endif %}
+});
+</script>
+
+{% block extra_css %}
+<style>
+.btn-action:disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
+.card-title i {
+    vertical-align: middle;
+}
+
+.btn-large {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 10px;
+}
+</style>
+{% endblock %}
+{% endblock %}

@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}Seleziona Colonna - {{ sheet.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col s12">
+            <nav>
+                <div class="nav-wrapper">
+                    <div class="col s12">
+                        <a href="{{ url_for('main.dashboard') }}" class="breadcrumb">Dashboard</a>
+                        <a href="{{ url_for('projects.view_project', project_id=project.id) }}" class="breadcrumb">{{ project.name }}</a>
+                        <a href="{{ url_for('ml.view_ml_dashboard', project_id=project.id) }}" class="breadcrumb">Machine Learning</a>
+                        <span class="breadcrumb">Seleziona Colonna - {{ sheet.name }}</span>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">
+                        <i class="material-icons left">view_column</i>
+                        Seleziona una Colonna da Analizzare
+                    </span>
+                    <p>Scegli una colonna per visualizzarla in modalità verticale con tutte le occorrenze e frequenze.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <div class="collection">
+                        <div class="collection-item header-fix">
+                            <div class="row valign-wrapper" style="margin-bottom: 0;">
+                                <div class="col s4"><strong>Nome Colonna</strong></div>
+                                <div class="col s2"><strong>Tipo Dati</strong></div>
+                                <div class="col s2"><strong>Valori Unici</strong></div>
+                                <div class="col s2"><strong>Valori Nulli</strong></div>
+                                <div class="col s2"><strong>Azioni</strong></div>
+                            </div>
+                        </div>
+                        {% for column in available_columns %}
+                        <div class="collection-item clickable-column" data-column="{{ column.name }}">
+                            <div class="row valign-wrapper" style="margin-bottom: 0;">
+                                <div class="col s4">
+                                    <strong>{{ column.name }}</strong>
+                                </div>
+                                <div class="col s2">
+                                    <span class="chip blue-grey lighten-3">{{ column.type }}</span>
+                                </div>
+                                <div class="col s2">
+                                    <span class="badge blue white-text">{{ column.unique_values }}</span>
+                                </div>
+                                <div class="col s2">
+                                    <span class="badge {{ 'red' if column.null_count > 0 else 'green' }} white-text">{{ column.null_count }}</span>
+                                </div>
+                                <div class="col s2">
+                                    <a href="{{ url_for('ml.single_column_view', project_id=project.id, sheet_id=sheet.id, column_name=column.name) }}" 
+                                       class="btn waves-effect waves-light blue">
+                                        <i class="material-icons left">visibility</i>
+                                        Visualizza
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="card-action">
+                    <a href="{{ url_for('ml.view_ml_dashboard', project_id=project.id) }}" 
+                       class="btn waves-effect waves-light grey">
+                        <i class="material-icons left">arrow_back</i>
+                        Torna al Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.clickable-column {
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.clickable-column:hover {
+    background-color: #e3f2fd !important;
+}
+
+.header-fix {
+    background-color: #f5f5f5 !important;
+    color: #111 !important;
+    font-weight: bold;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Rendi cliccabili le righe delle colonne
+    document.querySelectorAll('.clickable-column').forEach(item => {
+        item.addEventListener('click', function(e) {
+            // Non attivare il click se si clicca sul pulsante
+            if (e.target.closest('a')) return;
+            
+            const columnName = this.dataset.column;
+            const url = `{{ url_for('ml.single_column_view', project_id=project.id, sheet_id=sheet.id) }}?column_name=${encodeURIComponent(columnName)}`;
+            window.location.href = url;
+        });
+    });
+});
+</script>
+{% endblock %}

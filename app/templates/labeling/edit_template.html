@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+
+{% block title %}Modifica Template - {{ template.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- Header -->
+            <div class="mb-4">
+                <h2>Modifica Template</h2>
+                <p class="text-muted">Modifica il template di prompt per la generazione automatica di etichette</p>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Dashboard</a></li>
+                        <li class="breadcrumb-item"><a href="{{ url_for('projects.view_project', project_id=project.id) }}">{{ project.name }}</a></li>
+                        <li class="breadcrumb-item"><a href="{{ url_for('labeling.project_dashboard', project_id=project.id) }}">Etichettatura</a></li>
+                        <li class="breadcrumb-item"><a href="{{ url_for('labeling.list_templates', project_id=project.id) }}">Template</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">Modifica {{ template.name }}</li>
+                    </ol>
+                </nav>
+            </div>
+
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title">Informazioni Template</h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="POST" id="templateForm">
+                                <!-- Nome e Descrizione -->
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label for="name">Nome Template *</label>
+                                            <input type="text" class="form-control" id="name" name="name" 
+                                                   value="{{ template.name }}" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label for="category">Categoria</label>
+                                            <select class="form-control" id="category" name="category">
+                                                <option value="custom" {{ 'selected' if template.category == 'custom' else '' }}>Personalizzato</option>
+                                                <option value="sentiment" {{ 'selected' if template.category == 'sentiment' else '' }}>Sentiment</option>
+                                                <option value="emotion" {{ 'selected' if template.category == 'emotion' else '' }}>Emozioni</option>
+                                                <option value="tone" {{ 'selected' if template.category == 'tone' else '' }}>Tono</option>
+                                                <option value="topic" {{ 'selected' if template.category == 'topic' else '' }}>Tematiche</option>
+                                                <option value="behavior" {{ 'selected' if template.category == 'behavior' else '' }}>Comportamento</option>
+                                                <option value="priority" {{ 'selected' if template.category == 'priority' else '' }}>Priorità</option>
+                                                <option value="quality" {{ 'selected' if template.category == 'quality' else '' }}>Qualità</option>
+                                                <option value="intent" {{ 'selected' if template.category == 'intent' else '' }}>Intenzioni</option>
+                                                <option value="expertise" {{ 'selected' if template.category == 'expertise' else '' }}>Expertise</option>
+                                                <option value="personality" {{ 'selected' if template.category == 'personality' else '' }}>Personalità</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="description">Descrizione</label>
+                                    <textarea class="form-control" id="description" name="description" rows="2">{{ template.description or '' }}</textarea>
+                                </div>
+
+                                <!-- System Prompt -->
+                                <div class="form-group">
+                                    <label for="system_prompt">System Prompt</label>
+                                    <textarea class="form-control" id="system_prompt" name="system_prompt" rows="3" 
+                                              placeholder="Definisci il ruolo e il comportamento dell'AI...">{{ template.system_prompt or '' }}</textarea>
+                                    <small class="form-text text-muted">
+                                        Definisce il ruolo e il comportamento dell'AI (es. "Sei un esperto analista di sentiment...")
+                                    </small>
+                                </div>
+
+                                <!-- User Prompt Template -->
+                                <div class="form-group">
+                                    <label for="user_prompt_template">User Prompt Template *</label>
+                                    <textarea class="form-control" id="user_prompt_template" name="user_prompt_template" rows="6" 
+                                              placeholder="Analizza i seguenti dati della colonna {column_name}..." required>{{ template.user_prompt_template or '' }}</textarea>
+                                    <small class="form-text text-muted">
+                                        Usa le variabili: <code>{column_name}</code> per il nome colonna, <code>{sample_data}</code> per i dati campione
+                                    </small>
+                                </div>
+
+                                <!-- Configurazione AI -->
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label for="preferred_model">Modello AI Preferito</label>
+                                            <select class="form-control" id="preferred_model" name="preferred_model">
+                                                <option value="anthropic/claude-3-haiku" {{ 'selected' if template.preferred_model == 'anthropic/claude-3-haiku' else '' }}>Claude 3 Haiku</option>
+                                                <option value="anthropic/claude-3-sonnet" {{ 'selected' if template.preferred_model == 'anthropic/claude-3-sonnet' else '' }}>Claude 3 Sonnet</option>
+                                                <option value="openai/gpt-3.5-turbo" {{ 'selected' if template.preferred_model == 'openai/gpt-3.5-turbo' else '' }}>GPT-3.5 Turbo</option>
+                                                <option value="openai/gpt-4" {{ 'selected' if template.preferred_model == 'openai/gpt-4' else '' }}>GPT-4</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-group">
+                                            <label for="expected_labels_count">Numero Etichette Attese</label>
+                                            <input type="number" class="form-control" id="expected_labels_count" 
+                                                   name="expected_labels_count" value="{{ template.expected_labels_count }}" 
+                                                   min="1" max="20">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label for="temperature">Temperature</label>
+                                            <input type="number" class="form-control" id="temperature" name="temperature" 
+                                                   value="{{ template.temperature }}" min="0" max="2" step="0.1">
+                                            <small class="form-text text-muted">0.0 = più preciso, 1.0 = più creativo</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label for="max_tokens">Max Tokens</label>
+                                            <input type="number" class="form-control" id="max_tokens" name="max_tokens" 
+                                                   value="{{ template.max_tokens }}" min="100" max="4000" step="100">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label for="output_format">Formato Output</label>
+                                            <select class="form-control" id="output_format" name="output_format">
+                                                <option value="json" {{ 'selected' if template.output_format == 'json' else '' }}>JSON</option>
+                                                <option value="text" {{ 'selected' if template.output_format == 'text' else '' }}>Testo</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Stato -->
+                                <div class="form-group">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="is_active" name="is_active" 
+                                               {{ 'checked' if template.is_active else '' }}>
+                                        <label class="form-check-label" for="is_active">
+                                            Template attivo
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- Bottoni -->
+                                <div class="form-group mt-4">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save"></i> Salva Modifiche
+                                    </button>
+                                    <a href="{{ url_for('labeling.list_templates', project_id=project.id) }}" 
+                                       class="btn btn-secondary ml-2">Annulla</a>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <!-- Statistiche Template -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="card-title">Statistiche Template</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <small class="text-muted">Utilizzi</small>
+                                <div class="h4">{{ template.usage_count }}</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <small class="text-muted">Creato</small>
+                                <div>{{ template.created_at.strftime('%d/%m/%Y %H:%M') }}</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <small class="text-muted">Ultimo aggiornamento</small>
+                                <div>{{ template.updated_at.strftime('%d/%m/%Y %H:%M') }}</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <small class="text-muted">Stato</small>
+                                <div>
+                                    {% if template.is_active %}
+                                        <span class="badge badge-success">Attivo</span>
+                                    {% else %}
+                                        <span class="badge badge-secondary">Inattivo</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Guida Variabili -->
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h6 class="card-title">Variabili Disponibili</h6>
+                        </div>
+                        <div class="card-body">
+                            <p class="small">Usa queste variabili nel tuo prompt template:</p>
+                            <ul class="small">
+                                <li><code>{column_name}</code> - Nome della colonna analizzata</li>
+                                <li><code>{sample_data}</code> - Campione di dati dalla colonna</li>
+                            </ul>
+                            
+                            <p class="small mt-3">
+                                <strong>Esempio:</strong><br>
+                                <code>Analizza i dati della colonna "{column_name}" e genera etichette appropriate:\n\n{sample_data}</code>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -138,14 +138,14 @@
                                     <!-- Viste Base -->
                                     <div class="row" style="margin-bottom: 5px;">
                                         <div class="col s6">
-                                            <a href="{{ url_for('ml.view_sheet_columns', project_id=project.id, sheet_id=sheet.id) }}"
+                                            <a href="{{ url_for('ml.single_column_view', project_id=project.id, sheet_id=sheet.id) }}"
                                                class="btn waves-effect waves-light teal btn-small" style="width: 100%;">
                                                 <i class="material-icons left">view_column</i>
                                                 Vista Colonne
                                             </a>
                                         </div>
                                         <div class="col s6">
-                                            <a href="{{ url_for('ml.view_sheet_rows', project_id=project.id, sheet_id=sheet.id) }}"
+                                            <a href="{{ url_for('ml.single_row_view', project_id=project.id, sheet_id=sheet.id) }}"
                                                class="btn waves-effect waves-light purple btn-small" style="width: 100%;">
                                                 <i class="material-icons left">view_list</i>
                                                 Vista Righe

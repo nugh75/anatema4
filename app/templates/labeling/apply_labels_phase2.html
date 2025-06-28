@@ -1,0 +1,503 @@
+{% extends "base.html" %}
+
+{% block title %}Fase 2: Applicazione Etichette - Anatema{% endblock %}
+
+{% block content %}
+<div class="container" style="margin-top: 30px;">
+    <div class="row">
+        <div class="col s12">
+            <h4 class="orange-text text-darken-2">
+                <i class="material-icons left">label</i>
+                Fase 2: Applicazione Etichette
+            </h4>
+            <p class="grey-text">Applica manualmente o con AI le etichette approvate ai dati</p>
+        </div>
+    </div>
+
+    <!-- Project Info -->
+    <div class="row">
+        <div class="col s12">
+            <div class="card orange lighten-5">
+                <div class="card-content">
+                    <span class="card-title orange-text">
+                        <i class="material-icons left">folder</i>
+                        {{ project.name }}
+                    </span>
+                    <p>{{ project.description or 'Nessuna descrizione disponibile' }}</p>
+                    <p><strong>Foglio:</strong> {{ sheet.name }}</p>
+                    <p><strong>File:</strong> {{ sheet.file.original_name }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Available Labels Summary -->
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">Etichette Disponibili</span>
+                    {% if available_labels %}
+                    <div class="row">
+                        {% for label in available_labels %}
+                        <div class="col s6 m4 l3">
+                            <div class="chip orange white-text" style="width: 100%; text-align: center;">
+                                {{ label.name }}
+                                <small>({{ label.applications|length }} applicazioni)</small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="red-text">Nessuna etichetta disponibile. Completa prima la Fase 1.</p>
+                    <a href="{{ url_for('labeling.dashboard') }}" class="btn blue waves-effect waves-light">
+                        <i class="material-icons left">auto_awesome</i>Vai alla Fase 1
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if available_labels %}
+    <!-- Application Mode Selection -->
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">Modalità di Applicazione</span>
+                    
+                    <ul class="tabs">
+                        <li class="tab col s6"><a href="#manual-tab" class="active">Applicazione Manuale</a></li>
+                        <li class="tab col s6"><a href="#ai-batch-tab">Applicazione AI Batch</a></li>
+                    </ul>
+                    
+                    <!-- Manual Application Tab -->
+                    <div id="manual-tab" class="col s12">
+                        <div style="padding-top: 20px;">
+                            <h6>Applicazione Manuale</h6>
+                            <p>Seleziona celle specifiche e applica etichette manualmente per un controllo preciso.</p>
+                            
+                            <form action="{{ url_for('labeling.apply_labels_phase2', project_id=project.id, sheet_id=sheet.id) }}" method="POST" id="manual-form">
+                                <input type="hidden" name="project_id" value="{{ project.id }}">
+                                <input type="hidden" name="sheet_id" value="{{ sheet.id }}">
+                                <input type="hidden" name="mode" value="manual">
+                                
+                                <div class="row">
+                                    <div class="input-field col s12 m6">
+                                        <select name="column_name" id="manual_column" required>
+                                            <option value="" disabled selected>Seleziona colonna</option>
+                                            {% for column in columns %}
+                                            <option value="{{ column }}">{{ column }}</option>
+                                            {% endfor %}
+                                        </select>
+                                        <label>Colonna</label>
+                                    </div>
+                                    
+                                    <div class="input-field col s12 m6">
+                                        <select name="row_index" id="manual_row" required>
+                                            <option value="" disabled selected>Seleziona riga</option>
+                                        </select>
+                                        <label>Riga</label>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="input-field col s12 m6">
+                                        <select name="label_id" required>
+                                            <option value="" disabled selected>Seleziona etichetta</option>
+                                            {% for label in available_labels %}
+                                            <option value="{{ label.id }}">{{ label.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                        <label>Etichetta</label>
+                                    </div>
+                                    
+                                    <div class="input-field col s12 m6">
+                                        <input type="number" name="confidence" min="0.1" max="1.0" step="0.1" value="1.0">
+                                        <label>Confidenza</label>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="input-field col s12">
+                                        <textarea name="notes" class="materialize-textarea" placeholder="Note opzionali..."></textarea>
+                                        <label>Note</label>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col s12">
+                                        <button type="submit" class="btn orange waves-effect waves-light">
+                                            <i class="material-icons left">label</i>Applica Etichetta
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                            
+                            <!-- Cell Preview -->
+                            <div id="cell-preview" style="display: none;">
+                                <div class="card-panel grey lighten-4">
+                                    <h6>Anteprima Cella</h6>
+                                    <p><strong>Valore:</strong> <span id="cell-value"></span></p>
+                                    <p><strong>Posizione:</strong> <span id="cell-position"></span></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- AI Batch Application Tab -->
+                    <div id="ai-batch-tab" class="col s12">
+                        <div style="padding-top: 20px;">
+                            <h6>Applicazione AI Batch</h6>
+                            <p>L'AI applica automaticamente le etichette approvate a un'intera colonna o riga basandosi sui pattern appresi.</p>
+                            
+                            <form action="{{ url_for('labeling.apply_labels_phase2', project_id=project.id, sheet_id=sheet.id) }}" method="POST" id="ai-batch-form">
+                                <input type="hidden" name="project_id" value="{{ project.id }}">
+                                <input type="hidden" name="sheet_id" value="{{ sheet.id }}">
+                                <input type="hidden" name="mode" value="ai_batch">
+                                
+                                <div class="row">
+                                    <div class="input-field col s12 m6">
+                                        <select name="target_type" id="target_type" required>
+                                            <option value="" disabled selected>Tipo target</option>
+                                            <option value="column">Colonna Intera</option>
+                                            <option value="row">Riga Intera</option>
+                                            <option value="range">Range Specifico</option>
+                                        </select>
+                                        <label>Target</label>
+                                    </div>
+                                    
+                                    <div class="input-field col s12 m6">
+                                        <select name="target_name" id="target_name" required>
+                                            <option value="" disabled selected>Seleziona target</option>
+                                        </select>
+                                        <label>Nome Target</label>
+                                    </div>
+                                </div>
+                                
+                                <!-- Range Selection (shown only for range type) -->
+                                <div id="range-selection" style="display: none;">
+                                    <div class="row">
+                                        <div class="input-field col s6 m3">
+                                            <input type="number" name="start_row" min="0">
+                                            <label>Riga Inizio</label>
+                                        </div>
+                                        <div class="input-field col s6 m3">
+                                            <input type="number" name="end_row" min="0">
+                                            <label>Riga Fine</label>
+                                        </div>
+                                        <div class="input-field col s6 m3">
+                                            <input type="text" name="start_col" placeholder="A">
+                                            <label>Colonna Inizio</label>
+                                        </div>
+                                        <div class="input-field col s6 m3">
+                                            <input type="text" name="end_col" placeholder="Z">
+                                            <label>Colonna Fine</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Label Selection -->
+                                <div class="row">
+                                    <div class="col s12">
+                                        <p><strong>Etichette da Utilizzare:</strong></p>
+                                        {% for label in available_labels %}
+                                        <p>
+                                            <label>
+                                                <input type="checkbox" name="selected_labels" value="{{ label.id }}" checked />
+                                                <span>{{ label.name }} - {{ label.description }}</span>
+                                            </label>
+                                        </p>
+                                        {% endfor %}
+                                        
+                                        {% if not available_labels %}
+                                        <p class="red-text">Nessuna etichetta disponibile. Completa prima la Fase 1.</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                
+                                <!-- AI Configuration -->
+                                <div class="row">
+                                    <div class="input-field col s12">
+                                        <textarea name="custom_prompt" class="materialize-textarea" placeholder="Istruzioni aggiuntive per l'AI (opzionale)..."></textarea>
+                                        <label>Prompt Personalizzato</label>
+                                        <span class="helper-text">Istruzioni specifiche per guidare l'AI nell'etichettatura</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="input-field col s12 m6">
+                                        <input type="number" name="min_confidence" min="0.1" max="1.0" step="0.1" value="0.7">
+                                        <label>Confidenza Minima</label>
+                                        <span class="helper-text">Soglia minima per applicazione automatica</span>
+                                    </div>
+                                    
+                                    <div class="input-field col s12 m6">
+                                        <input type="number" name="max_applications" min="1" max="1000" value="100">
+                                        <label>Max Applicazioni</label>
+                                        <span class="helper-text">Limite massimo di etichette da applicare</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col s12">
+                                        <p>
+                                            <label>
+                                                <input type="checkbox" name="dry_run" />
+                                                <span>Esecuzione di Prova (Preview Only)</span>
+                                            </label>
+                                        </p>
+                                        <p>
+                                            <label>
+                                                <input type="checkbox" name="overwrite_existing" />
+                                                <span>Sovrascrivi Etichette Esistenti</span>
+                                            </label>
+                                        </p>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col s12">
+                                        <button type="submit" class="btn purple waves-effect waves-light">
+                                            <i class="material-icons left">auto_awesome</i>Avvia Applicazione AI
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Applications -->
+    {% if recent_applications %}
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">Applicazioni Recenti</span>
+                    
+                    <table class="striped">
+                        <thead>
+                            <tr>
+                                <th>Cella</th>
+                                <th>Etichetta</th>
+                                <th>Confidenza</th>
+                                <th>Tipo</th>
+                                <th>Data</th>
+                                <th>Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for app in recent_applications %}
+                            <tr>
+                                <td>{{ app.column_name }}{{ app.row_index }}</td>
+                                <td>
+                                    <span class="chip orange white-text">{{ app.label.name }}</span>
+                                </td>
+                                <td>
+                                    <div class="progress">
+                                        <div class="determinate {{ 'green' if app.confidence > 0.8 else 'orange' if app.confidence > 0.5 else 'red' }}"
+                                             style="width: {{ (app.confidence * 100)|round }}%"></div>
+                                    </div>
+                                    <small>{{ (app.confidence * 100)|round }}%</small>
+                                </td>
+                                <td>
+                                    <span class="chip {{ 'blue white-text' if app.application_type == 'manual' else 'purple white-text' }}">
+                                        {{ app.application_type }}
+                                    </span>
+                                </td>
+                                <td>{{ app.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                                <td>
+                                    <a href="#" class="btn-small red waves-effect waves-light" 
+                                       onclick="removeApplication('{{ app.id }}')">
+                                        <i class="material-icons">delete</i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Material Design components
+    M.FormSelect.init(document.querySelectorAll('select'));
+    M.textareaAutoResize(document.querySelectorAll('textarea'));
+    M.Tabs.init(document.querySelectorAll('.tabs'));
+    
+    // Manual mode: Load rows when column selected
+    const manualColumnSelect = document.getElementById('manual_column');
+    const manualRowSelect = document.getElementById('manual_row');
+    const cellPreview = document.getElementById('cell-preview');
+    
+    if (manualColumnSelect) {
+        manualColumnSelect.addEventListener('change', function() {
+            const columnName = this.value;
+            if (columnName) {
+                // Mostra loading
+                manualRowSelect.innerHTML = '<option value="" disabled selected>Caricamento righe...</option>';
+                M.FormSelect.init(manualRowSelect);
+                
+                // Carica righe dalla API
+                fetch(`/labeling/projects/{{ project.id }}/sheets/{{ sheet.id }}/rows?column_name=${encodeURIComponent(columnName)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            manualRowSelect.innerHTML = `<option value="" disabled selected>Errore: ${data.error}</option>`;
+                            M.toast({html: data.error, classes: 'red'});
+                        } else {
+                            let optionsHtml = '<option value="" disabled selected>Seleziona riga</option>';
+                            data.rows.forEach(row => {
+                                optionsHtml += `<option value="${row.index}" data-value="${row.value}">${row.display}</option>`;
+                            });
+                            manualRowSelect.innerHTML = optionsHtml;
+                            
+                            if (data.total_rows > data.rows.length) {
+                                M.toast({html: `Mostrate prime ${data.rows.length} righe di ${data.total_rows}`, classes: 'blue'});
+                            }
+                        }
+                        M.FormSelect.init(manualRowSelect);
+                    })
+                    .catch(error => {
+                        console.error('Errore:', error);
+                        manualRowSelect.innerHTML = '<option value="" disabled selected>Errore nel caricamento</option>';
+                        M.FormSelect.init(manualRowSelect);
+                        M.toast({html: 'Errore nel caricamento righe', classes: 'red'});
+                    });
+            }
+        });
+    }
+    
+    // Show cell preview when row selected
+    if (manualRowSelect) {
+        manualRowSelect.addEventListener('change', function() {
+            const rowIndex = this.value;
+            const columnName = manualColumnSelect.value;
+            
+            if (rowIndex !== '' && columnName) {
+                const selectedOption = this.options[this.selectedIndex];
+                const cellValue = selectedOption.textContent.split(': ')[1];
+                
+                document.getElementById('cell-value').textContent = cellValue;
+                document.getElementById('cell-position').textContent = `${columnName}${rowIndex}`;
+                cellPreview.style.display = 'block';
+            } else {
+                cellPreview.style.display = 'none';
+            }
+        });
+    }
+    
+    // AI Batch mode: Handle target type changes
+    const targetTypeSelect = document.getElementById('target_type');
+    const targetNameSelect = document.getElementById('target_name');
+    const rangeSelection = document.getElementById('range-selection');
+    
+    if (targetTypeSelect) {
+        targetTypeSelect.addEventListener('change', function() {
+            const targetType = this.value;
+            
+            // Show/hide range selection
+            if (targetType === 'range') {
+                rangeSelection.style.display = 'block';
+            } else {
+                rangeSelection.style.display = 'none';
+            }
+            
+            // Mostra loading
+            targetNameSelect.innerHTML = '<option value="" disabled selected>Caricamento target...</option>';
+            M.FormSelect.init(targetNameSelect);
+            
+            // Carica target dalla API
+            fetch(`/labeling/projects/{{ project.id }}/sheets/{{ sheet.id }}/targets?target_type=${targetType}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        targetNameSelect.innerHTML = `<option value="" disabled selected>Errore: ${data.error}</option>`;
+                        M.toast({html: data.error, classes: 'red'});
+                    } else {
+                        let optionsHtml = '<option value="" disabled selected>Seleziona target</option>';
+                        data.targets.forEach(target => {
+                            optionsHtml += `<option value="${target.value}" title="${target.description}">${target.display}</option>`;
+                        });
+                        targetNameSelect.innerHTML = optionsHtml;
+                        
+                        // Aggiungi info contestuale
+                        if (targetType === 'column') {
+                            M.toast({html: `${data.total_columns} colonne disponibili`, classes: 'blue'});
+                        } else if (targetType === 'row') {
+                            M.toast({html: `Prime ${data.targets.length} righe di ${data.total_rows}`, classes: 'blue'});
+                        }
+                    }
+                    M.FormSelect.init(targetNameSelect);
+                })
+                .catch(error => {
+                    console.error('Errore:', error);
+                    targetNameSelect.innerHTML = '<option value="" disabled selected>Errore nel caricamento</option>';
+                    M.FormSelect.init(targetNameSelect);
+                    M.toast({html: 'Errore nel caricamento target', classes: 'red'});
+                });
+        });
+    }
+});
+
+function removeApplication(applicationId) {
+    if (confirm('Sei sicuro di voler rimuovere questa applicazione?')) {
+        fetch(`{{ url_for('labeling.api_remove_application', application_id='APPLICATION_ID') }}`.replace('APPLICATION_ID', applicationId), {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.message) {
+                M.toast({html: data.message, classes: 'green'});
+                location.reload();
+            } else {
+                M.toast({html: data.error || 'Errore nella rimozione', classes: 'red'});
+            }
+        })
+        .catch(error => {
+            M.toast({html: 'Errore di connessione', classes: 'red'});
+        });
+    }
+}
+</script>
+
+{% block extra_css %}
+<style>
+.tabs .tab a {
+    color: #26a69a;
+}
+
+.tabs .tab a.active {
+    color: #ffffff;
+    background-color: #26a69a;
+}
+
+.tabs .indicator {
+    background-color: #26a69a;
+}
+
+.chip {
+    margin: 2px;
+}
+
+.progress {
+    height: 8px;
+    margin: 5px 0;
+}
+</style>
+{% endblock %}
+{% endblock %}

@@ -1,0 +1,398 @@
+{% extends "base.html" %}
+
+{% block title %}Revisione Suggerimenti AI - Anatema{% endblock %}
+
+{% block content %}
+<div class="container" style="margin-top: 30px;">
+    <div class="row">
+        <div class="col s12">
+            <h4 class="green-text text-darken-2">
+                <i class="material-icons left">rate_review</i>
+                Revisione Suggerimenti AI
+            </h4>
+            <p class="grey-text">Rivedi e approva i suggerimenti generati dall'AI prima dell'uso</p>
+        </div>
+    </div>
+
+    <!-- Summary Stats -->
+    <div class="row">
+        <div class="col s12 m3">
+            <div class="card blue lighten-4">
+                <div class="card-content center-align">
+                    <h5 class="blue-text">{{ suggestions|length }}</h5>
+                    <p>Totali</p>
+                </div>
+            </div>
+        </div>
+        <div class="col s12 m3">
+            <div class="card green lighten-4">
+                <div class="card-content center-align">
+                    <h5 class="green-text">{{ suggestions|selectattr('status', 'equalto', 'approved')|list|length }}</h5>
+                    <p>Approvati</p>
+                </div>
+            </div>
+        </div>
+        <div class="col s12 m3">
+            <div class="card red lighten-4">
+                <div class="card-content center-align">
+                    <h5 class="red-text">{{ suggestions|selectattr('status', 'equalto', 'rejected')|list|length }}</h5>
+                    <p>Rifiutati</p>
+                </div>
+            </div>
+        </div>
+        <div class="col s12 m3">
+            <div class="card orange lighten-4">
+                <div class="card-content center-align">
+                    <h5 class="orange-text">{{ suggestions|selectattr('status', 'equalto', 'pending')|list|length }}</h5>
+                    <p>In Attesa</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Actions -->
+    {% if suggestions|selectattr('status', 'equalto', 'pending')|list|length > 0 %}
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">Azioni Massive</span>
+                    <div class="row">
+                        <div class="col s12 m6">
+                            <button class="btn green waves-effect waves-light" onclick="bulkApproveHighConfidence()">
+                                <i class="material-icons left">check_circle</i>
+                                Approva Alta Confidenza (>0.8)
+                            </button>
+                        </div>
+                        <div class="col s12 m6">
+                            <button class="btn red waves-effect waves-light" onclick="bulkRejectLowConfidence()">
+                                <i class="material-icons left">cancel</i>
+                                Rifiuta Bassa Confidenza (<0.5)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Filter Controls -->
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">Filtri</span>
+                    <div class="row">
+                        <div class="input-field col s12 m4">
+                            <select id="status-filter">
+                                <option value="">Tutti gli stati</option>
+                                <option value="pending">In Attesa</option>
+                                <option value="approved">Approvati</option>
+                                <option value="rejected">Rifiutati</option>
+                            </select>
+                            <label>Stato</label>
+                        </div>
+                        <div class="input-field col s12 m4">
+                            <select id="confidence-filter">
+                                <option value="">Tutte le confidenze</option>
+                                <option value="high">Alta (>0.8)</option>
+                                <option value="medium">Media (0.5-0.8)</option>
+                                <option value="low">Bassa (<0.5)</option>
+                            </select>
+                            <label>Confidenza</label>
+                        </div>
+                        <div class="input-field col s12 m4">
+                            <input type="text" id="search-filter" placeholder="Cerca nel testo...">
+                            <label for="search-filter">Ricerca</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Suggestions List -->
+    <div class="row">
+        <div class="col s12">
+            {% for suggestion in suggestions %}
+            <div class="card suggestion-card" 
+                 data-status="{{ suggestion.status }}" 
+                 data-confidence="{{ suggestion.ai_confidence or 0 }}"
+                 data-text="{{ suggestion.suggested_name|lower }}">
+                <div class="card-content">
+                    <div class="row valign-wrapper">
+                        <!-- Status Badge -->
+                        <div class="col s12 m2">
+                            <span class="chip {{ 'green white-text' if suggestion.status == 'approved' else 'red white-text' if suggestion.status == 'rejected' else 'orange white-text' }}">
+                                {{ suggestion.status }}
+                            </span>
+                        </div>
+                        
+                        <!-- Confidence Score -->
+                        <div class="col s12 m2">
+                            <div class="center-align">
+                                <div class="progress">
+                                    <div class="determinate {{ 'green' if (suggestion.ai_confidence or 0) > 0.8 else 'orange' if (suggestion.ai_confidence or 0) > 0.5 else 'red' }}"
+                                         style="width: {{ ((suggestion.ai_confidence or 0) * 100)|round }}%"></div>
+                                </div>
+                                <small>{{ ((suggestion.ai_confidence or 0) * 100)|round }}% confidenza</small>
+                            </div>
+                        </div>
+                        
+                        <!-- Original Text -->
+                        <div class="col s12 m8">
+                            <p><strong>Etichetta Suggerita:</strong></p>
+                            <blockquote>{{ suggestion.suggested_name }}</blockquote>
+                            {% if suggestion.suggested_description %}
+                            <p><strong>Descrizione:</strong> {{ suggestion.suggested_description }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <!-- Suggested Label -->
+                        <div class="col s12 m6">
+                            <p><strong>Etichetta Suggerita:</strong></p>
+                            <div class="chip" style="font-size: 14px; background-color: {{ suggestion.suggested_color }}; color: white;">
+                                {{ suggestion.suggested_name }}
+                            </div>
+                        </div>
+                        
+                        <!-- Generation Info -->
+                        <div class="col s12 m6">
+                            <p><strong>Generazione:</strong> {{ suggestion.generation.template.name }}</p>
+                            <p><strong>Progetto:</strong> {{ suggestion.generation.project.name }}</p>
+                            <p><strong>Data:</strong> {{ suggestion.created_at.strftime('%d/%m/%Y %H:%M') }}</p>
+                        </div>
+                    </div>
+                    
+                    <!-- AI Reasoning -->
+                    {% if suggestion.ai_reasoning %}
+                    <div class="row">
+                        <div class="col s12">
+                            <p><strong>Ragionamento AI:</strong></p>
+                            <div class="card-panel grey lighten-4">
+                                <em>{{ suggestion.ai_reasoning }}</em>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Modification Form -->
+                    {% if suggestion.status == 'pending' %}
+                    <div class="row">
+                        <div class="col s12">
+                            <form class="suggestion-form" action="{{ url_for('labeling.approve_suggestion', suggestion_id=suggestion.id) }}" method="POST">
+                                <div class="row">
+                                    <div class="input-field col s12 m6">
+                                        <input type="text" name="final_label" id="final_label_{{ suggestion.id }}"
+                                               value="{{ suggestion.suggested_name }}" required>
+                                        <label for="final_label_{{ suggestion.id }}">Etichetta Finale</label>
+                                    </div>
+                                    <div class="input-field col s12 m6">
+                                        <textarea name="notes" id="notes_{{ suggestion.id }}" 
+                                                  class="materialize-textarea" placeholder="Note opzionali..."></textarea>
+                                        <label for="notes_{{ suggestion.id }}">Note</label>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col s12">
+                                        <button type="submit" name="action" value="approve" 
+                                                class="btn green waves-effect waves-light">
+                                            <i class="material-icons left">check</i>Approva
+                                        </button>
+                                        <button type="submit" name="action" value="reject" 
+                                                class="btn red waves-effect waves-light">
+                                            <i class="material-icons left">close</i>Rifiuta
+                                        </button>
+                                        <button type="button" class="btn grey waves-effect waves-light" 
+                                                onclick="resetSuggestion('{{ suggestion.id }}')">
+                                            <i class="material-icons left">refresh</i>Reset
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                    {% elif suggestion.status == 'approved' %}
+                    <div class="row">
+                        <div class="col s12">
+                            <div class="card-panel green lighten-4">
+                                <p><strong>Etichetta Approvata:</strong> <span class="chip green white-text">{{ suggestion.final_name or suggestion.suggested_name }}</span></p>
+                                {% if suggestion.review_notes %}
+                                <p><strong>Note:</strong> {{ suggestion.review_notes }}</p>
+                                {% endif %}
+                                <p><em>Approvato il {{ suggestion.reviewed_at.strftime('%d/%m/%Y %H:%M') }}</em></p>
+                            </div>
+                        </div>
+                    </div>
+                    {% elif suggestion.status == 'rejected' %}
+                    <div class="row">
+                        <div class="col s12">
+                            <div class="card-panel red lighten-4">
+                                <p><strong>Suggerimento Rifiutato</strong></p>
+                                {% if suggestion.review_notes %}
+                                <p><strong>Motivo:</strong> {{ suggestion.review_notes }}</p>
+                                {% endif %}
+                                <p><em>Rifiutato il {{ suggestion.reviewed_at.strftime('%d/%m/%Y %H:%M') }}</em></p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+            
+            {% if not suggestions %}
+            <div class="card">
+                <div class="card-content center-align">
+                    <i class="material-icons large grey-text">inbox</i>
+                    <h5 class="grey-text">Nessun suggerimento disponibile</h5>
+                    <p>Genera suggerimenti AI per iniziare la revisione</p>
+                    <a href="{{ url_for('labeling.dashboard') }}" class="btn blue waves-effect waves-light">
+                        <i class="material-icons left">arrow_back</i>Torna alla Dashboard
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Material Design components
+    M.FormSelect.init(document.querySelectorAll('select'));
+    M.textareaAutoResize(document.querySelectorAll('textarea'));
+    
+    // Filter functionality
+    const statusFilter = document.getElementById('status-filter');
+    const confidenceFilter = document.getElementById('confidence-filter');
+    const searchFilter = document.getElementById('search-filter');
+    const suggestionCards = document.querySelectorAll('.suggestion-card');
+    
+    function applyFilters() {
+        const statusValue = statusFilter.value;
+        const confidenceValue = confidenceFilter.value;
+        const searchValue = searchFilter.value.toLowerCase();
+        
+        suggestionCards.forEach(card => {
+            let show = true;
+            
+            // Status filter
+            if (statusValue && card.dataset.status !== statusValue) {
+                show = false;
+            }
+            
+            // Confidence filter
+            if (confidenceValue) {
+                const confidence = parseFloat(card.dataset.confidence) || 0;
+                if (confidenceValue === 'high' && confidence <= 0.8) show = false;
+                if (confidenceValue === 'medium' && (confidence <= 0.5 || confidence > 0.8)) show = false;
+                if (confidenceValue === 'low' && confidence >= 0.5) show = false;
+            }
+            
+            // Search filter
+            if (searchValue && !card.dataset.text.includes(searchValue)) {
+                show = false;
+            }
+            
+            card.style.display = show ? 'block' : 'none';
+        });
+    }
+    
+    statusFilter.addEventListener('change', applyFilters);
+    confidenceFilter.addEventListener('change', applyFilters);
+    searchFilter.addEventListener('input', applyFilters);
+});
+
+function bulkApproveHighConfidence() {
+    const forms = document.querySelectorAll('.suggestion-form');
+    let count = 0;
+    
+    forms.forEach(form => {
+        const card = form.closest('.suggestion-card');
+        const confidence = parseFloat(card.dataset.confidence) || 0;
+        
+        if (confidence > 0.8) {
+            const approveBtn = form.querySelector('button[value="approve"]');
+            if (approveBtn) {
+                approveBtn.click();
+                count++;
+            }
+        }
+    });
+    
+    if (count > 0) {
+        M.toast({html: `Approvazione di ${count} suggerimenti ad alta confidenza...`, classes: 'green'});
+    } else {
+        M.toast({html: 'Nessun suggerimento ad alta confidenza trovato', classes: 'orange'});
+    }
+}
+
+function bulkRejectLowConfidence() {
+    const forms = document.querySelectorAll('.suggestion-form');
+    let count = 0;
+    
+    forms.forEach(form => {
+        const card = form.closest('.suggestion-card');
+        const confidence = parseFloat(card.dataset.confidence) || 0;
+        
+        if (confidence < 0.5) {
+            const rejectBtn = form.querySelector('button[value="reject"]');
+            if (rejectBtn) {
+                rejectBtn.click();
+                count++;
+            }
+        }
+    });
+    
+    if (count > 0) {
+        M.toast({html: `Rifiuto di ${count} suggerimenti a bassa confidenza...`, classes: 'red'});
+    } else {
+        M.toast({html: 'Nessun suggerimento a bassa confidenza trovato', classes: 'orange'});
+    }
+}
+
+function resetSuggestion(suggestionId) {
+    const labelInput = document.getElementById(`final_label_${suggestionId}`);
+    const notesInput = document.getElementById(`notes_${suggestionId}`);
+    
+    // Reset to original suggested label
+    const card = labelInput.closest('.suggestion-card');
+    const originalLabel = card.querySelector('.chip').textContent.trim();
+    
+    labelInput.value = originalLabel;
+    notesInput.value = '';
+    
+    M.updateTextFields();
+    M.toast({html: 'Suggerimento ripristinato', classes: 'blue'});
+}
+</script>
+
+{% block extra_css %}
+<style>
+.suggestion-card {
+    margin-bottom: 20px;
+}
+
+.progress {
+    height: 8px;
+    margin: 5px 0;
+}
+
+blockquote {
+    border-left: 5px solid #26a69a;
+    margin: 10px 0;
+    padding: 10px 15px;
+    background-color: #f5f5f5;
+}
+
+.chip {
+    margin: 2px;
+}
+</style>
+{% endblock %}
+{% endblock %}

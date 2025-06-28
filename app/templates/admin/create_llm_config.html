@@ -1,0 +1,625 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Modifica' if config else 'Nuova' }} Configurazione LLM - Amministrazione{% endblock %}
+
+{% block extra_css %}
+<style>
+.admin-header {
+    background: linear-gradient(135deg, #1565c0 0%, #0d47a1 100%);
+    color: white;
+    padding: 30px 0;
+    margin-bottom: 30px;
+}
+
+.admin-nav {
+    background: #fff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 30px;
+}
+
+.admin-nav .nav-item {
+    display: inline-block;
+    margin-right: 20px;
+}
+
+.admin-nav .nav-item a {
+    color: #1976d2;
+    text-decoration: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.admin-nav .nav-item a:hover {
+    background: #e3f2fd;
+}
+
+.admin-nav .nav-item.active a {
+    background: #1976d2;
+    color: white;
+}
+
+.form-section {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    margin-bottom: 30px;
+    overflow: hidden;
+}
+
+.section-header {
+    background: #f5f5f5;
+    padding: 20px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.section-content {
+    padding: 30px;
+}
+
+.provider-template {
+    background: #f8f9fa;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.provider-template:hover {
+    border-color: #2196f3;
+    background: #e3f2fd;
+}
+
+.provider-template.selected {
+    border-color: #2196f3;
+    background: #e3f2fd;
+}
+
+.provider-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    color: white;
+    margin-right: 15px;
+}
+
+.provider-openai { background: #10a37f; }
+.provider-anthropic { background: #ff6b35; }
+.provider-google { background: #4285f4; }
+.provider-azure { background: #0078d4; }
+.provider-custom { background: #666; }
+
+.advanced-settings {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    margin-top: 20px;
+}
+
+.advanced-header {
+    background: #fafafa;
+    padding: 15px 20px;
+    border-bottom: 1px solid #e0e0e0;
+    cursor: pointer;
+    user-select: none;
+}
+
+.advanced-content {
+    padding: 20px;
+    display: none;
+}
+
+.advanced-content.show {
+    display: block;
+}
+
+.parameter-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.help-text {
+    font-size: 0.9em;
+    color: #666;
+    margin-top: 5px;
+}
+
+.test-section {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+.test-result {
+    margin-top: 15px;
+    padding: 15px;
+    border-radius: 4px;
+    display: none;
+}
+
+.test-result.success {
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+}
+
+.test-result.error {
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
+
+.model-suggestions {
+    background: #e3f2fd;
+    border-radius: 4px;
+    padding: 10px;
+    margin-top: 10px;
+}
+
+.model-chip {
+    background: #2196f3;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    margin: 2px;
+    cursor: pointer;
+    display: inline-block;
+}
+
+.model-chip:hover {
+    background: #1976d2;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="admin-header">
+    <div class="container">
+        <div class="row">
+            <div class="col s12">
+                <h3>
+                    <i class="material-icons left">{{ 'edit' if config else 'add_circle' }}</i>
+                    {{ 'Modifica' if config else 'Nuova' }} Configurazione LLM
+                </h3>
+                <p class="flow-text">{{ 'Aggiorna le impostazioni della configurazione esistente' if config else 'Configura un nuovo provider AI per le funzionalità intelligenti' }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <!-- Navigation -->
+    <div class="admin-nav">
+        <div class="nav-item">
+            <a href="{{ url_for('admin.dashboard') }}">
+                <i class="material-icons left">dashboard</i>Dashboard
+            </a>
+        </div>
+        <div class="nav-item">
+            <a href="{{ url_for('admin.manage_users') }}">
+                <i class="material-icons left">people</i>Utenti
+            </a>
+        </div>
+        <div class="nav-item active">
+            <a href="{{ url_for('admin.manage_llm_configs') }}">
+                <i class="material-icons left">psychology</i>Configurazioni LLM
+            </a>
+        </div>
+        <div class="nav-item">
+            <a href="{{ url_for('admin.system_settings') }}">
+                <i class="material-icons left">settings</i>Impostazioni
+            </a>
+        </div>
+        <div class="nav-item">
+            <a href="{{ url_for('admin.audit_logs') }}">
+                <i class="material-icons left">history</i>Log Audit
+            </a>
+        </div>
+    </div>
+
+    <form id="llmConfigForm" method="POST">
+        <!-- Selezione Provider -->
+        {% if not config %}
+        <div class="form-section">
+            <div class="section-header">
+                <h5><i class="material-icons left">category</i>Seleziona Provider</h5>
+            </div>
+            <div class="section-content">
+                <div class="row">
+                    {% for provider_key, template in provider_templates.items() %}
+                    <div class="col s12 m6 l4">
+                        <div class="provider-template" data-provider="{{ provider_key }}">
+                            <div style="display: flex; align-items: center;">
+                                <div class="provider-icon provider-{{ provider_key }}">
+                                    {{ provider_key[0:2].upper() }}
+                                </div>
+                                <div>
+                                    <h6 style="margin: 0;">{{ template.name }}</h6>
+                                    <p style="margin: 5px 0; color: #666;">
+                                        {{ ', '.join(template.models[0:2]) }}{% if template.models|length > 2 %}...{% endif %}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    <div class="col s12 m6 l4">
+                        <div class="provider-template" data-provider="custom">
+                            <div style="display: flex; align-items: center;">
+                                <div class="provider-icon provider-custom">
+                                    <i class="material-icons">settings</i>
+                                </div>
+                                <div>
+                                    <h6 style="margin: 0;">Personalizzato</h6>
+                                    <p style="margin: 5px 0; color: #666;">
+                                        Configura un provider personalizzato
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Configurazione Base -->
+        <div class="form-section">
+            <div class="section-header">
+                <h5><i class="material-icons left">info</i>Informazioni Base</h5>
+            </div>
+            <div class="section-content">
+                <div class="row">
+                    <div class="input-field col s12 m6">
+                        <input type="text" id="name" name="name" value="{{ config.name if config else '' }}" required>
+                        <label for="name">Nome Configurazione *</label>
+                        <span class="help-text">Nome identificativo per questa configurazione</span>
+                    </div>
+                    <div class="input-field col s12 m6">
+                        <input type="text" id="provider" name="provider" value="{{ config.provider if config else '' }}" required>
+                        <label for="provider">Provider *</label>
+                        <span class="help-text">Es: OpenAI, Anthropic, Google, ecc.</span>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="input-field col s12">
+                        <textarea id="description" name="description" class="materialize-textarea">{{ config.description if config else '' }}</textarea>
+                        <label for="description">Descrizione</label>
+                        <span class="help-text">Descrizione opzionale per questa configurazione</span>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="input-field col s12 m6">
+                        <input type="text" id="model_name" name="model_name" value="{{ config.model_name if config else '' }}" required>
+                        <label for="model_name">Nome Modello *</label>
+                        <span class="help-text">Es: gpt-4, claude-3-opus-20240229</span>
+                        <div id="model-suggestions" class="model-suggestions" style="display: none;">
+                            <small><strong>Modelli suggeriti:</strong></small>
+                            <div id="model-chips"></div>
+                        </div>
+                    </div>
+                    <div class="input-field col s12 m6">
+                        <input type="url" id="api_url" name="api_url" value="{{ config.api_url if config else '' }}">
+                        <label for="api_url">URL API</label>
+                        <span class="help-text">URL base per le API del provider</span>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="input-field col s12">
+                        <input type="password" id="api_key" name="api_key" value="">
+                        <label for="api_key">API Key {{ '*' if not config else '' }}</label>
+                        <span class="help-text">
+                            {% if config %}
+                            Lascia vuoto per mantenere la chiave esistente
+                            {% else %}
+                            Chiave API per autenticarsi con il provider
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Parametri Modello -->
+        <div class="form-section">
+            <div class="section-header">
+                <h5><i class="material-icons left">tune</i>Parametri Modello</h5>
+            </div>
+            <div class="section-content">
+                <div class="parameter-grid">
+                    <div class="input-field">
+                        <input type="number" id="max_tokens" name="max_tokens" 
+                               value="{{ config.max_tokens if config else 4000 }}" min="1" max="200000">
+                        <label for="max_tokens">Max Tokens</label>
+                        <span class="help-text">Numero massimo di token per risposta</span>
+                    </div>
+                    <div class="input-field">
+                        <input type="number" id="temperature" name="temperature" step="0.1" min="0" max="2"
+                               value="{{ config.temperature if config else 0.7 }}">
+                        <label for="temperature">Temperature</label>
+                        <span class="help-text">Creatività del modello (0-2)</span>
+                    </div>
+                    <div class="input-field">
+                        <input type="number" id="top_p" name="top_p" step="0.1" min="0" max="1"
+                               value="{{ config.top_p if config else 1.0 }}">
+                        <label for="top_p">Top P</label>
+                        <span class="help-text">Nucleus sampling (0-1)</span>
+                    </div>
+                    <div class="input-field">
+                        <input type="number" id="frequency_penalty" name="frequency_penalty" step="0.1" min="-2" max="2"
+                               value="{{ config.frequency_penalty if config else 0.0 }}">
+                        <label for="frequency_penalty">Frequency Penalty</label>
+                        <span class="help-text">Penalità per ripetizioni (-2 a 2)</span>
+                    </div>
+                    <div class="input-field">
+                        <input type="number" id="presence_penalty" name="presence_penalty" step="0.1" min="-2" max="2"
+                               value="{{ config.presence_penalty if config else 0.0 }}">
+                        <label for="presence_penalty">Presence Penalty</label>
+                        <span class="help-text">Penalità per nuovi argomenti (-2 a 2)</span>
+                    </div>
+                    <div class="input-field">
+                        <input type="number" id="cost_per_token" name="cost_per_token" step="0.000001" min="0"
+                               value="{{ config.cost_per_token if config else 0.0 }}">
+                        <label for="cost_per_token">Costo per Token ($)</label>
+                        <span class="help-text">Costo in dollari per token (opzionale)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Limiti e Rate Limiting -->
+        <div class="form-section">
+            <div class="section-header">
+                <h5><i class="material-icons left">speed</i>Limiti e Rate Limiting</h5>
+            </div>
+            <div class="section-content">
+                <div class="row">
+                    <div class="input-field col s12 m6">
+                        <input type="number" id="max_requests_per_minute" name="max_requests_per_minute" min="1"
+                               value="{{ config.max_requests_per_minute if config else 60 }}">
+                        <label for="max_requests_per_minute">Richieste per Minuto</label>
+                        <span class="help-text">Limite di richieste al minuto</span>
+                    </div>
+                    <div class="input-field col s12 m6">
+                        <input type="number" id="max_requests_per_day" name="max_requests_per_day" min="1"
+                               value="{{ config.max_requests_per_day if config else 1000 }}">
+                        <label for="max_requests_per_day">Richieste per Giorno</label>
+                        <span class="help-text">Limite di richieste giornaliere</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Opzioni -->
+        <div class="form-section">
+            <div class="section-header">
+                <h5><i class="material-icons left">settings</i>Opzioni</h5>
+            </div>
+            <div class="section-content">
+                <div class="row">
+                    <div class="col s12 m6">
+                        <label>
+                            <input type="checkbox" id="is_active" name="is_active" 
+                                   {{ 'checked' if not config or config.is_active }}>
+                            <span>Configurazione Attiva</span>
+                        </label>
+                        <p class="help-text">Se disattivata, questa configurazione non sarà disponibile per l'uso</p>
+                    </div>
+                    <div class="col s12 m6">
+                        <label>
+                            <input type="checkbox" id="is_default" name="is_default"
+                                   {{ 'checked' if config and config.is_default }}>
+                            <span>Configurazione Predefinita</span>
+                        </label>
+                        <p class="help-text">Sarà usata come configurazione di default per nuovi progetti</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Test Configurazione -->
+        <div class="form-section">
+            <div class="section-header">
+                <h5><i class="material-icons left">play_arrow</i>Test Configurazione</h5>
+            </div>
+            <div class="section-content">
+                <div class="test-section">
+                    <p>Testa la configurazione prima di salvarla per verificare che funzioni correttamente.</p>
+                    <button type="button" id="testConfigBtn" class="btn blue waves-effect waves-light">
+                        <i class="material-icons left">play_arrow</i>Testa Configurazione
+                    </button>
+                    <div id="test-result" class="test-result"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Azioni -->
+        <div class="form-section">
+            <div class="section-content">
+                <div class="row">
+                    <div class="col s12 right-align">
+                        <a href="{{ url_for('admin.manage_llm_configs') }}" class="btn grey waves-effect waves-light">
+                            <i class="material-icons left">cancel</i>Annulla
+                        </a>
+                        <button type="submit" class="btn green waves-effect waves-light" style="margin-left: 10px;">
+                            <i class="material-icons left">save</i>
+                            {{ 'Aggiorna' if config else 'Crea' }} Configurazione
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<div style="height: 50px;"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const providerTemplates = {{ provider_templates|tojsonfilter }};
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Inizializza elementi Materialize
+    M.textareaAutoResize(document.querySelector('#description'));
+    
+    // Gestisci selezione provider template
+    const templates = document.querySelectorAll('.provider-template');
+    templates.forEach(template => {
+        template.addEventListener('click', function() {
+            // Rimuovi selezione precedente
+            templates.forEach(t => t.classList.remove('selected'));
+            // Seleziona questo template
+            this.classList.add('selected');
+            
+            const provider = this.dataset.provider;
+            if (provider !== 'custom' && providerTemplates[provider]) {
+                fillProviderTemplate(provider, providerTemplates[provider]);
+            } else {
+                clearForm();
+            }
+        });
+    });
+    
+    // Suggerimenti modelli basati su provider
+    const providerInput = document.getElementById('provider');
+    const modelInput = document.getElementById('model_name');
+    const modelSuggestions = document.getElementById('model-suggestions');
+    const modelChips = document.getElementById('model-chips');
+    
+    providerInput.addEventListener('input', function() {
+        updateModelSuggestions(this.value.toLowerCase());
+    });
+    
+    // Test configurazione
+    document.getElementById('testConfigBtn').addEventListener('click', testConfiguration);
+    
+    // Pre-popola se c'è un template nell'URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const templateParam = urlParams.get('template');
+    if (templateParam && providerTemplates[templateParam]) {
+        fillProviderTemplate(templateParam, providerTemplates[templateParam]);
+        document.querySelector(`[data-provider="${templateParam}"]`).classList.add('selected');
+    }
+});
+
+function fillProviderTemplate(provider, template) {
+    document.getElementById('provider').value = provider;
+    document.getElementById('name').value = template.name;
+    document.getElementById('api_url').value = template.api_url || '';
+    
+    // Aggiorna labels
+    M.updateTextFields();
+    
+    // Mostra suggerimenti modelli
+    updateModelSuggestions(provider);
+}
+
+function updateModelSuggestions(provider) {
+    const modelSuggestions = document.getElementById('model-suggestions');
+    const modelChips = document.getElementById('model-chips');
+    
+    // Trova template per provider
+    let models = [];
+    for (const [key, template] of Object.entries(providerTemplates)) {
+        if (key.toLowerCase() === provider.toLowerCase()) {
+            models = template.models || [];
+            break;
+        }
+    }
+    
+    if (models.length > 0) {
+        modelChips.innerHTML = '';
+        models.forEach(model => {
+            const chip = document.createElement('span');
+            chip.className = 'model-chip';
+            chip.textContent = model;
+            chip.addEventListener('click', function() {
+                document.getElementById('model_name').value = model;
+                M.updateTextFields();
+            });
+            modelChips.appendChild(chip);
+        });
+        modelSuggestions.style.display = 'block';
+    } else {
+        modelSuggestions.style.display = 'none';
+    }
+}
+
+function clearForm() {
+    const inputs = ['provider', 'name', 'api_url'];
+    inputs.forEach(id => {
+        document.getElementById(id).value = '';
+    });
+    M.updateTextFields();
+    document.getElementById('model-suggestions').style.display = 'none';
+}
+
+function testConfiguration() {
+    const btn = document.getElementById('testConfigBtn');
+    const result = document.getElementById('test-result');
+    
+    // Disabilita button e mostra loading
+    btn.disabled = true;
+    btn.innerHTML = '<i class="material-icons left">hourglass_empty</i>Testing...';
+    result.style.display = 'none';
+    
+    // Raccogli dati form
+    const formData = new FormData(document.getElementById('llmConfigForm'));
+    const data = Object.fromEntries(formData.entries());
+    
+    fetch('/admin/llm-configs/test', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        result.style.display = 'block';
+        if (data.success) {
+            result.className = 'test-result success';
+            result.innerHTML = `
+                <i class="material-icons left">check_circle</i>
+                <strong>Test Riuscito!</strong><br>
+                ${data.message || 'La configurazione funziona correttamente.'}
+                ${data.response ? `<br><small>Risposta: ${data.response}</small>` : ''}
+            `;
+        } else {
+            result.className = 'test-result error';
+            result.innerHTML = `
+                <i class="material-icons left">error</i>
+                <strong>Test Fallito</strong><br>
+                ${data.error || 'Errore sconosciuto durante il test.'}
+            `;
+        }
+    })
+    .catch(error => {
+        result.style.display = 'block';
+        result.className = 'test-result error';
+        result.innerHTML = `
+            <i class="material-icons left">error</i>
+            <strong>Errore di Rete</strong><br>
+            Impossibile completare il test della configurazione.
+        `;
+    })
+    .finally(() => {
+        // Ripristina button
+        btn.disabled = false;
+        btn.innerHTML = '<i class="material-icons left">play_arrow</i>Testa Configurazione';
+    });
+}
+</script>
+{% endblock %}

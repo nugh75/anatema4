@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+
+{% block title %}Seleziona Riga - {{ sheet.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col s12">
+            <nav>
+                <div class="nav-wrapper">
+                    <div class="col s12">
+                        <a href="{{ url_for('main.dashboard') }}" class="breadcrumb">Dashboard</a>
+                        <a href="{{ url_for('projects.view_project', project_id=project.id) }}" class="breadcrumb">{{ project.name }}</a>
+                        <a href="{{ url_for('ml.view_ml_dashboard', project_id=project.id) }}" class="breadcrumb">Machine Learning</a>
+                        <span class="breadcrumb">Seleziona Riga - {{ sheet.name }}</span>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">
+                        <i class="material-icons left">view_list</i>
+                        Seleziona una Riga da Analizzare
+                    </span>
+                    <p>Scegli una riga per visualizzarla in modalità orizzontale con aggregazione dei valori e frequenze.</p>
+                    <p class="grey-text">Mostrando le prime 50 righe di {{ total_rows }} totali</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <div class="collection" style="max-height: 70vh; overflow-y: auto;">
+                        <div class="collection-item header-fix">
+                            <div class="row valign-wrapper" style="margin-bottom: 0;">
+                                <div class="col s2"><strong>Indice Riga</strong></div>
+                                <div class="col s8"><strong>Anteprima Contenuto</strong></div>
+                                <div class="col s2"><strong>Azioni</strong></div>
+                            </div>
+                        </div>
+                        {% for row in available_rows %}
+                        <div class="collection-item clickable-row" data-row-index="{{ row.index }}">
+                            <div class="row valign-wrapper" style="margin-bottom: 0;">
+                                <div class="col s2">
+                                    <span class="chip blue white-text">Riga {{ row.index }}</span>
+                                </div>
+                                <div class="col s8">
+                                    <span class="truncate">{{ row.preview }}</span>
+                                </div>
+                                <div class="col s2">
+                                    <a href="{{ url_for('ml.single_row_view', project_id=project.id, sheet_id=sheet.id, row_index=row.index) }}" 
+                                       class="btn waves-effect waves-light blue">
+                                        <i class="material-icons left">visibility</i>
+                                        Visualizza
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        
+                        {% if total_rows > 50 %}
+                        <div class="collection-item grey lighten-4">
+                            <div class="center-align">
+                                <p class="grey-text">
+                                    <i class="material-icons left">info</i>
+                                    Hai altre {{ total_rows - 50 }} righe disponibili. 
+                                    Usa la vista completa per accedere a tutte le righe.
+                                </p>
+                                <a href="{{ url_for('ml.view_sheet_rows', project_id=project.id, sheet_id=sheet.id) }}" 
+                                   class="btn waves-effect waves-light orange">
+                                    <i class="material-icons left">view_list</i>
+                                    Vista Completa Righe
+                                </a>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-action">
+                    <a href="{{ url_for('ml.view_ml_dashboard', project_id=project.id) }}" 
+                       class="btn waves-effect waves-light grey">
+                        <i class="material-icons left">arrow_back</i>
+                        Torna al Dashboard
+                    </a>
+                    {% if total_rows > 50 %}
+                    <a href="{{ url_for('ml.view_sheet_rows', project_id=project.id, sheet_id=sheet.id) }}" 
+                       class="btn waves-effect waves-light orange">
+                        <i class="material-icons left">view_list</i>
+                        Vista Completa Righe
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navigazione Rapida -->
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">
+                        <i class="material-icons left">search</i>
+                        Navigazione Rapida
+                    </span>
+                    <div class="row">
+                        <div class="input-field col s6">
+                            <input id="goto-row-input" type="number" min="0" max="{{ total_rows - 1 }}" placeholder="0">
+                            <label for="goto-row-input">Vai alla Riga (0-{{ total_rows - 1 }})</label>
+                        </div>
+                        <div class="col s6 valign-wrapper" style="padding-top: 20px;">
+                            <button id="goto-row-btn" class="btn waves-effect waves-light blue">
+                                <i class="material-icons left">arrow_forward</i>
+                                Vai alla Riga
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.clickable-row {
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.clickable-row:hover {
+    background-color: #e3f2fd !important;
+}
+
+.header-fix {
+    background-color: #f5f5f5 !important;
+    color: #111 !important;
+    font-weight: bold;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Rendi cliccabili le righe
+    document.querySelectorAll('.clickable-row').forEach(item => {
+        item.addEventListener('click', function(e) {
+            // Non attivare il click se si clicca sul pulsante
+            if (e.target.closest('a')) return;
+            
+            const rowIndex = this.dataset.rowIndex;
+            const url = `{{ url_for('ml.single_row_view', project_id=project.id, sheet_id=sheet.id) }}?row_index=${rowIndex}`;
+            window.location.href = url;
+        });
+    });
+    
+    // Navigazione rapida
+    document.getElementById('goto-row-btn').addEventListener('click', function() {
+        const rowIndex = document.getElementById('goto-row-input').value;
+        if (rowIndex !== '' && !isNaN(rowIndex)) {
+            const rowNum = parseInt(rowIndex);
+            if (rowNum >= 0 && rowNum < {{ total_rows }}) {
+                const url = `{{ url_for('ml.single_row_view', project_id=project.id, sheet_id=sheet.id) }}?row_index=${rowNum}`;
+                window.location.href = url;
+            } else {
+                M.toast({html: 'Numero riga non valido. Deve essere tra 0 e {{ total_rows - 1 }}', classes: 'red'});
+            }
+        } else {
+            M.toast({html: 'Inserisci un numero di riga valido', classes: 'red'});
+        }
+    });
+    
+    // Permetti l'invio con Enter
+    document.getElementById('goto-row-input').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            document.getElementById('goto-row-btn').click();
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+
+{% block title %}Fase 1: Generazione Etichette AI - Anatema{% endblock %}
+
+{% block content %}
+<div class="container" style="margin-top: 30px;">
+    <div class="row">
+        <div class="col s12">
+            <h4 class="blue-text text-darken-2">
+                <i class="material-icons left">auto_awesome</i>
+                Fase 1: Generazione Etichette AI
+            </h4>
+            <p class="grey-text">L'AI analizza i dati delle colonne e genera suggerimenti di etichette</p>
+        </div>
+    </div>
+
+    <!-- Project Info -->
+    <div class="row">
+        <div class="col s12">
+            <div class="card blue lighten-5">
+                <div class="card-content">
+                    <span class="card-title blue-text">
+                        <i class="material-icons left">folder</i>
+                        {{ project.name }}
+                    </span>
+                    <p>{{ project.description or 'Nessuna descrizione disponibile' }}</p>
+                    <p><strong>Foglio:</strong> {{ sheet.name }}</p>
+                    <p><strong>File:</strong> {{ sheet.file.original_name }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Template Selection and Column Analysis -->
+    <form action="{{ url_for('labeling.generate_labels_phase1', project_id=project.id, sheet_id=sheet.id) }}" method="POST" id="generation-form">
+        <input type="hidden" name="project_id" value="{{ project.id }}">
+        <input type="hidden" name="sheet_id" value="{{ sheet.id }}">
+        
+        <div class="row">
+            <!-- Template Selection -->
+            <div class="col s12 m6">
+                <div class="card">
+                    <div class="card-content">
+                        <span class="card-title">Seleziona Template</span>
+                        
+                        {% if templates %}
+                        <div class="input-field">
+                            <select name="template_id" id="template_select" required>
+                                <option value="" disabled selected>Scegli template di analisi</option>
+                                {% for template in templates %}
+                                <option value="{{ template.id }}"
+                                        data-description="{{ template.description }}"
+                                        data-category="{{ template.category }}"
+                                        data-prompt="{{ template.user_prompt_template }}">
+                                    {{ template.name }} ({{ template.category }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <label>Template Prompt</label>
+                        </div>
+                        
+                        <div id="template-info" style="display: none;">
+                            <div class="card-panel grey lighten-4">
+                                <h6 id="template-category"></h6>
+                                <p id="template-description"></p>
+                                <details>
+                                    <summary><strong>Prompt Template</strong></summary>
+                                    <pre id="template-prompt" style="white-space: pre-wrap; font-size: 12px; margin-top: 10px;"></pre>
+                                </details>
+                            </div>
+                        </div>
+                        {% else %}
+                        <p class="red-text">Nessun template disponibile. <a href="{{ url_for('labeling.create_template') }}">Crea il primo template</a></p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Column Selection -->
+            <div class="col s12 m6">
+                <div class="card">
+                    <div class="card-content">
+                        <span class="card-title">Seleziona Colonna</span>
+                        
+                        {% if columns %}
+                        <div class="input-field">
+                            <select name="column_name" id="column_select" required>
+                                <option value="" disabled selected>Scegli colonna da analizzare</option>
+                                {% for column in columns %}
+                                <option value="{{ column }}">{{ column }}</option>
+                                {% endfor %}
+                            </select>
+                            <label>Colonna Dati</label>
+                        </div>
+                        
+                        <div class="input-field">
+                            <input type="number" name="sample_size" id="sample_size" value="50" min="10" max="200">
+                            <label for="sample_size">Dimensione Campione</label>
+                            <span class="helper-text">Numero di righe da analizzare (10-200)</span>
+                        </div>
+                        {% else %}
+                        <p class="red-text">Nessuna colonna disponibile nel progetto</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Column Preview -->
+        <div class="row">
+            <div class="col s12">
+                <div class="card">
+                    <div class="card-content">
+                        <span class="card-title">Anteprima Dati Colonna</span>
+                        <div id="column-preview">
+                            <p class="grey-text center-align">Seleziona una colonna per vedere l'anteprima dei dati</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Advanced Options -->
+        <div class="row">
+            <div class="col s12">
+                <div class="card">
+                    <div class="card-content">
+                        <span class="card-title">Opzioni Avanzate</span>
+                        
+                        <div class="row">
+                            <div class="input-field col s12 m6">
+                                <select name="sampling_method" id="sampling_method">
+                                    <option value="random">Casuale</option>
+                                    <option value="first">Prime righe</option>
+                                    <option value="stratified">Stratificato</option>
+                                </select>
+                                <label>Metodo Campionamento</label>
+                            </div>
+                            
+                            <div class="input-field col s12 m6">
+                                <input type="number" name="min_confidence" id="min_confidence" value="0.7" min="0.1" max="1.0" step="0.1">
+                                <label for="min_confidence">Confidenza Minima</label>
+                                <span class="helper-text">Soglia minima per i suggerimenti (0.1-1.0)</span>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col s12">
+                                <p>
+                                    <label>
+                                        <input type="checkbox" name="include_reasoning" checked />
+                                        <span>Includi Ragionamento AI</span>
+                                    </label>
+                                </p>
+                                <p>
+                                    <label>
+                                        <input type="checkbox" name="auto_approve_high_confidence" />
+                                        <span>Auto-approva Suggerimenti ad Alta Confidenza (>0.9)</span>
+                                    </label>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Submit Section -->
+        <div class="row">
+            <div class="col s12">
+                <div class="card">
+                    <div class="card-content center-align">
+                        <button type="submit" class="btn large blue waves-effect waves-light" id="generate-btn">
+                            <i class="material-icons left">auto_awesome</i>
+                            Genera Etichette AI
+                        </button>
+                        <a href="{{ url_for('labeling.dashboard') }}" class="btn large grey waves-effect waves-light">
+                            <i class="material-icons left">arrow_back</i>
+                            Torna alla Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <!-- Generation Progress -->
+    <div id="generation-progress" style="display: none;">
+        <div class="row">
+            <div class="col s12">
+                <div class="card">
+                    <div class="card-content center-align">
+                        <h5>Generazione in Corso...</h5>
+                        <div class="progress">
+                            <div class="indeterminate"></div>
+                        </div>
+                        <p>L'AI sta analizzando i dati e generando suggerimenti di etichette</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Material Design components
+    M.FormSelect.init(document.querySelectorAll('select'));
+    
+    // Template selection handler
+    const templateSelect = document.getElementById('template_select');
+    const templateInfo = document.getElementById('template-info');
+    const templateCategory = document.getElementById('template-category');
+    const templateDescription = document.getElementById('template-description');
+    const templatePrompt = document.getElementById('template-prompt');
+    
+    if (templateSelect) {
+        templateSelect.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            if (selectedOption.value) {
+                templateCategory.textContent = selectedOption.dataset.category.toUpperCase();
+                templateDescription.textContent = selectedOption.dataset.description;
+                templatePrompt.textContent = selectedOption.dataset.prompt;
+                templateInfo.style.display = 'block';
+            } else {
+                templateInfo.style.display = 'none';
+            }
+        });
+    }
+    
+    // Column selection handler for preview
+    const columnSelect = document.getElementById('column_select');
+    const columnPreview = document.getElementById('column-preview');
+    
+    if (columnSelect) {
+        columnSelect.addEventListener('change', function() {
+            const selectedColumn = this.value;
+            if (selectedColumn) {
+                columnPreview.innerHTML = `<p class="green-text">Colonna selezionata: <strong>${selectedColumn}</strong></p><p class="grey-text">L'anteprima dei dati sarà disponibile nel prossimo aggiornamento.</p>`;
+            }
+        });
+    }
+    
+    // Form submission handler
+    const form = document.getElementById('generation-form');
+    const generateBtn = document.getElementById('generate-btn');
+    const progressDiv = document.getElementById('generation-progress');
+    
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            // Show progress
+            generateBtn.disabled = true;
+            generateBtn.innerHTML = '<i class="material-icons left">hourglass_empty</i>Generazione in corso...';
+            progressDiv.style.display = 'block';
+            
+            // Scroll to progress
+            progressDiv.scrollIntoView({ behavior: 'smooth' });
+        });
+    }
+});
+</script>
+
+{% block extra_css %}
+<style>
+.card-panel pre {
+    background-color: #f8f8f8;
+    padding: 10px;
+    border-radius: 4px;
+    border: 1px solid #ddd;
+}
+
+details summary {
+    cursor: pointer;
+    font-weight: bold;
+}
+
+details[open] summary {
+    margin-bottom: 10px;
+}
+
+.collection-item {
+    font-family: monospace;
+    font-size: 14px;
+}
+</style>
+{% endblock %}
+{% endblock %}

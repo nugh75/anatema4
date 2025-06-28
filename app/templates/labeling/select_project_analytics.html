@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Seleziona Progetto - Analytics Etichette{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-12">
+            <h2><i class="fas fa-chart-bar"></i> Analytics Etichette</h2>
+            <p class="text-muted">Seleziona un progetto per visualizzare le analisi delle etichette</p>
+            
+            <div class="row">
+                {% for project in projects %}
+                <div class="col-md-6 col-lg-4 mb-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <i class="fas fa-folder"></i>
+                                {{ project.name }}
+                            </h5>
+                            <p class="card-text text-muted">
+                                {{ project.description[:100] + '...' if project.description and project.description|length > 100 else project.description or 'Nessuna descrizione' }}
+                            </p>
+                            <div class="small text-muted mb-3">
+                                <i class="fas fa-calendar"></i>
+                                Creato: {{ project.created_at.strftime('%d/%m/%Y') }}
+                            </div>
+                            <a href="{{ url_for('labeling.label_analytics', project_id=project.id) }}" 
+                               class="btn btn-primary">
+                                <i class="fas fa-chart-line"></i>
+                                Visualizza Analytics
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            
+            {% if not projects %}
+            <div class="alert alert-info text-center">
+                <i class="fas fa-info-circle"></i>
+                Nessun progetto trovato. 
+                <a href="{{ url_for('projects.create_project') }}" class="alert-link">Crea il tuo primo progetto</a>
+            </div>
+            {% endif %}
+            
+            <div class="mt-4">
+                <a href="{{ url_for('labeling.dashboard') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i>
+                    Torna alla Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

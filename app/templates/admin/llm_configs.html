@@ -1,0 +1,526 @@
+{% extends "base.html" %}
+
+{% block title %}Configurazioni LLM - Amministrazione{% endblock %}
+
+{% block extra_css %}
+<style>
+.admin-header {
+    background: linear-gradient(135deg, #1565c0 0%, #0d47a1 100%);
+    color: white;
+    padding: 30px 0;
+    margin-bottom: 30px;
+}
+
+.admin-nav {
+    background: #fff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 30px;
+}
+
+.admin-nav .nav-item {
+    display: inline-block;
+    margin-right: 20px;
+}
+
+.admin-nav .nav-item a {
+    color: #1976d2;
+    text-decoration: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.admin-nav .nav-item a:hover {
+    background: #e3f2fd;
+}
+
+.admin-nav .nav-item.active a {
+    background: #1976d2;
+    color: white;
+}
+
+.config-card {
+    border-radius: 8px;
+    margin-bottom: 20px;
+    transition: transform 0.2s ease;
+}
+
+.config-card:hover {
+    transform: translateY(-2px);
+}
+
+.config-card.default {
+    border-left: 5px solid #4caf50;
+}
+
+.config-card.active {
+    border-left: 5px solid #2196f3;
+}
+
+.config-card.inactive {
+    border-left: 5px solid #9e9e9e;
+    opacity: 0.7;
+}
+
+.provider-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    color: white;
+    margin-right: 15px;
+}
+
+.provider-openai { background: #10a37f; }
+.provider-anthropic { background: #ff6b35; }
+.provider-google { background: #4285f4; }
+.provider-azure { background: #0078d4; }
+.provider-default { background: #666; }
+
+.status-badge {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    font-weight: 500;
+}
+
+.status-default {
+    background: #e8f5e8;
+    color: #2e7d32;
+    border: 1px solid #4caf50;
+}
+
+.status-active {
+    background: #e3f2fd;
+    color: #1976d2;
+}
+
+.status-inactive {
+    background: #f5f5f5;
+    color: #666;
+}
+
+.config-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.stat-item {
+    text-align: center;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 4px;
+}
+
+.stat-number {
+    font-size: 1.2em;
+    font-weight: 500;
+    color: #1976d2;
+}
+
+.stat-label {
+    font-size: 0.8em;
+    color: #666;
+    margin-top: 4px;
+}
+
+.config-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin: 40px 0;
+}
+
+.provider-templates {
+    background: #fff3e0;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 30px;
+}
+
+.template-card {
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 2px solid transparent;
+}
+
+.template-card:hover {
+    border-color: #2196f3;
+    transform: translateY(-2px);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<div class="admin-header">
+    <div class="container">
+        <div class="row">
+            <div class="col s12">
+                <h3><i class="material-icons left">psychology</i>Configurazioni LLM</h3>
+                <p class="flow-text">Gestisci i provider e le configurazioni dei modelli AI</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <!-- Navigation -->
+    <div class="admin-nav">
+        <div class="nav-item">
+            <a href="{{ url_for('admin.dashboard') }}">
+                <i class="material-icons left">dashboard</i>Dashboard
+            </a>
+        </div>
+        <div class="nav-item">
+            <a href="{{ url_for('admin.manage_users') }}">
+                <i class="material-icons left">people</i>Utenti
+            </a>
+        </div>
+        <div class="nav-item active">
+            <a href="{{ url_for('admin.manage_llm_configs') }}">
+                <i class="material-icons left">psychology</i>Configurazioni LLM
+            </a>
+        </div>
+        <div class="nav-item">
+            <a href="{{ url_for('admin.system_settings') }}">
+                <i class="material-icons left">settings</i>Impostazioni
+            </a>
+        </div>
+        <div class="nav-item">
+            <a href="{{ url_for('admin.audit_logs') }}">
+                <i class="material-icons left">history</i>Log Audit
+            </a>
+        </div>
+    </div>
+
+    <!-- Azione Principale -->
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <div class="row valign-wrapper">
+                        <div class="col s12 m8">
+                            <h5><i class="material-icons left">add_circle</i>Nuova Configurazione</h5>
+                            <p>Aggiungi un nuovo provider LLM o configura un modello esistente</p>
+                        </div>
+                        <div class="col s12 m4 right-align">
+                            <a href="{{ url_for('admin.create_llm_config') }}" class="btn green waves-effect waves-light">
+                                <i class="material-icons left">add</i>Crea Configurazione
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if configs %}
+    <!-- Statistiche -->
+    <div class="row">
+        <div class="col s12 m3">
+            <div class="card blue lighten-5">
+                <div class="card-content center-align">
+                    <i class="material-icons large blue-text">psychology</i>
+                    <h4 class="blue-text">{{ configs|length }}</h4>
+                    <p>Configurazioni Totali</p>
+                </div>
+            </div>
+        </div>
+        <div class="col s12 m3">
+            <div class="card green lighten-5">
+                <div class="card-content center-align">
+                    <i class="material-icons large green-text">check_circle</i>
+                    <h4 class="green-text">{{ configs|selectattr('is_active')|list|length }}</h4>
+                    <p>Attive</p>
+                </div>
+            </div>
+        </div>
+        <div class="col s12 m3">
+            <div class="card orange lighten-5">
+                <div class="card-content center-align">
+                    <i class="material-icons large orange-text">star</i>
+                    <h4 class="orange-text">{{ configs|selectattr('is_default')|list|length }}</h4>
+                    <p>Predefinita</p>
+                </div>
+            </div>
+        </div>
+        <div class="col s12 m3">
+            <div class="card purple lighten-5">
+                <div class="card-content center-align">
+                    <i class="material-icons large purple-text">category</i>
+                    <h4 class="purple-text">{{ configs|map(attribute='provider')|unique|list|length }}</h4>
+                    <p>Provider</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista Configurazioni -->
+    <div class="row">
+        <div class="col s12">
+            <h5><i class="material-icons left">list</i>Configurazioni Esistenti</h5>
+            
+            {% for config in configs %}
+            <div class="card config-card {{ 'default' if config.is_default else 'active' if config.is_active else 'inactive' }}">
+                <div class="card-content">
+                    <div class="row valign-wrapper" style="margin-bottom: 0;">
+                        <div class="col s12 m8 l9">
+                            <div style="display: flex; align-items: center;">
+                                <div class="provider-icon provider-{{ config.provider.lower() if config.provider else 'default' }}">
+                                    {{ config.provider[0:2].upper() if config.provider else 'AI' }}
+                                </div>
+                                <div style="flex: 1;">
+                                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                        <h6 style="margin: 0; font-weight: 500;">{{ config.name }}</h6>
+                                        {% if config.is_default %}
+                                        <span class="status-badge status-default">
+                                            <i class="material-icons tiny">star</i> PREDEFINITA
+                                        </span>
+                                        {% endif %}
+                                        <span class="status-badge {{ 'status-active' if config.is_active else 'status-inactive' }}">
+                                            {{ 'ATTIVA' if config.is_active else 'INATTIVA' }}
+                                        </span>
+                                    </div>
+                                    <div style="color: #666; margin-bottom: 8px;">
+                                        <strong>{{ config.provider }}</strong> - {{ config.model_name }}
+                                        {% if config.description %}
+                                        <br><small>{{ config.description }}</small>
+                                        {% endif %}
+                                    </div>
+                                    <div class="config-stats">
+                                        <div class="stat-item">
+                                            <div class="stat-number">{{ config.max_tokens }}</div>
+                                            <div class="stat-label">Max Tokens</div>
+                                        </div>
+                                        <div class="stat-item">
+                                            <div class="stat-number">{{ config.temperature }}</div>
+                                            <div class="stat-label">Temperature</div>
+                                        </div>
+                                        <div class="stat-item">
+                                            <div class="stat-number">{{ config.max_requests_per_minute }}</div>
+                                            <div class="stat-label">Req/min</div>
+                                        </div>
+                                        <div class="stat-item">
+                                            <div class="stat-number">{{ config.max_requests_per_day }}</div>
+                                            <div class="stat-label">Req/giorno</div>
+                                        </div>
+                                        {% if config.cost_per_token > 0 %}
+                                        <div class="stat-item">
+                                            <div class="stat-number">${{ "%.6f"|format(config.cost_per_token) }}</div>
+                                            <div class="stat-label">$/token</div>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col s12 m4 l3">
+                            <div class="config-actions right-align">
+                                {% if not config.is_default %}
+                                <button type="button" class="btn-small green waves-effect waves-light" 
+                                        onclick="setAsDefault('{{ config.id }}')">
+                                    <i class="material-icons">star</i>
+                                </button>
+                                {% endif %}
+                                <button type="button" class="btn-small blue waves-effect waves-light" 
+                                        onclick="testConfig('{{ config.id }}')">
+                                    <i class="material-icons">play_arrow</i>
+                                </button>
+                                <a href="{{ url_for('admin.create_llm_config') }}?edit={{ config.id }}" 
+                                   class="btn-small orange waves-effect waves-light">
+                                    <i class="material-icons">edit</i>
+                                </a>
+                                <button type="button" class="btn-small {{ 'grey' if config.is_active else 'green' }} waves-effect waves-light" 
+                                        onclick="toggleConfig('{{ config.id }}', {{ config.is_active|lower }})">
+                                    <i class="material-icons">{{ 'pause' if config.is_active else 'play_arrow' }}</i>
+                                </button>
+                                {% if not config.is_default %}
+                                <button type="button" class="btn-small red waves-effect waves-light" 
+                                        onclick="deleteConfig('{{ config.id }}')">
+                                    <i class="material-icons">delete</i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row" style="margin-top: 15px; margin-bottom: 0;">
+                        <div class="col s12">
+                            <small class="grey-text">
+                                Creata il {{ config.created_at.strftime('%d/%m/%Y') }}
+                                {% if config.created_by %}
+                                da {{ config.creator.username if config.creator else 'Sistema' }}
+                                {% endif %}
+                                {% if config.updated_at and config.updated_at != config.created_at %}
+                                | Aggiornata il {{ config.updated_at.strftime('%d/%m/%Y') }}
+                                {% endif %}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    {% else %}
+    <!-- Stato Vuoto -->
+    <div class="empty-state">
+        <i class="material-icons large grey-text">psychology</i>
+        <h4 class="grey-text">Nessuna configurazione LLM</h4>
+        <p class="grey-text">Inizia configurando il tuo primo provider AI per abilitare le funzionalità intelligenti</p>
+        <a href="{{ url_for('admin.create_llm_config') }}" class="btn green waves-effect waves-light">
+            <i class="material-icons left">add</i>Crea Prima Configurazione
+        </a>
+    </div>
+
+    <!-- Template Rapidi -->
+    <div class="provider-templates">
+        <h5><i class="material-icons left">flash_on</i>Template Rapidi</h5>
+        <p>Inizia rapidamente con questi provider popolari:</p>
+        
+        <div class="row">
+            <div class="col s12 m4">
+                <div class="card template-card hoverable" onclick="window.location.href='{{ url_for('admin.create_llm_config') }}?template=openai'">
+                    <div class="card-content center-align">
+                        <div class="provider-icon provider-openai" style="margin: 0 auto 15px;">AI</div>
+                        <h6>OpenAI</h6>
+                        <p class="grey-text">GPT-4, GPT-3.5 Turbo</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col s12 m4">
+                <div class="card template-card hoverable" onclick="window.location.href='{{ url_for('admin.create_llm_config') }}?template=anthropic'">
+                    <div class="card-content center-align">
+                        <div class="provider-icon provider-anthropic" style="margin: 0 auto 15px;">AN</div>
+                        <h6>Anthropic</h6>
+                        <p class="grey-text">Claude 3 Opus, Sonnet, Haiku</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col s12 m4">
+                <div class="card template-card hoverable" onclick="window.location.href='{{ url_for('admin.create_llm_config') }}?template=google'">
+                    <div class="card-content center-align">
+                        <div class="provider-icon provider-google" style="margin: 0 auto 15px;">GO</div>
+                        <h6>Google</h6>
+                        <p class="grey-text">PaLM, Gemini</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<div style="height: 50px;"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function setAsDefault(configId) {
+    if (confirm('Impostare questa configurazione come predefinita?')) {
+        fetch(`/admin/llm-configs/${configId}/set-default`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                M.toast({html: 'Configurazione impostata come predefinita', classes: 'green'});
+                location.reload();
+            } else {
+                M.toast({html: data.error || 'Errore durante l\'operazione', classes: 'red'});
+            }
+        })
+        .catch(error => {
+            M.toast({html: 'Errore di rete', classes: 'red'});
+        });
+    }
+}
+
+function toggleConfig(configId, isActive) {
+    const action = isActive ? 'disattivare' : 'attivare';
+    if (confirm(`Sei sicuro di voler ${action} questa configurazione?`)) {
+        fetch(`/admin/llm-configs/${configId}/toggle`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                M.toast({html: data.message, classes: 'green'});
+                location.reload();
+            } else {
+                M.toast({html: data.error || 'Errore durante l\'operazione', classes: 'red'});
+            }
+        })
+        .catch(error => {
+            M.toast({html: 'Errore di rete', classes: 'red'});
+        });
+    }
+}
+
+function testConfig(configId) {
+    M.toast({html: 'Test della configurazione in corso...', classes: 'blue'});
+    
+    fetch(`/admin/llm-configs/${configId}/test`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            M.toast({html: 'Test completato con successo!', classes: 'green'});
+        } else {
+            M.toast({html: `Test fallito: ${data.error}`, classes: 'red'});
+        }
+    })
+    .catch(error => {
+        M.toast({html: 'Errore durante il test', classes: 'red'});
+    });
+}
+
+function deleteConfig(configId) {
+    if (confirm('Sei sicuro di voler eliminare questa configurazione? Questa azione non può essere annullata.')) {
+        fetch(`/admin/llm-configs/${configId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                M.toast({html: 'Configurazione eliminata', classes: 'green'});
+                location.reload();
+            } else {
+                M.toast({html: data.error || 'Errore durante l\'eliminazione', classes: 'red'});
+            }
+        })
+        .catch(error => {
+            M.toast({html: 'Errore di rete', classes: 'red'});
+        });
+    }
+}
+</script>
+{% endblock %}

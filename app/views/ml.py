@@ -1233,12 +1233,11 @@ def single_column_view(project_id, sheet_id):
                 'applied_labels': applied_labels
             })
         
-        return render_template('ml/view_columns.html',
+        return render_template('ml/single_column_view.html',
                             project=project,
                             sheet=sheet,
-                            columns_data={column_name: col_data},
+                            column_data=col_data,
                             applied_labels=applied_labels,
-                            single_column_mode=True,
                             selected_column=column_name)
     
     except Exception as e:
@@ -1260,39 +1259,106 @@ def single_row_view(project_id, sheet_id):
         File.project_id == project.id
     ).first_or_404()
     
+    # Parametro riga specifica
+    row_index = request.args.get('row_index', type=int)
+    
     try:
         # Carica i dati dal file Excel
         file_path = sheet.file.get_file_path()
         df = pd.read_excel(file_path, sheet_name=sheet.name)
         
-        # Prepara i dati per la visualizzazione a righe
-        rows_data = []
-        for idx, row in df.iterrows():
-            row_data = {
-                'index': idx,
-                'data': {}
-            }
-            # Converti ogni valore in stringa per evitare problemi di serializzazione
-            for col, value in row.items():
-                if pd.isna(value):
-                    row_data['data'][col] = ''
-                else:
-                    row_data['data'][col] = str(value)
-            rows_data.append(row_data)
+        # Se non è specificata una riga, mostra l'elenco per selezionarla
+        if row_index is None:
+            available_rows = []
+            for idx, row in df.head(50).iterrows():  # Mostra solo le prime 50 righe per performance
+                # Prendi i primi 3 valori non nulli per l'anteprima
+                preview_values = []
+                for col, value in row.items():
+                    if pd.notna(value) and str(value).strip():
+                        preview_values.append(str(value)[:50])
+                        if len(preview_values) >= 3:
+                            break
+                
+                available_rows.append({
+                    'index': idx,
+                    'preview': ' | '.join(preview_values) if preview_values else '(vuota)'
+                })
+            
+            if request.is_json:
+                return jsonify({
+                    'project': project.to_dict(),
+                    'sheet': sheet.to_dict(),
+                    'available_rows': available_rows,
+                    'total_rows': len(df)
+                })
+            
+            return render_template('ml/select_row.html',
+                                project=project,
+                                sheet=sheet,
+                                available_rows=available_rows,
+                                total_rows=len(df))
+        
+        # Verifica che la riga esista
+        if row_index >= len(df) or row_index < 0:
+            error_msg = f'Riga {row_index} non trovata nel foglio (righe disponibili: 0-{len(df)-1})'
+            if request.is_json:
+                return jsonify({'error': error_msg}), 400
+            flash(error_msg, 'error')
+            return redirect(url_for('ml.single_row_view', project_id=project.id, sheet_id=sheet.id))
+        
+        # Prepara i dati della riga specifica
+        selected_row = df.iloc[row_index]
+        row_data = {
+            'index': row_index,
+            'data': {}
+        }
+        
+        # Converti ogni valore in stringa per evitare problemi di serializzazione
+        for col, value in selected_row.items():
+            if pd.isna(value):
+                row_data['data'][col] = ''
+            else:
+                row_data['data'][col] = str(value)
+        
+        # Recupera etichette applicate per questa riga
+        applied_labels = {}
+        ml_analysis = MLAnalysis.query.filter_by(
+            project_id=project.id,
+            sheet_id=sheet.id,
+            status='completed'
+        ).first()
+        
+        if ml_analysis:
+            label_applications = AutoLabelApplication.query.join(AutoLabel).filter(
+                AutoLabel.ml_analysis_id == ml_analysis.id,
+                AutoLabelApplication.row_index == row_index,
+                AutoLabelApplication.status == 'applied'
+            ).all()
+            
+            for app in label_applications:
+                key = f"{app.row_index}_{app.column_name}"
+                applied_labels[key] = {
+                    'label_name': app.auto_label.label_name,
+                    'label_description': app.auto_label.label_description,
+                    'confidence': app.confidence_score
+                }
         
         if request.is_json:
             return jsonify({
                 'project': project.to_dict(),
                 'sheet': sheet.to_dict(),
-                'rows_data': rows_data,
-                'columns': df.columns.tolist()
+                'row_data': row_data,
+                'columns': df.columns.tolist(),
+                'applied_labels': applied_labels
             })
         
         return render_template('ml/single_row_view.html',
                             project=project,
                             sheet=sheet,
-                            rows_data=rows_data,
-                            columns=df.columns.tolist())
+                            row_data=row_data,
+                            columns=df.columns.tolist(),
+                            applied_labels=applied_labels,
+                            selected_row_index=row_index)
     
     except Exception as e:
         logger.error(f"Errore nella vista singola riga del foglio {sheet_id}: {str(e)}")

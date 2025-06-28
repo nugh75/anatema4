@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block title %}Template Etichette - {{ project.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2>Template Etichette</h2>
+                    <p class="text-muted">Gestisci i template di prompt per la generazione automatica di etichette</p>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{{ url_for('main.dashboard') }}">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{{ url_for('projects.view_project', project_id=project.id) }}">{{ project.name }}</a></li>
+                            <li class="breadcrumb-item"><a href="{{ url_for('labeling.project_dashboard', project_id=project.id) }}">Etichettatura</a></li>
+                            <li class="breadcrumb-item active" aria-current="page">Template</li>
+                        </ol>
+                    </nav>
+                </div>
+                <div>
+                    <a href="{{ url_for('labeling.create_template_with_project', project_id=project.id) }}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Nuovo Template
+                    </a>
+                </div>
+            </div>
+
+            <!-- Templates List -->
+            <div class="row">
+                {% for template in templates %}
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h6 class="card-title mb-0">{{ template.name }}</h6>
+                            <div>
+                                {% if template.is_active %}
+                                    <span class="badge badge-success">Attivo</span>
+                                {% else %}
+                                    <span class="badge badge-secondary">Inattivo</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <p class="card-text">{{ template.description or 'Nessuna descrizione' }}</p>
+                            
+                            <div class="small text-muted mb-2">
+                                <div><strong>Categoria:</strong> {{ template.category or 'custom' }}</div>
+                                <div><strong>Modello:</strong> {{ template.preferred_model }}</div>
+                                <div><strong>Etichette attese:</strong> {{ template.expected_labels_count }}</div>
+                                <div><strong>Utilizzi:</strong> {{ template.usage_count }}</div>
+                            </div>
+                            
+                            <div class="small text-muted">
+                                <div>Creato: {{ template.created_at.strftime('%d/%m/%Y %H:%M') }}</div>
+                                {% if template.updated_at != template.created_at %}
+                                <div>Aggiornato: {{ template.updated_at.strftime('%d/%m/%Y %H:%M') }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <div class="btn-group w-100">
+                                <a href="{{ url_for('labeling.edit_template', template_id=template.id) }}" 
+                                   class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-edit"></i> Modifica
+                                </a>
+                                <button class="btn btn-sm btn-outline-info" 
+                                        data-toggle="modal" 
+                                        data-target="#templatePreviewModal"
+                                        onclick="showTemplatePreview('{{ template.id }}', '{{ template.name }}', `{{ template.system_prompt|e }}`, `{{ template.user_prompt_template|e }}`)">
+                                    <i class="fas fa-eye"></i> Anteprima
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                
+                {% if not templates %}
+                <div class="col-12">
+                    <div class="text-center py-5">
+                        <i class="fas fa-templates fa-3x text-muted mb-3"></i>
+                        <h4>Nessun template creato</h4>
+                        <p class="text-muted">Crea il tuo primo template di prompt per iniziare a generare etichette automaticamente.</p>
+                        <a href="{{ url_for('labeling.create_template_with_project', project_id=project.id) }}" class="btn btn-primary">
+                            <i class="fas fa-plus"></i> Crea Template
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Template Preview Modal -->
+<div class="modal fade" id="templatePreviewModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Anteprima Template</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <h6>System Prompt:</h6>
+                <pre class="bg-light p-3 small" id="systemPromptPreview"></pre>
+                
+                <h6 class="mt-3">User Prompt Template:</h6>
+                <pre class="bg-light p-3 small" id="userPromptPreview"></pre>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Chiudi</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showTemplatePreview(id, name, systemPrompt, userPrompt) {
+    document.querySelector('#templatePreviewModal .modal-title').textContent = 'Anteprima Template: ' + name;
+    document.getElementById('systemPromptPreview').textContent = systemPrompt;
+    document.getElementById('userPromptPreview').textContent = userPrompt;
+}
+</script>
+{% endblock %}

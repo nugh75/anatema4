@@ -37,6 +37,14 @@
                     <li><a href="{{ url_for('projects.list_projects') }}">
                         <i class="material-icons left">folder</i>Progetti
                     </a></li>
+                    <li><a href="{{ url_for('labeling.dashboard') }}">
+                        <i class="material-icons left">label</i>Etichettatura
+                    </a></li>
+                    {% if current_user.is_admin or (current_user.role_assignments and current_user.role_assignments|selectattr('role.name', 'equalto', 'admin')|list) %}
+                    <li><a href="{{ url_for('admin.dashboard') }}">
+                        <i class="material-icons left">admin_panel_settings</i>Amministrazione
+                    </a></li>
+                    {% endif %}
                     <li><a class="dropdown-trigger" href="#!" data-target="user-dropdown">
                         <i class="material-icons left">account_circle</i>{{ current_user.username }}
                         <i class="material-icons right">arrow_drop_down</i>
@@ -87,6 +95,14 @@
             <li><a href="{{ url_for('projects.list_projects') }}">
                 <i class="material-icons">folder</i>Progetti
             </a></li>
+            <li><a href="{{ url_for('labeling.dashboard') }}">
+                <i class="material-icons">label</i>Etichettatura
+            </a></li>
+            {% if current_user.is_admin or (current_user.role_assignments and current_user.role_assignments|selectattr('role.name', 'equalto', 'admin')|list) %}
+            <li><a href="{{ url_for('admin.dashboard') }}">
+                <i class="material-icons">admin_panel_settings</i>Amministrazione
+            </a></li>
+            {% endif %}
             <li><div class="divider"></div></li>
             <li><a href="{{ url_for('auth.profile') }}">
                 <i class="material-icons">person</i>Profilo
