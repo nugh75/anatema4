@@ -1,0 +1,423 @@
+{% extends "base.html" %}
+
+{% block title %}Modifica {{ project.name }} - Anatema{% endblock %}
+
+{% block content %}
+<div class="container" style="margin-top: 30px;">
+    <!-- Breadcrumb -->
+    <div class="row">
+        <div class="col s12">
+            <nav class="transparent z-depth-0">
+                <div class="nav-wrapper">
+                    <div class="col s12">
+                        <a href="{{ url_for('main.dashboard') }}" class="breadcrumb blue-text">Dashboard</a>
+                        <a href="{{ url_for('projects.list_projects') }}" class="breadcrumb blue-text">Progetti</a>
+                        <a href="{{ url_for('projects.view_project', project_id=project.id) }}" class="breadcrumb blue-text">{{ project.name }}</a>
+                        <a href="#!" class="breadcrumb grey-text">Modifica</a>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Page Header -->
+    <div class="row">
+        <div class="col s12">
+            <div class="card-panel blue darken-2 white-text">
+                <h4 style="margin: 0;">
+                    <i class="material-icons left">edit</i>Modifica Progetto
+                </h4>
+                <p style="margin: 0;">Aggiorna le informazioni del progetto "{{ project.name }}"</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Form -->
+    <div class="row">
+        <div class="col s12 l8 offset-l2">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">
+                        <i class="material-icons left">settings</i>Configurazione Progetto
+                    </span>
+
+                    <form method="POST" action="{{ url_for('projects.edit_project', project_id=project.id) }}" id="project-form">
+                        <!-- Project Name -->
+                        <div class="input-field">
+                            <i class="material-icons prefix">folder</i>
+                            <input id="name" name="name" type="text" class="validate" required maxlength="100" value="{{ project.name }}">
+                            <label for="name" class="active">Nome Progetto *</label>
+                            <span class="helper-text" data-error="Nome progetto richiesto" data-success="Nome valido">
+                                Scegli un nome descrittivo per il progetto
+                            </span>
+                        </div>
+
+                        <!-- Project Description -->
+                        <div class="input-field">
+                            <i class="material-icons prefix">description</i>
+                            <textarea id="description" name="description" class="materialize-textarea" maxlength="1000">{{ project.description or '' }}</textarea>
+                            <label for="description" class="active">Descrizione</label>
+                            <span class="helper-text">
+                                Descrivi gli obiettivi e il contenuto del progetto (opzionale)
+                            </span>
+                        </div>
+
+                        <!-- Project Status -->
+                        <div class="input-field">
+                            <i class="material-icons prefix">flag</i>
+                            <select id="status" name="status" class="browser-default">
+                                <option value="active" {{ 'selected' if project.status == 'active' else '' }}>Attivo</option>
+                                <option value="paused" {{ 'selected' if project.status == 'paused' else '' }}>In Pausa</option>
+                                <option value="completed" {{ 'selected' if project.status == 'completed' else '' }}>Completato</option>
+                                <option value="archived" {{ 'selected' if project.status == 'archived' else '' }}>Archiviato</option>
+                            </select>
+                            <label for="status">Stato del Progetto</label>
+                        </div>
+
+                        <!-- Project Settings -->
+                        <div class="row">
+                            <div class="col s12">
+                                <h6><i class="material-icons left">tune</i>Impostazioni Avanzate</h6>
+                                
+                                <!-- Allow Multiple Labels -->
+                                <div class="switch" style="margin: 20px 0;">
+                                    <label>
+                                        <input type="checkbox" name="allow_multiple_labels" {{ 'checked' if project.allow_multiple_labels else '' }}>
+                                        <span class="lever"></span>
+                                        Consenti etichette multiple per cella
+                                    </label>
+                                    <p class="grey-text" style="margin-top: 5px; font-size: 0.9rem;">
+                                        Se abilitato, ogni cella può avere più di una etichetta
+                                    </p>
+                                </div>
+
+                                <!-- Require Validation -->
+                                <div class="switch" style="margin: 20px 0;">
+                                    <label>
+                                        <input type="checkbox" name="require_validation" {{ 'checked' if project.require_validation else '' }}>
+                                        <span class="lever"></span>
+                                        Richiedi validazione delle etichette
+                                    </label>
+                                    <p class="grey-text" style="margin-top: 5px; font-size: 0.9rem;">
+                                        Se abilitato, le etichette devono essere validate da un supervisore
+                                    </p>
+                                </div>
+
+                                <!-- Auto Save -->
+                                <div class="switch" style="margin: 20px 0;">
+                                    <label>
+                                        <input type="checkbox" name="auto_save" {{ 'checked' if project.auto_save else '' }}>
+                                        <span class="lever"></span>
+                                        Salvataggio automatico
+                                    </label>
+                                    <p class="grey-text" style="margin-top: 5px; font-size: 0.9rem;">
+                                        Salva automaticamente le modifiche durante l'etichettatura
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Project Statistics (Read-only) -->
+                        <div class="row">
+                            <div class="col s12">
+                                <h6><i class="material-icons left">assessment</i>Statistiche Progetto</h6>
+                                <div class="card-panel grey lighten-4">
+                                    <div class="row" style="margin-bottom: 0;">
+                                        <div class="col s6 m3">
+                                            <div class="center-align">
+                                                <h5 class="blue-text">{{ project.files.count() }}</h5>
+                                                <p class="grey-text">File</p>
+                                            </div>
+                                        </div>
+                                        <div class="col s6 m3">
+                                            <div class="center-align">
+                                                <h5 class="green-text">{{ project.labels.count() }}</h5>
+                                                <p class="grey-text">Etichette</p>
+                                            </div>
+                                        </div>
+                                        <div class="col s6 m3">
+                                            <div class="center-align">
+                                                <h5 class="orange-text">
+                                                    {% set total_cells = project.files.join('sheets').join('cell_labels').count() %}
+                                                    {{ total_cells }}
+                                                </h5>
+                                                <p class="grey-text">Celle Etichettate</p>
+                                            </div>
+                                        </div>
+                                        <div class="col s6 m3">
+                                            <div class="center-align">
+                                                <h5 class="purple-text">
+                                                    {{ ((project.created_at.strftime('%Y-%m-%d') if project.created_at else 'N/A')) }}
+                                                </h5>
+                                                <p class="grey-text">Data Creazione</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Danger Zone -->
+                        {% if project.files.count() > 0 or project.labels.count() > 0 %}
+                            <div class="row">
+                                <div class="col s12">
+                                    <div class="card red lighten-4">
+                                        <div class="card-content">
+                                            <span class="card-title red-text">
+                                                <i class="material-icons left">warning</i>Zona di Attenzione
+                                            </span>
+                                            <p>
+                                                Questo progetto contiene dati importanti:
+                                            </p>
+                                            <ul class="browser-default">
+                                                {% if project.files.count() > 0 %}
+                                                    <li><strong>{{ project.files.count() }} file</strong> con dati Excel</li>
+                                                {% endif %}
+                                                {% if project.labels.count() > 0 %}
+                                                    <li><strong>{{ project.labels.count() }} etichette</strong> configurate</li>
+                                                {% endif %}
+                                                {% set total_cells = project.files.join('sheets').join('cell_labels').count() %}
+                                                {% if total_cells > 0 %}
+                                                    <li><strong>{{ total_cells }} celle etichettate</strong></li>
+                                                {% endif %}
+                                            </ul>
+                                            <p>
+                                                Le modifiche alle impostazioni potrebbero influenzare il lavoro esistente.
+                                                Procedi con cautela.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+
+                        <!-- Action Buttons -->
+                        <div class="row" style="margin-top: 30px;">
+                            <div class="col s12 center-align">
+                                <a href="{{ url_for('projects.view_project', project_id=project.id) }}" class="btn-large waves-effect waves-light grey">
+                                    <i class="material-icons left">cancel</i>Annulla
+                                </a>
+                                <button type="submit" class="btn-large waves-effect waves-light blue darken-2" id="submit-btn">
+                                    <i class="material-icons left">save</i>Salva Modifiche
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Project Modal -->
+    <div id="delete-modal" class="modal">
+        <div class="modal-content">
+            <h4 class="red-text">
+                <i class="material-icons left">delete_forever</i>Elimina Progetto
+            </h4>
+            <p>
+                Sei sicuro di voler eliminare il progetto "<strong>{{ project.name }}</strong>"?
+            </p>
+            <p class="red-text">
+                <strong>Attenzione:</strong> Questa azione eliminerà permanentemente:
+            </p>
+            <ul class="browser-default">
+                <li>Tutti i file del progetto</li>
+                <li>Tutte le etichette configurate</li>
+                <li>Tutti i dati di etichettatura</li>
+                <li>Tutte le configurazioni del progetto</li>
+            </ul>
+            <p class="red-text">
+                <strong>Questa azione non può essere annullata!</strong>
+            </p>
+        </div>
+        <div class="modal-footer">
+            <a href="#!" class="modal-close waves-effect waves-light btn grey">Annulla</a>
+            <form method="POST" action="{{ url_for('projects.delete_project', project_id=project.id) }}" style="display: inline;">
+                <button type="submit" class="waves-effect waves-light btn red">
+                    <i class="material-icons left">delete_forever</i>Elimina Definitivamente
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Floating Action Button for Delete -->
+    {% if current_user.is_admin or project.created_by == current_user.id %}
+        <div class="fixed-action-btn">
+            <a class="btn-floating btn-large red modal-trigger" href="#delete-modal">
+                <i class="large material-icons">delete</i>
+            </a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.breadcrumb {
+    font-size: 14px;
+}
+
+.prefix {
+    color: #1976d2 !important;
+}
+
+.input-field input:focus + label,
+.input-field textarea:focus + label {
+    color: #1976d2 !important;
+}
+
+.input-field input:focus,
+.input-field textarea:focus {
+    border-bottom: 1px solid #1976d2 !important;
+    box-shadow: 0 1px 0 0 #1976d2 !important;
+}
+
+.switch label input[type=checkbox]:checked+.lever {
+    background-color: #1976d2;
+}
+
+.switch label input[type=checkbox]:checked+.lever:after {
+    background-color: #1565c0;
+}
+
+.browser-default {
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    padding: 8px 12px;
+    font-size: 1rem;
+    margin-top: 8px;
+}
+
+.browser-default:focus {
+    border-color: #1976d2;
+    box-shadow: 0 0 0 1px #1976d2;
+    outline: none;
+}
+
+.fixed-action-btn {
+    bottom: 45px;
+    right: 24px;
+}
+
+.modal {
+    max-height: 80%;
+}
+
+.modal .modal-content h4 {
+    margin-top: 0;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize modals
+    const modals = document.querySelectorAll('.modal');
+    M.Modal.init(modals);
+    
+    // Initialize character counter
+    const description = document.getElementById('description');
+    M.CharacterCounter.init(description);
+    
+    // Form elements
+    const nameInput = document.getElementById('name');
+    const form = document.getElementById('project-form');
+    const submitBtn = document.getElementById('submit-btn');
+    
+    // Form validation
+    form.addEventListener('submit', function(e) {
+        const name = nameInput.value.trim();
+        
+        if (!name) {
+            e.preventDefault();
+            M.toast({html: 'Il nome del progetto è richiesto', classes: 'red'});
+            nameInput.focus();
+            return;
+        }
+        
+        if (name.length < 3) {
+            e.preventDefault();
+            M.toast({html: 'Il nome del progetto deve essere di almeno 3 caratteri', classes: 'red'});
+            nameInput.focus();
+            return;
+        }
+        
+        // Show loading state
+        submitBtn.innerHTML = '<i class="material-icons left">hourglass_empty</i>Salvataggio in corso...';
+        submitBtn.disabled = true;
+    });
+    
+    // Real-time validation
+    nameInput.addEventListener('input', function() {
+        const value = this.value.trim();
+        
+        if (value.length >= 3) {
+            this.classList.add('valid');
+            this.classList.remove('invalid');
+        } else if (value.length > 0) {
+            this.classList.add('invalid');
+            this.classList.remove('valid');
+        } else {
+            this.classList.remove('valid', 'invalid');
+        }
+    });
+    
+    // Status change warning
+    const statusSelect = document.getElementById('status');
+    const originalStatus = statusSelect.value;
+    
+    statusSelect.addEventListener('change', function() {
+        const newStatus = this.value;
+        
+        if (originalStatus === 'active' && newStatus === 'archived') {
+            M.toast({
+                html: 'Attenzione: Archiviare il progetto lo renderà di sola lettura',
+                classes: 'orange',
+                displayLength: 6000
+            });
+        } else if (originalStatus === 'completed' && newStatus === 'active') {
+            M.toast({
+                html: 'Il progetto verrà riattivato e potrà essere modificato',
+                classes: 'blue',
+                displayLength: 4000
+            });
+        }
+    });
+    
+    // Settings change warnings
+    const settingsCheckboxes = document.querySelectorAll('input[type="checkbox"]');
+    settingsCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const hasData = {{ 'true' if (project.files.count() > 0 or project.labels.count() > 0) else 'false' }};
+            
+            if (hasData) {
+                M.toast({
+                    html: 'Questa modifica influenzerà i dati esistenti del progetto',
+                    classes: 'orange',
+                    displayLength: 4000
+                });
+            }
+        });
+    });
+    
+    // Auto-save warning
+    const autoSaveCheckbox = document.querySelector('input[name="auto_save"]');
+    if (autoSaveCheckbox) {
+        autoSaveCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                M.toast({
+                    html: 'Il salvataggio automatico migliorerà l\'esperienza utente',
+                    classes: 'green',
+                    displayLength: 3000
+                });
+            }
+        });
+    }
+    
+    // Focus on name field
+    nameInput.focus();
+    nameInput.setSelectionRange(nameInput.value.length, nameInput.value.length);
+});
+</script>
+{% endblock %}

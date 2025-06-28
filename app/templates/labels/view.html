@@ -1,0 +1,332 @@
+{% extends "base.html" %}
+
+{% block title %}{{ label.name }} - Anatema{% endblock %}
+
+{% block content %}
+<div class="container" style="margin-top: 30px;">
+    <!-- Breadcrumb -->
+    <div class="row">
+        <div class="col s12">
+            <nav class="transparent z-depth-0">
+                <div class="nav-wrapper">
+                    <div class="col s12">
+                        <a href="{{ url_for('main.dashboard') }}" class="breadcrumb blue-text">Dashboard</a>
+                        <a href="{{ url_for('projects.list_projects') }}" class="breadcrumb blue-text">Progetti</a>
+                        <a href="{{ url_for('projects.view_project', project_id=label.project_id) }}" class="breadcrumb blue-text">{{ label.project.name }}</a>
+                        <a href="{{ url_for('labels.list_labels', project_id=label.project_id) }}" class="breadcrumb blue-text">Etichette</a>
+                        <a href="#!" class="breadcrumb grey-text">{{ label.name }}</a>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Label Header -->
+    <div class="row">
+        <div class="col s12">
+            <div class="card-panel" style="background-color: {{ label.color }}; color: white;">
+                <div class="row valign-wrapper" style="margin-bottom: 0;">
+                    <div class="col s12 m8">
+                        <h4 style="margin: 0;">
+                            <i class="material-icons left">label</i>{{ label.name }}
+                        </h4>
+                        <p style="margin: 0;">
+                            {% if label.description %}
+                                {{ label.description }}
+                            {% else %}
+                                Nessuna descrizione disponibile
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="col s12 m4 right-align">
+                        <a href="{{ url_for('labels.edit_label', label_id=label.id) }}" class="btn waves-effect waves-light white" style="color: {{ label.color }};">
+                            <i class="material-icons left">edit</i>Modifica
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Label Info -->
+    <div class="row">
+        <div class="col s12 m6">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">
+                        <i class="material-icons left">info</i>Informazioni Etichetta
+                    </span>
+                    <div class="collection">
+                        <div class="collection-item">
+                            <strong>Nome:</strong> {{ label.name }}
+                        </div>
+                        <div class="collection-item">
+                            <strong>Descrizione:</strong> 
+                            {% if label.description %}
+                                {{ label.description }}
+                            {% else %}
+                                <span class="grey-text">Nessuna descrizione</span>
+                            {% endif %}
+                        </div>
+                        <div class="collection-item">
+                            <strong>Colore:</strong> 
+                            <div class="chip" style="background-color: {{ label.color }}; color: white; margin-left: 10px;">
+                                {{ label.color }}
+                            </div>
+                        </div>
+                        <div class="collection-item">
+                            <strong>Creata il:</strong> {{ label.created_at.strftime('%d/%m/%Y alle %H:%M') }}
+                        </div>
+                        <div class="collection-item">
+                            <strong>Progetto:</strong> 
+                            <a href="{{ url_for('projects.view_project', project_id=label.project_id) }}" class="blue-text">
+                                {{ label.project.name }}
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col s12 m6">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">
+                        <i class="material-icons left">analytics</i>Statistiche Utilizzo
+                    </span>
+                    <div class="center-align" style="padding: 20px 0;">
+                        <h2 style="color: {{ label.color }};">{{ cell_labels.total }}</h2>
+                        <p class="grey-text">Utilizzi Totali</p>
+                        
+                        {% if cell_labels.total > 0 %}
+                            <div style="margin-top: 20px;">
+                                <div class="chip" style="background-color: {{ label.color }}; color: white;">
+                                    Media: {{ (cell_labels.total / label.project.files.count())|round(1) if label.project.files.count() > 0 else 0 }} per file
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Categories -->
+            {% if label.categories %}
+                <div class="card">
+                    <div class="card-content">
+                        <span class="card-title">
+                            <i class="material-icons left">category</i>Categorie
+                        </span>
+                        <div>
+                            {% for category in label.categories %}
+                                <div class="chip grey lighten-3">{{ category }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Usage Details -->
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">
+                        <i class="material-icons left">list</i>Dettagli Utilizzo
+                        <span class="right">
+                            {% if cell_labels.total > 0 %}
+                                Pagina {{ cell_labels.page }} di {{ cell_labels.pages }} 
+                                ({{ cell_labels.total }} utilizzi totali)
+                            {% endif %}
+                        </span>
+                    </span>
+                    
+                    {% if cell_labels.items %}
+                        <div class="collection">
+                            {% for cell_label in cell_labels.items %}
+                                <div class="collection-item">
+                                    <div class="row valign-wrapper" style="margin-bottom: 0;">
+                                        <div class="col s12 m8">
+                                            <h6 style="margin: 0;">
+                                                <i class="material-icons left">table_chart</i>
+                                                {{ cell_label.row.sheet.file.original_name }} - {{ cell_label.row.sheet.name }}
+                                            </h6>
+                                            <p style="margin: 5px 0;">
+                                                <strong>Riga {{ cell_label.row.row_index + 1 }}, Colonna {{ cell_label.column_index + 1 }}:</strong>
+                                                <span class="chip grey lighten-3">{{ cell_label.cell_value or '(vuoto)' }}</span>
+                                            </p>
+                                            <small class="grey-text">
+                                                Applicata il {{ cell_label.created_at.strftime('%d/%m/%Y alle %H:%M') }}
+                                                {% if cell_label.creator %}
+                                                    da {{ cell_label.creator.username }}
+                                                {% endif %}
+                                            </small>
+                                        </div>
+                                        <div class="col s12 m4 right-align">
+                                            <a href="{{ url_for('files.view_sheet', file_id=cell_label.row.sheet.file_id, sheet_id=cell_label.row.sheet_id) }}" 
+                                               class="btn-small waves-effect waves-light blue">
+                                                <i class="material-icons left">visibility</i>Visualizza
+                                            </a>
+                                            <form method="POST" action="{{ url_for('labels.remove_label', cell_label_id=cell_label.id) }}" 
+                                                  style="display: inline;" class="remove-label-form">
+                                                <button type="submit" class="btn-small waves-effect waves-light red">
+                                                    <i class="material-icons">delete</i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                        
+                        <!-- Pagination -->
+                        {% if cell_labels.pages > 1 %}
+                            <div class="row" style="margin-top: 20px;">
+                                <div class="col s12 center-align">
+                                    <ul class="pagination">
+                                        {% if cell_labels.has_prev %}
+                                            <li class="waves-effect">
+                                                <a href="{{ url_for('labels.view_label', label_id=label.id, page=cell_labels.prev_num) }}">
+                                                    <i class="material-icons">chevron_left</i>
+                                                </a>
+                                            </li>
+                                        {% endif %}
+                                        
+                                        {% for page_num in cell_labels.iter_pages() %}
+                                            {% if page_num %}
+                                                {% if page_num != cell_labels.page %}
+                                                    <li class="waves-effect">
+                                                        <a href="{{ url_for('labels.view_label', label_id=label.id, page=page_num) }}">{{ page_num }}</a>
+                                                    </li>
+                                                {% else %}
+                                                    <li class="active" style="background-color: {{ label.color }};">
+                                                        <a href="#!">{{ page_num }}</a>
+                                                    </li>
+                                                {% endif %}
+                                            {% else %}
+                                                <li class="disabled">
+                                                    <span>…</span>
+                                                </li>
+                                            {% endif %}
+                                        {% endfor %}
+                                        
+                                        {% if cell_labels.has_next %}
+                                            <li class="waves-effect">
+                                                <a href="{{ url_for('labels.view_label', label_id=label.id, page=cell_labels.next_num) }}">
+                                                    <i class="material-icons">chevron_right</i>
+                                                </a>
+                                            </li>
+                                        {% endif %}
+                                    </ul>
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="center-align" style="padding: 40px 20px;">
+                            <i class="material-icons large grey-text">label_outline</i>
+                            <h6 class="grey-text">Etichetta non ancora utilizzata</h6>
+                            <p class="grey-text">
+                                Questa etichetta non è stata ancora applicata a nessuna cella. 
+                                Inizia ad etichettare i tuoi dati per vedere i risultati qui.
+                            </p>
+                            <a href="{{ url_for('projects.view_project', project_id=label.project_id) }}" 
+                               class="btn waves-effect waves-light" style="background-color: {{ label.color }};">
+                                <i class="material-icons left">folder</i>Vai al Progetto
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">
+                        <i class="material-icons left">build</i>Azioni
+                    </span>
+                    <div class="collection">
+                        <a href="{{ url_for('labels.edit_label', label_id=label.id) }}" class="collection-item waves-effect">
+                            <i class="material-icons left">edit</i>Modifica etichetta
+                        </a>
+                        <a href="{{ url_for('labels.list_labels', project_id=label.project_id) }}" class="collection-item waves-effect">
+                            <i class="material-icons left">list</i>Tutte le etichette del progetto
+                        </a>
+                        <a href="{{ url_for('projects.view_project', project_id=label.project_id) }}" class="collection-item waves-effect">
+                            <i class="material-icons left">folder</i>Torna al progetto
+                        </a>
+                        <a href="#delete-modal" class="collection-item waves-effect red-text modal-trigger">
+                            <i class="material-icons left">delete</i>Elimina etichetta
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal -->
+<div id="delete-modal" class="modal">
+    <div class="modal-content">
+        <h4><i class="material-icons left red-text">warning</i>Conferma Eliminazione</h4>
+        <p>Sei sicuro di voler eliminare l'etichetta <strong>"{{ label.name }}"</strong>?</p>
+        <p class="red-text">
+            <i class="material-icons left">info</i>
+            Questa azione eliminerà anche tutti gli utilizzi di questa etichetta ({{ cell_labels.total }} utilizzi).
+        </p>
+    </div>
+    <div class="modal-footer">
+        <a href="#!" class="modal-close waves-effect waves-green btn-flat">Annulla</a>
+        <form method="POST" action="{{ url_for('labels.delete_label', label_id=label.id) }}" style="display: inline;">
+            <button type="submit" class="waves-effect waves-red btn red">
+                <i class="material-icons left">delete</i>Elimina
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.breadcrumb {
+    font-size: 14px;
+}
+
+.chip {
+    margin: 2px;
+}
+
+.collection .collection-item {
+    padding: 15px 20px;
+}
+
+.remove-label-form {
+    margin-left: 5px;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize modals
+    var modals = document.querySelectorAll('.modal');
+    M.Modal.init(modals);
+    
+    // Confirm remove label actions
+    document.querySelectorAll('.remove-label-form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            if (confirm('Sei sicuro di voler rimuovere questa etichetta dalla cella?')) {
+                this.submit();
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

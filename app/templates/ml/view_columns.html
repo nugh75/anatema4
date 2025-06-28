@@ -1,0 +1,334 @@
+{% extends "base.html" %}
+
+{% block title %}Vista Colonne - {{ sheet.name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col s12">
+            <nav>
+                <div class="nav-wrapper">
+                    <div class="col s12">
+                        <a href="{{ url_for('main.dashboard') }}" class="breadcrumb">Dashboard</a>
+                        <a href="{{ url_for('projects.view_project', project_id=project.id) }}" class="breadcrumb">{{ project.name }}</a>
+                        <a href="{{ url_for('ml.view_ml_dashboard', project_id=project.id) }}" class="breadcrumb">Machine Learning</a>
+                        <span class="breadcrumb">Vista Colonne - {{ sheet.name }}</span>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">
+                        <i class="material-icons left">view_column</i>
+                        Vista Colonne - {{ sheet.name }}
+                    </span>
+                    <p>Analizza e etichetta i dati per colonna. Ogni colonna mostra le sue caratteristiche e valori unici.</p>
+                </div>
+                <div class="card-action">
+                    <a href="{{ url_for('ml.view_sheet_rows', project_id=project.id, sheet_id=sheet.id) }}" 
+                       class="btn waves-effect waves-light blue">
+                        <i class="material-icons left">view_list</i>
+                        Vista Righe
+                    </a>
+                    <a href="{{ url_for('ml.view_ml_dashboard', project_id=project.id) }}" 
+                       class="btn waves-effect waves-light grey">
+                        <i class="material-icons left">arrow_back</i>
+                        Torna al Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Informazioni Foglio -->
+    <div class="row">
+        <div class="col s12 m6">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">Informazioni Foglio</span>
+                    <div class="collection">
+                        <div class="collection-item header-fix">
+                            <strong>Nome:</strong> {{ sheet.name }}
+                        </div>
+                        <div class="collection-item">
+                            <strong>File:</strong> {{ sheet.file.filename }}
+                        </div>
+                        <div class="collection-item">
+                            <strong>Righe:</strong> {{ sheet.rows_count }}
+                        </div>
+                        <div class="collection-item">
+                            <strong>Colonne:</strong> {{ sheet.columns_count }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        {% if ml_analysis %}
+        <div class="col s12 m6">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">Analisi ML</span>
+                    <div class="collection">
+                        <div class="collection-item header-fix">
+                            <strong>Stato:</strong> 
+                            <span class="chip green white-text">{{ ml_analysis.status.upper() }}</span>
+                        </div>
+                        <div class="collection-item">
+                            <strong>Tipo:</strong> {{ ml_analysis.analysis_type }}
+                        </div>
+                        <div class="collection-item">
+                            <strong>Creata:</strong> {{ ml_analysis.created_at.strftime('%d/%m/%Y %H:%M') }}
+                        </div>
+                        <div class="collection-item">
+                            <strong>Etichette generate:</strong> {{ auto_labels|length }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Colonne -->
+    <div class="row">
+        {% for col_name, col_data in columns_data.items() %}
+        <div class="col s12 l6 xl4">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">
+                        {{ col_name }}
+                        {% set col_analysis = column_analyses|selectattr('column_name', 'equalto', col_name)|first %}
+                        {% if col_analysis %}
+                        <span class="chip {{ 'green' if col_analysis.column_type == 'open_question' else 'blue' if col_analysis.column_type == 'closed_question' else 'orange' }} white-text">
+                            {{ col_analysis.column_type.replace('_', ' ').title() }}
+                        </span>
+                        {% endif %}
+                    </span>
+                    
+                    <!-- Statistiche Colonna -->
+                    <div class="row">
+                        <div class="col s6">
+                            <div class="center-align">
+                                <h6 class="blue-text">{{ col_data.unique_values }}</h6>
+                                <p class="grey-text">Valori Unici</p>
+                            </div>
+                        </div>
+                        <div class="col s6">
+                            <div class="center-align">
+                                <h6 class="orange-text">{{ col_data.null_count }}</h6>
+                                <p class="grey-text">Valori Nulli</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <p><strong>Tipo:</strong> {{ col_data.type }}</p>
+                    
+                    <!-- Tutte le Occorrenze con Frequenze -->
+                    <div class="section">
+                        <h6>Tutte le Occorrenze:</h6>
+                        <div class="collection" style="max-height: 300px; overflow-y: auto;">
+                            <div class="collection-item header-fix">
+                                <strong>Valore</strong>
+                                <span class="right"><strong>Frequenza</strong></span>
+                            </div>
+                            {% set value_counts = {} %}
+                            {% for value in col_data.all_values %}
+                                {% if value_counts.update({value: value_counts.get(value, 0) + 1}) %}{% endif %}
+                            {% endfor %}
+                            {% for value, count in value_counts.items() %}
+                            <div class="collection-item clickable-cell"
+                                 data-column="{{ col_name }}"
+                                 data-value="{{ value }}"
+                                 style="cursor: pointer;">
+                                <span class="truncate">{{ value if value else '(vuoto)' }}</span>
+                                <span class="right">
+                                    <span class="badge blue white-text">{{ count }}</span>
+                                </span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <div class="center-align" style="margin-top: 10px;">
+                            <button class="btn-small waves-effect waves-light orange label-all-column-btn"
+                                    data-column="{{ col_name }}">
+                                <i class="material-icons left">label</i>
+                                Etichetta Tutte
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Etichette ML per questa colonna -->
+                    {% set col_labels = auto_labels|selectattr('column_name', 'equalto', col_name)|list %}
+                    {% if col_labels %}
+                    <div class="section">
+                        <h6>Etichette ML:</h6>
+                        {% for label in col_labels %}
+                        <div class="chip {{ 'green' if label.manual_validation == 'approved' else 'orange' if label.manual_validation == 'modified' else 'red' if label.manual_validation == 'rejected' else 'blue' }}">
+                            {{ label.label_name }}
+                            <span class="badge">{{ "%.1f"|format(label.confidence_score * 100) }}%</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="card-action">
+                    <a href="#" class="btn-small waves-effect waves-light blue analyze-column-btn" 
+                       data-column="{{ col_name }}">
+                        <i class="material-icons left">analytics</i>
+                        Analizza
+                    </a>
+                    <a href="#" class="btn-small waves-effect waves-light green label-column-btn" 
+                       data-column="{{ col_name }}">
+                        <i class="material-icons left">label</i>
+                        Etichetta
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Modal per Etichettatura Colonna -->
+<div id="label-column-modal" class="modal">
+    <div class="modal-content">
+        <h4>Etichetta Colonna</h4>
+        <form id="label-column-form">
+            <div class="row">
+                <div class="input-field col s12">
+                    <input id="column-name" type="text" readonly>
+                    <label for="column-name">Nome Colonna</label>
+                </div>
+            </div>
+            <div class="row">
+                <div class="input-field col s12">
+                    <input id="label-name" type="text" required>
+                    <label for="label-name">Nome Etichetta</label>
+                </div>
+            </div>
+            <div class="row">
+                <div class="input-field col s12">
+                    <textarea id="label-description" class="materialize-textarea"></textarea>
+                    <label for="label-description">Descrizione Etichetta</label>
+                </div>
+            </div>
+        </form>
+    </div>
+    <div class="modal-footer">
+        <a href="#!" class="modal-close waves-effect waves-green btn-flat">Annulla</a>
+        <a href="#!" class="waves-effect waves-green btn" id="save-label-btn">Salva Etichetta</a>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Inizializza modal
+    M.Modal.init(document.querySelectorAll('.modal'));
+    
+    // Gestisci etichettatura colonna
+    document.querySelectorAll('.label-column-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const columnName = this.dataset.column;
+            
+            document.getElementById('column-name').value = columnName;
+            M.updateTextFields();
+            
+            const modal = M.Modal.getInstance(document.getElementById('label-column-modal'));
+            modal.open();
+        });
+    });
+    
+    // Salva etichetta
+    document.getElementById('save-label-btn').addEventListener('click', function() {
+        const form = document.getElementById('label-column-form');
+        const formData = new FormData(form);
+        
+        const data = {
+            column_name: document.getElementById('column-name').value,
+            label_name: document.getElementById('label-name').value,
+            label_description: document.getElementById('label-description').value
+        };
+        
+        fetch('{{ url_for("ml.label_cell_manually", project_id=project.id, sheet_id=sheet.id) }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.message) {
+                M.toast({html: data.message, classes: 'green'});
+                const modal = M.Modal.getInstance(document.getElementById('label-column-modal'));
+                modal.close();
+                location.reload();
+            } else {
+                M.toast({html: data.error || 'Errore nell\'etichettatura', classes: 'red'});
+            }
+        })
+        .catch(error => {
+            M.toast({html: 'Errore di rete: ' + error.message, classes: 'red'});
+        });
+    });
+    
+    // Gestisci analisi colonna
+    document.querySelectorAll('.analyze-column-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const columnName = this.dataset.column;
+            
+            M.toast({html: `Analisi della colonna "${columnName}" in corso...`, classes: 'blue'});
+            
+            // Qui potresti implementare l'analisi specifica della colonna
+            // Per ora mostra solo un messaggio
+            setTimeout(() => {
+                M.toast({html: `Analisi della colonna "${columnName}" completata!`, classes: 'green'});
+            }, 2000);
+        });
+    });
+});
+</script>
+
+<style>
+.grey-text {
+    color: #333333 !important;
+}
+
+.blue-text {
+    color: #0d47a1 !important;
+}
+
+.orange-text {
+    color: #e65100 !important;
+}
+
+.collection-item {
+    background-color: #ffffff;
+    color: #000000;
+}
+
+.header-fix {
+    background-color: #f5f5f5 !important;
+    color: #111 !important;
+}
+
+th, .table-header, .collection .collection-header {
+    color: #111 !important;
+    background-color: #f5f5f5 !important;
+}
+.card-title, .breadcrumb, .collection .collection-item strong, .collection .collection-item label {
+    color: #111 !important;
+}
+.card .card-content .row:first-child, .card .card-content .row:first-child * {
+    color: #111 !important;
+}
+</style>
+{% endblock %}

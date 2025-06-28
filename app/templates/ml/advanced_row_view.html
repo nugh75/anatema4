@@ -1,0 +1,1035 @@
+{% extends "base.html" %}
+
+{% block title %}Etichettatura Avanzata Righe - {{ sheet.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col s12">
+            <nav>
+                <div class="nav-wrapper">
+                    <div class="col s12">
+                        <a href="{{ url_for('main.dashboard') }}" class="breadcrumb">Dashboard</a>
+                        <a href="{{ url_for('projects.view_project', project_id=project.id) }}" class="breadcrumb">{{ project.name }}</a>
+                        <a href="{{ url_for('ml.view_ml_dashboard', project_id=project.id) }}" class="breadcrumb">Machine Learning</a>
+                        <span class="breadcrumb">Etichettatura Avanzata Righe - {{ sheet.name }}</span>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Header Controls -->
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">
+                        <i class="material-icons left">view_list</i>
+                        Etichettatura Avanzata Righe
+                    </span>
+                    <p>Visualizza una riga alla volta con tutte le celle disposte verticalmente per un'etichettatura precisa e dettagliata.</p>
+                </div>
+                <div class="card-action">
+                    <a href="{{ url_for('ml.advanced_column_view', project_id=project.id, sheet_id=sheet.id) }}" 
+                       class="btn waves-effect waves-light blue">
+                        <i class="material-icons left">view_column</i>
+                        Vista Colonne Avanzata
+                    </a>
+                    <a href="{{ url_for('ml.view_ml_dashboard', project_id=project.id) }}" 
+                       class="btn waves-effect waves-light grey">
+                        <i class="material-icons left">arrow_back</i>
+                        Dashboard ML
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Row Navigation and Progress -->
+    <div class="row">
+        <div class="col s12 m6">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">Navigazione Righe</span>
+                    <div class="row valign-wrapper">
+                        <div class="col s3">
+                            <a href="#" class="btn waves-effect waves-light blue btn-large" id="prev-row" disabled>
+                                <i class="material-icons">chevron_left</i>
+                            </a>
+                        </div>
+                        <div class="col s6 center-align">
+                            <h5 id="row-counter">Riga 1 / 1</h5>
+                            <div class="input-field">
+                                <input id="goto-row" type="number" min="1" placeholder="Vai alla riga...">
+                                <label for="goto-row">Vai alla riga</label>
+                            </div>
+                        </div>
+                        <div class="col s3 right-align">
+                            <a href="#" class="btn waves-effect waves-light blue btn-large" id="next-row">
+                                <i class="material-icons">chevron_right</i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col s12 m6">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">Progresso Etichettatura</span>
+                    <div class="progress-container">
+                        <div class="progress">
+                            <div class="determinate" id="labeling-progress" style="width: 0%"></div>
+                        </div>
+                        <p class="center-align">
+                            <span id="labeled-cells-count">0</span> / <span id="total-cells-count">0</span> celle etichettate
+                            (<span id="progress-percentage">0</span>%)
+                        </p>
+                    </div>
+                    <div class="row" style="margin-top: 20px;">
+                        <div class="col s6">
+                            <a href="#" class="btn waves-effect waves-light orange btn-block" id="batch-ai-row">
+                                <i class="material-icons left">psychology</i>
+                                AI Riga Completa
+                            </a>
+                        </div>
+                        <div class="col s6">
+                            <a href="#" class="btn waves-effect waves-light green btn-block" id="export-row-labels">
+                                <i class="material-icons left">file_download</i>
+                                Esporta Etichette
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Row Data Display -->
+    <div class="row" id="row-display" style="display: none;">
+        <div class="col s12 m8">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">
+                        Dati Riga <span id="current-row-number">1</span>
+                        <span class="chip blue white-text" id="row-status">Non Etichettata</span>
+                    </span>
+                    
+                    <!-- Cells Container -->
+                    <div id="cells-container" class="row">
+                        <!-- Le celle verranno caricate dinamicamente qui -->
+                    </div>
+                    
+                    <!-- Row Actions -->
+                    <div class="row" style="margin-top: 30px;">
+                        <div class="col s12 center-align">
+                            <a href="#" class="btn waves-effect waves-light green" id="mark-row-complete">
+                                <i class="material-icons left">check_circle</i>
+                                Marca Riga Come Completata
+                            </a>
+                            <a href="#" class="btn waves-effect waves-light orange" id="clear-row-labels">
+                                <i class="material-icons left">clear_all</i>
+                                Cancella Tutte le Etichette
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col s12 m4">
+            <div class="card sticky-card">
+                <div class="card-content">
+                    <span class="card-title">Pannello Etichettatura</span>
+                    
+                    <!-- Current Cell Info -->
+                    <div id="current-cell-info" style="display: none;">
+                        <div class="card-panel blue lighten-4">
+                            <h6>Cella Selezionata</h6>
+                            <p><strong>Colonna:</strong> <span id="selected-column">-</span></p>
+                            <p><strong>Valore:</strong></p>
+                            <div class="cell-value-display" id="selected-value">Clicca su una cella</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Quick Actions -->
+                    <div class="section">
+                        <h6>Azioni Rapide</h6>
+                        <div class="row">
+                            <div class="col s6">
+                                <a href="#" class="btn waves-effect waves-light blue btn-small btn-block" id="label-all-positive">
+                                    <i class="material-icons left">thumb_up</i>
+                                    Tutto Positivo
+                                </a>
+                            </div>
+                            <div class="col s6">
+                                <a href="#" class="btn waves-effect waves-light red btn-small btn-block" id="label-all-negative">
+                                    <i class="material-icons left">thumb_down</i>
+                                    Tutto Negativo
+                                </a>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col s6">
+                                <a href="#" class="btn waves-effect waves-light grey btn-small btn-block" id="label-all-neutral">
+                                    <i class="material-icons left">remove</i>
+                                    Tutto Neutrale
+                                </a>
+                            </div>
+                            <div class="col s6">
+                                <a href="#" class="btn waves-effect waves-light orange btn-small btn-block" id="skip-row">
+                                    <i class="material-icons left">skip_next</i>
+                                    Salta Riga
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Manual Labeling -->
+                    <div class="section">
+                        <h6>Etichettatura Manuale</h6>
+                        <div class="input-field">
+                            <input id="manual-cell-label" type="text" placeholder="Nome etichetta">
+                            <label for="manual-cell-label">Etichetta Cella</label>
+                        </div>
+                        <div class="input-field">
+                            <textarea id="manual-cell-description" class="materialize-textarea" placeholder="Descrizione opzionale"></textarea>
+                            <label for="manual-cell-description">Descrizione</label>
+                        </div>
+                        <a href="#" class="btn waves-effect waves-light green btn-block" id="save-cell-label" disabled>
+                            <i class="material-icons left">save</i>
+                            Salva Etichetta Cella
+                        </a>
+                    </div>
+                    
+                    <!-- AI Suggestions -->
+                    <div class="section">
+                        <h6>Suggerimenti AI</h6>
+                        <div id="ai-suggestions-panel" style="display: none;">
+                            <div class="collection" id="ai-suggestions-list">
+                                <!-- I suggerimenti AI verranno caricati qui -->
+                            </div>
+                        </div>
+                        <a href="#" class="btn waves-effect waves-light orange btn-block" id="get-cell-ai-suggestions" disabled>
+                            <i class="material-icons left">psychology</i>
+                            Suggerimenti AI per Cella
+                        </a>
+                        <a href="#" class="btn waves-effect waves-light purple btn-block" id="get-row-ai-suggestions">
+                            <i class="material-icons left">auto_awesome</i>
+                            Analisi AI Riga Completa
+                        </a>
+                    </div>
+                    
+                    <!-- Row Statistics -->
+                    <div class="section">
+                        <h6>Statistiche Riga</h6>
+                        <div class="collection">
+                            <div class="collection-item">
+                                <strong>Celle Totali:</strong> <span id="row-total-cells">0</span>
+                            </div>
+                            <div class="collection-item">
+                                <strong>Celle Etichettate:</strong> <span id="row-labeled-cells">0</span>
+                            </div>
+                            <div class="collection-item">
+                                <strong>Celle Vuote:</strong> <span id="row-empty-cells">0</span>
+                            </div>
+                            <div class="collection-item">
+                                <strong>Completamento:</strong> <span id="row-completion">0%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal per Batch AI Row -->
+<div id="batch-ai-row-modal" class="modal modal-fixed-footer">
+    <div class="modal-content">
+        <h4>Analisi AI Riga Completa</h4>
+        <p>Applica l'analisi AI a tutte le celle della riga corrente utilizzando un template specifico.</p>
+        
+        <div class="row">
+            <div class="col s12">
+                <div class="input-field">
+                    <select id="row-ai-template">
+                        <option value="" disabled selected>Scegli un template</option>
+                        <option value="sentiment">Analisi Sentiment</option>
+                        <option value="emotion">Rilevamento Emozioni</option>
+                        <option value="behavior">Classificazione Comportamentale</option>
+                        <option value="topic">Categorizzazione Argomenti</option>
+                        <option value="intent">Classificazione Intenti</option>
+                        <option value="comprehensive">Analisi Comprensiva</option>
+                    </select>
+                    <label>Template AI</label>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col s12">
+                <div class="switch">
+                    <label>
+                        Solo celle non etichettate
+                        <input type="checkbox" id="row-only-unlabeled" checked>
+                        <span class="lever"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col s12">
+                <div class="switch">
+                    <label>
+                        Analisi contestuale (considera tutte le celle insieme)
+                        <input type="checkbox" id="contextual-analysis" checked>
+                        <span class="lever"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+        
+        <div id="row-batch-progress" style="display: none;">
+            <div class="progress">
+                <div class="determinate" id="row-batch-progress-bar" style="width: 0%"></div>
+            </div>
+            <p class="center-align">
+                Processando: <span id="row-batch-current">0</span> / <span id="row-batch-total">0</span>
+            </p>
+        </div>
+    </div>
+    <div class="modal-footer">
+        <a href="#!" class="modal-close waves-effect waves-green btn-flat">Annulla</a>
+        <a href="#!" class="waves-effect waves-green btn" id="start-row-batch-ai">
+            <i class="material-icons left">play_arrow</i>
+            Avvia Analisi
+        </a>
+    </div>
+</div>
+
+<!-- Modal per Row AI Analysis Results -->
+<div id="row-ai-results-modal" class="modal modal-fixed-footer">
+    <div class="modal-content">
+        <h4>Risultati Analisi AI Riga</h4>
+        <div id="row-ai-results-content">
+            <!-- I risultati verranno caricati qui -->
+        </div>
+    </div>
+    <div class="modal-footer">
+        <a href="#!" class="modal-close waves-effect waves-green btn-flat">Chiudi</a>
+        <a href="#!" class="waves-effect waves-green btn" id="apply-row-ai-results">
+            <i class="material-icons left">check</i>
+            Applica Tutti i Risultati
+        </a>
+    </div>
+</div>
+
+<style>
+.cell-item {
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 15px;
+    margin: 10px 0;
+    transition: all 0.3s;
+    cursor: pointer;
+    min-height: 120px;
+}
+
+.cell-item:hover {
+    border-color: #2196f3;
+    background-color: #f3f9ff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.cell-item.labeled {
+    border-color: #4caf50;
+    background-color: #f1f8e9;
+}
+
+.cell-item.selected {
+    border-color: #ff9800;
+    background-color: #fff3e0;
+    box-shadow: 0 4px 12px rgba(255, 152, 0, 0.3);
+}
+
+.cell-item.empty {
+    border-color: #9e9e9e;
+    background-color: #fafafa;
+    opacity: 0.7;
+}
+
+.cell-column-name {
+    font-weight: bold;
+    color: #1976d2;
+    font-size: 0.9em;
+    margin-bottom: 8px;
+}
+
+.cell-value {
+    font-size: 1.1em;
+    line-height: 1.4;
+    word-wrap: break-word;
+    max-height: 60px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.cell-label-display {
+    margin-top: 10px;
+}
+
+.cell-label-chip {
+    font-size: 0.8em;
+    margin: 2px;
+}
+
+.cell-value-display {
+    background: #f5f5f5;
+    padding: 10px;
+    border-radius: 4px;
+    min-height: 60px;
+    word-wrap: break-word;
+    border: 1px solid #ddd;
+    max-height: 120px;
+    overflow-y: auto;
+}
+
+.sticky-card {
+    position: sticky;
+    top: 20px;
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+}
+
+.section {
+    margin: 20px 0;
+    padding: 15px 0;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.section:last-child {
+    border-bottom: none;
+}
+
+.btn-block {
+    width: 100%;
+    margin-bottom: 10px;
+}
+
+.suggestions-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    margin: 5px 0;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.suggestions-item:hover {
+    background-color: #f5f5f5;
+}
+
+.confidence-badge {
+    font-size: 0.8em;
+    padding: 2px 8px;
+    border-radius: 12px;
+    color: white;
+}
+
+.confidence-high { background-color: #4caf50; }
+.confidence-medium { background-color: #ff9800; }
+.confidence-low { background-color: #f44336; }
+
+.row-analysis-result {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 15px;
+    margin: 10px 0;
+    background-color: #fafafa;
+}
+
+.row-analysis-result h6 {
+    color: #1976d2;
+    margin-bottom: 10px;
+}
+
+.analysis-summary {
+    background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+    border-radius: 8px;
+    padding: 20px;
+    margin: 15px 0;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Inizializza componenti Materialize
+    M.FormSelect.init(document.querySelectorAll('select'));
+    M.Modal.init(document.querySelectorAll('.modal'));
+    M.updateTextFields();
+    
+    // Dati globali
+    let currentRowIndex = 0;
+    let rowsData = [];
+    let columns = {{ columns | tojsonfilter }};
+    let selectedCellElement = null;
+    let selectedCellColumn = null;
+    
+    // Simula dati delle righe (sostituire con dati reali dal backend)
+    function initializeRowsData() {
+        // Simula 50 righe di dati
+        rowsData = Array.from({length: 50}, (_, rowIndex) => {
+            const rowData = {};
+            columns.forEach(column => {
+                // Simula valori diversi per ogni cella
+                const sampleValues = [
+                    'Ottimo prodotto, molto soddisfatto',
+                    'Servizio pessimo, non lo consiglio',
+                    'Esperienza nella media',
+                    'Fantastico! Lo ricomprerei',
+                    'Deludente, mi aspettavo di più',
+                    'Buona qualità prezzo',
+                    'Eccellente servizio clienti',
+                    'Prodotto difettoso',
+                    'Consegna veloce e accurata',
+                    'Non vale il prezzo pagato'
+                ];
+                rowData[column] = sampleValues[Math.floor(Math.random() * sampleValues.length)];
+            });
+            
+            return {
+                index: rowIndex,
+                data: rowData,
+                labeled_cells: new Set(),
+                cell_labels: {},
+                completed: false
+            };
+        });
+        
+        updateRowCounter();
+        loadCurrentRow();
+    }
+    
+    function updateRowCounter() {
+        document.getElementById('row-counter').textContent = `Riga ${currentRowIndex + 1} / ${rowsData.length}`;
+        document.getElementById('current-row-number').textContent = currentRowIndex + 1;
+        
+        // Aggiorna pulsanti navigazione
+        document.getElementById('prev-row').classList.toggle('disabled', currentRowIndex === 0);
+        document.getElementById('next-row').classList.toggle('disabled', currentRowIndex === rowsData.length - 1);
+        
+        // Aggiorna input goto
+        document.getElementById('goto-row').max = rowsData.length;
+    }
+    
+    function loadCurrentRow() {
+        if (rowsData.length === 0) return;
+        
+        const row = rowsData[currentRowIndex];
+        const cellsContainer = document.getElementById('cells-container');
+        
+        // Pulisci container
+        cellsContainer.innerHTML = '';
+        
+        // Crea celle per ogni colonna
+        columns.forEach(column => {
+            const cellValue = row.data[column] || '';
+            const isLabeled = row.labeled_cells.has(column);
+            const cellLabel = row.cell_labels[column];
+            const isEmpty = !cellValue.trim();
+            
+            const cellDiv = document.createElement('div');
+            cellDiv.className = 'col s12 m6 l4';
+            
+            cellDiv.innerHTML = `
+                <div class="cell-item ${isLabeled ? 'labeled' : ''} ${isEmpty ? 'empty' : ''}" 
+                     data-column="${column}">
+                    <div class="cell-column-name">${column}</div>
+                    <div class="cell-value">${cellValue || '(vuoto)'}</div>
+                    ${isLabeled ? `
+                        <div class="cell-label-display">
+                            <span class="chip cell-label-chip green white-text">${cellLabel.name}</span>
+                            ${cellLabel.confidence ? `<span class="chip cell-label-chip blue white-text">${Math.round(cellLabel.confidence * 100)}%</span>` : ''}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+            
+            cellsContainer.appendChild(cellDiv);
+        });
+        
+        // Aggiungi event listeners alle celle
+        document.querySelectorAll('.cell-item').forEach(cell => {
+            cell.addEventListener('click', function() {
+                selectCell(this);
+            });
+        });
+        
+        // Aggiorna statistiche riga
+        updateRowStatistics();
+        updateRowStatus();
+        updateGlobalProgress();
+        
+        // Mostra interfaccia
+        document.getElementById('row-display').style.display = 'block';
+        
+        // Deseleziona cella
+        deselectCell();
+    }
+    
+    function selectCell(cellElement) {
+        // Rimuovi selezione precedente
+        document.querySelectorAll('.cell-item').forEach(cell => {
+            cell.classList.remove('selected');
+        });
+        
+        // Seleziona nuova cella
+        cellElement.classList.add('selected');
+        selectedCellElement = cellElement;
+        selectedCellColumn = cellElement.dataset.column;
+        
+        // Aggiorna pannello info
+        const row = rowsData[currentRowIndex];
+        const cellValue = row.data[selectedCellColumn] || '';
+        
+        document.getElementById('selected-column').textContent = selectedCellColumn;
+        document.getElementById('selected-value').textContent = cellValue || '(vuoto)';
+        document.getElementById('current-cell-info').style.display = 'block';
+        
+        // Se la cella è già etichettata, mostra l'etichetta
+        const cellLabel = row.cell_labels[selectedCellColumn];
+        if (cellLabel) {
+            document.getElementById('manual-cell-label').value = cellLabel.name;
+            document.getElementById('manual-cell-description').value = cellLabel.description || '';
+            M.updateTextFields();
+        } else {
+            document.getElementById('manual-cell-label').value = '';
+            document.getElementById('manual-cell-description').value = '';
+            M.updateTextFields();
+        }
+        
+        // Abilita pulsanti
+        document.getElementById('save-cell-label').classList.remove('disabled');
+        document.getElementById('get-cell-ai-suggestions').classList.remove('disabled');
+        
+        // Nascondi suggerimenti AI precedenti
+        document.getElementById('ai-suggestions-panel').style.display = 'none';
+    }
+    
+    function deselectCell() {
+        document.querySelectorAll('.cell-item').forEach(cell => {
+            cell.classList.remove('selected');
+        });
+        
+        selectedCellElement = null;
+        selectedCellColumn = null;
+        
+        document.getElementById('current-cell-info').style.display = 'none';
+        document.getElementById('save-cell-label').classList.add('disabled');
+        document.getElementById('get-cell-ai-suggestions').classList.add('disabled');
+        document.getElementById('ai-suggestions-panel').style.display = 'none';
+    }
+    
+    function updateRowStatistics() {
+        const row = rowsData[currentRowIndex];
+        const totalCells = columns.length;
+        const labeledCells = row.labeled_cells.size;
+        const emptyCells = columns.filter(col => !row.data[col] || !row.data[col].trim()).length;
+        const completion = totalCells > 0 ? Math.round((labeledCells / totalCells) * 100) : 0;
+        
+        document.getElementById('row-total-cells').textContent = totalCells;
+        document.getElementById('row-labeled-cells').textContent = labeledCells;
+        document.getElementById('row-empty-cells').textContent = emptyCells;
+        document.getElementById('row-completion').textContent = completion + '%';
+    }
+    
+    function updateRowStatus() {
+        const row = rowsData[currentRowIndex];
+        const statusElement = document.getElementById('row-status');
+        
+        if (row.completed) {
+            statusElement.textContent = 'Completata';
+            statusElement.className = 'chip green white-text';
+        } else if (row.labeled_cells.size > 0) {
+            statusElement.textContent = 'Parzialmente Etichettata';
+            statusElement.className = 'chip orange white-text';
+        } else {
+            statusElement.textContent = 'Non Etichettata';
+            statusElement.className = 'chip blue white-text';
+        }
+    }
+    
+    function updateGlobalProgress() {
+        const totalCells = rowsData.length * columns.length;
+        const labeledCells = rowsData.reduce((sum, row) => sum + row.labeled_cells.size, 0);
+        const percentage = totalCells > 0 ? Math.round((labeledCells / totalCells) * 100) : 0;
+        
+        document.getElementById('labeled-cells-count').textContent = labeledCells;
+        document.getElementById('total-cells-count').textContent = totalCells;
+        document.getElementById('progress-percentage').textContent = percentage;
+        document.getElementById('labeling-progress').style.width = percentage + '%';
+    }
+    
+    // Navigazione righe
+    document.getElementById('prev-row').addEventListener('click', function(e) {
+        e.preventDefault();
+        if (currentRowIndex > 0) {
+            currentRowIndex--;
+            updateRowCounter();
+            loadCurrentRow();
+        }
+    });
+    
+    document.getElementById('next-row').addEventListener('click', function(e) {
+        e.preventDefault();
+        if (currentRowIndex < rowsData.length - 1) {
+            currentRowIndex++;
+            updateRowCounter();
+            loadCurrentRow();
+        }
+    });
+    
+    // Vai alla riga specifica
+    document.getElementById('goto-row').addEventListener('change', function() {
+        const targetRow = parseInt(this.value) - 1;
+        if (targetRow >= 0 && targetRow < rowsData.length) {
+            currentRowIndex = targetRow;
+            updateRowCounter();
+            loadCurrentRow();
+        }
+        this.value = '';
+    });
+    
+    // Salvataggio etichetta cella
+    document.getElementById('save-cell-label').addEventListener('click', function(e) {
+        e.preventDefault();
+        
+        if (!selectedCellColumn) {
+            M.toast({html: 'Seleziona prima una cella', classes: 'red'});
+            return;
+        }
+        
+        const label = document.getElementById('manual-cell-label').value.trim();
+        const description = document.getElementById('manual-cell-description').value.trim();
+        
+        if (!label) {
+            M.toast({html: 'Inserisci un nome per l\'etichetta', classes: 'red'});
+            return;
+        }
+        
+        saveCellLabel(selectedCellColumn, label, description, 1.0, 'manual');
+    });
+    
+    function saveCellLabel(column, label, description, confidence, source) {
+        const row = rowsData[currentRowIndex];
+        
+        // Aggiorna dati locali
+        row.labeled_cells.add(column);
+        row.cell_labels[column] = {
+            name: label,
+            description: description,
+            confidence: confidence,
+            source: source
+        };
+        
+        // Simula chiamata al backend
+        const data = {
+            row_index: currentRowIndex,
+            column_name: column,
+            label_name: label,
+            label_description: description
+        };
+        
+        // Per ora simula successo
+        setTimeout(() => {
+            M.toast({html: `Etichetta salvata: ${label}`, classes: 'green'});
+            loadCurrentRow(); // Ricarica per aggiornare la visualizzazione
+        }, 500);
+    }
+    
+    // Azioni rapide
+    document.getElementById('label-all-positive').addEventListener('click', function(e) {
+        e.preventDefault();
+        labelAllCellsInRow('Positivo', 'Sentiment positivo applicato automaticamente');
+    });
+    
+    document.getElementById('label-all-negative').addEventListener('click', function(e) {
+        e.preventDefault();
+        labelAllCellsInRow('
+        // Crea celle per ogni colonna
+        columns.forEach(column => {
+            const cellValue = row.data[column] || '';
+            const isLabeled = row.labeled_cells.has(column);
+            const cellLabel = row.cell_labels[column];
+            const isEmpty = !cellValue.trim();
+            
+            const cellDiv = document.createElement('div');
+            cellDiv.className = 'col s12 m6 l4';
+            
+            cellDiv.innerHTML = `
+                <div class="cell-item ${isLabeled ? 'labeled' : ''} ${isEmpty ? 'empty' : ''}" 
+                     data-column="${column}">
+                    <div class="cell-column-name">${column}</div>
+                    <div class="cell-value">${cellValue || '(vuoto)'}</div>
+                    ${isLabeled ? `
+                        <div class="cell-label-display">
+                            <span class="chip cell-label-chip green white-text">${cellLabel.name}</span>
+                            ${cellLabel.confidence ? `<span class="chip cell-label-chip blue white-text">${Math.round(cellLabel.confidence * 100)}%</span>` : ''}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+            
+            cellsContainer.appendChild(cellDiv);
+        });
+        
+        // Aggiungi event listeners alle celle
+        document.querySelectorAll('.cell-item').forEach(cell => {
+            cell.addEventListener('click', function() {
+                selectCell(this);
+            });
+        });
+        
+        // Aggiorna statistiche riga
+        updateRowStatistics();
+        updateRowStatus();
+        updateGlobalProgress();
+        
+        // Mostra interfaccia
+        document.getElementById('row-display').style.display = 'block';
+        
+        // Deseleziona cella
+        deselectCell();
+    }
+    
+    function selectCell(cellElement) {
+        // Rimuovi selezione precedente
+        document.querySelectorAll('.cell-item').forEach(cell => {
+            cell.classList.remove('selected');
+        });
+        
+        // Seleziona nuova cella
+        cellElement.classList.add('selected');
+        selectedCellElement = cellElement;
+        selectedCellColumn = cellElement.dataset.column;
+        
+        // Aggiorna pannello info
+        const row = rowsData[currentRowIndex];
+        const cellValue = row.data[selectedCellColumn] || '';
+        
+        document.getElementById('selected-column').textContent = selectedCellColumn;
+        document.getElementById('selected-value').textContent = cellValue || '(vuoto)';
+        document.getElementById('current-cell-info').style.display = 'block';
+        
+        // Se la cella è già etichettata, mostra l'etichetta
+        const cellLabel = row.cell_labels[selectedCellColumn];
+        if (cellLabel) {
+            document.getElementById('manual-cell-label').value = cellLabel.name;
+            document.getElementById('manual-cell-description').value = cellLabel.description || '';
+            M.updateTextFields();
+        } else {
+            document.getElementById('manual-cell-label').value = '';
+            document.getElementById('manual-cell-description').value = '';
+            M.updateTextFields();
+        }
+        
+        // Abilita pulsanti
+        document.getElementById('save-cell-label').classList.remove('disabled');
+        document.getElementById('get-cell-ai-suggestions').classList.remove('disabled');
+        
+        // Nascondi suggerimenti AI precedenti
+        document.getElementById('ai-suggestions-panel').style.display = 'none';
+    }
+    
+    function deselectCell() {
+        document.querySelectorAll('.cell-item').forEach(cell => {
+            cell.classList.remove('selected');
+        });
+        
+        selectedCellElement = null;
+        selectedCellColumn = null;
+        
+        document.getElementById('current-cell-info').style.display = 'none';
+        document.getElementById('save-cell-label').classList.add('disabled');
+        document.getElementById('get-cell-ai-suggestions').classList.add('disabled');
+        document.getElementById('ai-suggestions-panel').style.display = 'none';
+    }
+    
+    function updateRowStatistics() {
+        const row = rowsData[currentRowIndex];
+        const totalCells = columns.length;
+        const labeledCells = row.labeled_cells.size;
+        const emptyCells = columns.filter(col => !row.data[col] || !row.data[col].trim()).length;
+        const completion = totalCells > 0 ? Math.round((labeledCells / totalCells) * 100) : 0;
+        
+        document.getElementById('row-total-cells').textContent = totalCells;
+        document.getElementById('row-labeled-cells').textContent = labeledCells;
+        document.getElementById('row-empty-cells').textContent = emptyCells;
+        document.getElementById('row-completion').textContent = completion + '%';
+    }
+    
+    function updateRowStatus() {
+        const row = rowsData[currentRowIndex];
+        const statusElement = document.getElementById('row-status');
+        
+        if (row.completed) {
+            statusElement.textContent = 'Completata';
+            statusElement.className = 'chip green white-text';
+        } else if (row.labeled_cells.size > 0) {
+            statusElement.textContent = 'Parzialmente Etichettata';
+            statusElement.className = 'chip orange white-text';
+        } else {
+            statusElement.textContent = 'Non Etichettata';
+            statusElement.className = 'chip blue white-text';
+        }
+    }
+    
+    function updateGlobalProgress() {
+        const totalCells = rowsData.length * columns.length;
+        const labeledCells = rowsData.reduce((sum, row) => sum + row.labeled_cells.size, 0);
+        const percentage = totalCells > 0 ? Math.round((labeledCells / totalCells) * 100) : 0;
+        
+        document.getElementById('labeled-cells-count').textContent = labeledCells;
+        document.getElementById('total-cells-count').textContent = totalCells;
+        document.getElementById('progress-percentage').textContent = percentage;
+        document.getElementById('labeling-progress').style.width = percentage + '%';
+    }
+    
+    // Navigazione righe
+    document.getElementById('prev-row').addEventListener('click', function(e) {
+        e.preventDefault();
+        if (currentRowIndex > 0) {
+            currentRowIndex--;
+            updateRowCounter();
+            loadCurrentRow();
+        }
+    });
+    
+    document.getElementById('next-row').addEventListener('click', function(e) {
+        e.preventDefault();
+        if (currentRowIndex < rowsData.length - 1) {
+            currentRowIndex++;
+            updateRowCounter();
+            loadCurrentRow();
+        }
+    });
+    
+    // Vai alla riga specifica
+    document.getElementById('goto-row').addEventListener('change', function() {
+        const targetRow = parseInt(this.value) - 1;
+        if (targetRow >= 0 && targetRow < rowsData.length) {
+            currentRowIndex = targetRow;
+            updateRowCounter();
+            loadCurrentRow();
+        }
+        this.value = '';
+    });
+    
+    // Salvataggio etichetta cella
+    document.getElementById('save-cell-label').addEventListener('click', function(e) {
+        e.preventDefault();
+        
+        if (!selectedCellColumn) {
+            M.toast({html: 'Seleziona prima una cella', classes: 'red'});
+            return;
+        }
+        
+        const label = document.getElementById('manual-cell-label').value.trim();
+        const description = document.getElementById('manual-cell-description').value.trim();
+        
+        if (!label) {
+            M.toast({html: 'Inserisci un nome per l\'etichetta', classes: 'red'});
+            return;
+        }
+        
+        saveCellLabel(selectedCellColumn, label, description, 1.0, 'manual');
+    });
+    
+    function saveCellLabel(column, label, description, confidence, source) {
+        const row = rowsData[currentRowIndex];
+        
+        // Aggiorna dati locali
+        row.labeled_cells.add(column);
+        row.cell_labels[column] = {
+            name: label,
+            description: description,
+            confidence: confidence,
+            source: source
+        };
+        
+        // Simula chiamata al backend
+        const data = {
+            row_index: currentRowIndex,
+            column_name: column,
+            label_name: label,
+            label_description: description
+        };
+        
+        // Per ora simula successo
+        setTimeout(() => {
+            M.toast({html: `Etichetta salvata: ${label}`, classes: 'green'});
+            loadCurrentRow(); // Ricarica per aggiornare la visualizzazione
+        }, 500);
+    }
+    
+    // Azioni rapide
+    document.getElementById('label-all-positive').addEventListener('click', function(e) {
+        e.preventDefault();
+        labelAllCellsInRow('Positivo', 'Sentiment positivo applicato automaticamente');
+    });
+    
+    document.getElementById('label-all-negative').addEventListener('click', function(e) {
+        e.preventDefault();
+        labelAllCellsInRow('Negativo', 'Sentiment negativo applicato automaticamente');
+    });
+    
+    document.getElementById('label-all-neutral').addEventListener('click', function(e) {
+        e.preventDefault();
+        labelAllCellsInRow('Neutrale', 'Sentiment neutrale applicato automaticamente');
+    });
+    
+    document.getElementById('skip-row').addEventListener('click', function(e) {
+        e.preventDefault();
+        if (currentRowIndex < rowsData.length - 1) {
+            currentRowIndex++;
+            updateRowCounter();
+            loadCurrentRow();
+            M.toast({html: 'Riga saltata', classes: 'blue'});
+        }
+    });
+    
+    function labelAllCellsInRow(label, description) {
+        const row = rowsData[currentRowIndex];
+        let labeledCount = 0;
+        
+        columns.forEach(column => {
+            const cellValue = row.data[column];
+            if (cellValue && cellValue.trim()) { // Solo celle non vuote
+                row.labeled_cells.add(column);
+                row.cell_labels[column] = {
+                    name: label,
+                    description: description,
+                    confidence: 0.9,
+                    source: 'quick_action'
+                };
+                labeledCount++;
+            }
+        });
+        
+        M.toast({html: `${labeledCount} celle etichettate come "${label}"`, classes: 'green'});
+        loadCurrentRow();
+    }
+    
+    // Inizializza l'applicazione
+    initializeRowsData();
+});
+</script>
+{% endblock %}

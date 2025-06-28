@@ -1,0 +1,326 @@
+{% extends "base.html" %}
+
+{% block title %}Etichette - {{ project.name }} - Anatema{% endblock %}
+
+{% block content %}
+<div class="container" style="margin-top: 30px;">
+    <!-- Breadcrumb -->
+    <div class="row">
+        <div class="col s12">
+            <nav class="transparent z-depth-0">
+                <div class="nav-wrapper">
+                    <div class="col s12">
+                        <a href="{{ url_for('main.dashboard') }}" class="breadcrumb blue-text">Dashboard</a>
+                        <a href="{{ url_for('projects.list_projects') }}" class="breadcrumb blue-text">Progetti</a>
+                        <a href="{{ url_for('projects.view_project', project_id=project.id) }}" class="breadcrumb blue-text">{{ project.name }}</a>
+                        <a href="#!" class="breadcrumb grey-text">Etichette</a>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Page Header -->
+    <div class="row">
+        <div class="col s12">
+            <div class="card-panel green darken-2 white-text">
+                <div class="row valign-wrapper" style="margin-bottom: 0;">
+                    <div class="col s12 m8">
+                        <h4 style="margin: 0;">
+                            <i class="material-icons left">label</i>Etichette del Progetto
+                        </h4>
+                        <p style="margin: 0;">Gestisci le etichette per "{{ project.name }}"</p>
+                    </div>
+                    <div class="col s12 m4 right-align">
+                        <a href="{{ url_for('labels.create_label', project_id=project.id) }}" class="btn-large waves-effect waves-light white green-text">
+                            <i class="material-icons left">add</i>Nuova Etichetta
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filters -->
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <div class="row" style="margin-bottom: 0;">
+                        <div class="col s12 m8">
+                            <div class="input-field">
+                                <i class="material-icons prefix">search</i>
+                                <input id="search-labels" type="text" class="search-input">
+                                <label for="search-labels">Cerca etichette...</label>
+                            </div>
+                        </div>
+                        <div class="col s12 m4">
+                            <div class="input-field">
+                                <select id="sort-labels">
+                                    <option value="name_asc">Nome A-Z</option>
+                                    <option value="name_desc">Nome Z-A</option>
+                                    <option value="usage_desc">Più utilizzate</option>
+                                    <option value="usage_asc">Meno utilizzate</option>
+                                    <option value="created_desc">Più recenti</option>
+                                    <option value="created_asc">Meno recenti</option>
+                                </select>
+                                <label>Ordina per</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Labels Grid -->
+    {% if labels.items %}
+        <div class="row">
+            {% for label in labels.items %}
+                <div class="col s12 m6 l4">
+                    <div class="card hoverable">
+                        <div class="card-content">
+                            <span class="card-title" style="border-left: 4px solid {{ label.color }}; padding-left: 10px;">
+                                <i class="material-icons left" style="color: {{ label.color }};">label</i>
+                                {{ label.name }}
+                            </span>
+                            <p class="grey-text">
+                                {% if label.description %}
+                                    {{ label.description[:100] }}{% if label.description|length > 100 %}...{% endif %}
+                                {% else %}
+                                    Nessuna descrizione
+                                {% endif %}
+                            </p>
+                            
+                            <!-- Label Stats -->
+                            <div class="row" style="margin-top: 20px; margin-bottom: 0;">
+                                <div class="col s6 center-align">
+                                    <div class="chip" style="background-color: {{ label.color }}; color: white;">
+                                        {{ label.cell_labels.count() }} utilizzi
+                                    </div>
+                                </div>
+                                <div class="col s6 center-align">
+                                    <small class="grey-text">
+                                        Creata il {{ label.created_at.strftime('%d/%m/%Y') }}
+                                    </small>
+                                </div>
+                            </div>
+                            
+                            <!-- Categories -->
+                            {% if label.categories %}
+                                <div style="margin-top: 15px;">
+                                    <h6 style="font-size: 0.9rem; margin-bottom: 5px;">Categorie:</h6>
+                                    {% for category in label.categories %}
+                                        <div class="chip grey lighten-3">{{ category }}</div>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="card-action">
+                            <a href="{{ url_for('labels.view_label', label_id=label.id) }}" class="blue-text">
+                                <i class="material-icons left">visibility</i>Visualizza
+                            </a>
+                            <a href="{{ url_for('labels.edit_label', label_id=label.id) }}" class="orange-text">
+                                <i class="material-icons left">edit</i>Modifica
+                            </a>
+                            <a href="#delete-modal-{{ label.id }}" class="red-text modal-trigger">
+                                <i class="material-icons left">delete</i>Elimina
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Delete Confirmation Modal -->
+                <div id="delete-modal-{{ label.id }}" class="modal">
+                    <div class="modal-content">
+                        <h4><i class="material-icons left red-text">warning</i>Conferma Eliminazione</h4>
+                        <p>Sei sicuro di voler eliminare l'etichetta <strong>"{{ label.name }}"</strong>?</p>
+                        <p class="red-text">
+                            <i class="material-icons left">info</i>
+                            Questa azione eliminerà anche tutte le applicazioni di questa etichetta ({{ label.cell_labels.count() }} utilizzi).
+                        </p>
+                    </div>
+                    <div class="modal-footer">
+                        <a href="#!" class="modal-close waves-effect waves-green btn-flat">Annulla</a>
+                        <form method="POST" action="{{ url_for('labels.delete_label', label_id=label.id) }}" style="display: inline;">
+                            <button type="submit" class="waves-effect waves-red btn red">
+                                <i class="material-icons left">delete</i>Elimina
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- Pagination -->
+        {% if labels.pages > 1 %}
+            <div class="row">
+                <div class="col s12 center-align">
+                    <ul class="pagination">
+                        {% if labels.has_prev %}
+                            <li class="waves-effect">
+                                <a href="{{ url_for('labels.list_labels', project_id=project.id, page=labels.prev_num) }}">
+                                    <i class="material-icons">chevron_left</i>
+                                </a>
+                            </li>
+                        {% endif %}
+                        
+                        {% for page_num in labels.iter_pages() %}
+                            {% if page_num %}
+                                {% if page_num != labels.page %}
+                                    <li class="waves-effect">
+                                        <a href="{{ url_for('labels.list_labels', project_id=project.id, page=page_num) }}">{{ page_num }}</a>
+                                    </li>
+                                {% else %}
+                                    <li class="active green darken-2">
+                                        <a href="#!">{{ page_num }}</a>
+                                    </li>
+                                {% endif %}
+                            {% else %}
+                                <li class="disabled">
+                                    <span>…</span>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if labels.has_next %}
+                            <li class="waves-effect">
+                                <a href="{{ url_for('labels.list_labels', project_id=project.id, page=labels.next_num) }}">
+                                    <i class="material-icons">chevron_right</i>
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+        {% endif %}
+    {% else %}
+        <!-- Empty State -->
+        <div class="row">
+            <div class="col s12">
+                <div class="card">
+                    <div class="card-content center-align" style="padding: 60px 20px;">
+                        <i class="material-icons large grey-text">label_outline</i>
+                        <h5 class="grey-text">Nessuna etichetta trovata</h5>
+                        <p class="grey-text">
+                            Non hai ancora creato nessuna etichetta per questo progetto. 
+                            Le etichette ti permettono di classificare e organizzare i tuoi dati.
+                        </p>
+                        <div style="margin-top: 30px;">
+                            <a href="{{ url_for('labels.create_label', project_id=project.id) }}" class="btn-large waves-effect waves-light green darken-2">
+                                <i class="material-icons left">add</i>Crea la Prima Etichetta
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- Quick Stats -->
+    {% if labels.items %}
+        <div class="row">
+            <div class="col s12">
+                <div class="card blue lighten-5">
+                    <div class="card-content">
+                        <span class="card-title blue-text">
+                            <i class="material-icons left">analytics</i>Statistiche Etichette
+                        </span>
+                        <div class="row">
+                            <div class="col s12 m3 center-align">
+                                <h4 class="blue-text">{{ labels.total }}</h4>
+                                <p>Etichette Totali</p>
+                            </div>
+                            <div class="col s12 m3 center-align">
+                                <h4 class="green-text">
+                                    {{ labels.items | selectattr('cell_labels') | map(attribute='cell_labels') | map('count') | sum }}
+                                </h4>
+                                <p>Utilizzi Totali</p>
+                            </div>
+                            <div class="col s12 m3 center-align">
+                                <h4 class="orange-text">
+                                    {{ (labels.items | selectattr('cell_labels') | map(attribute='cell_labels') | map('count') | sum / labels.total) | round(1) if labels.total > 0 else 0 }}
+                                </h4>
+                                <p>Media Utilizzi</p>
+                            </div>
+                            <div class="col s12 m3 center-align">
+                                <h4 class="purple-text">
+                                    {{ labels.items | selectattr('categories') | list | length }}
+                                </h4>
+                                <p>Con Categorie</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.breadcrumb {
+    font-size: 14px;
+}
+
+.chip {
+    margin: 2px;
+}
+
+.card .card-title {
+    font-size: 1.2rem;
+}
+
+.card-action a {
+    margin-right: 10px;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize components
+    var selects = document.querySelectorAll('select');
+    M.FormSelect.init(selects);
+    
+    var modals = document.querySelectorAll('.modal');
+    M.Modal.init(modals);
+    
+    // Search functionality
+    const searchInput = document.getElementById('search-labels');
+    searchInput.addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase();
+        const labelCards = document.querySelectorAll('.col.s12.m6.l4');
+        
+        labelCards.forEach(card => {
+            const labelName = card.querySelector('.card-title').textContent.toLowerCase();
+            const labelDescription = card.querySelector('.grey-text').textContent.toLowerCase();
+            
+            if (labelName.includes(searchTerm) || labelDescription.includes(searchTerm)) {
+                card.style.display = 'block';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    });
+    
+    // Sort functionality
+    const sortSelect = document.getElementById('sort-labels');
+    sortSelect.addEventListener('change', function() {
+        const sortValue = this.value;
+        const url = new URL(window.location);
+        url.searchParams.set('sort', sortValue);
+        window.location.href = url.toString();
+    });
+    
+    // Set current sort value
+    const urlParams = new URLSearchParams(window.location.search);
+    const currentSort = urlParams.get('sort') || 'name_asc';
+    sortSelect.value = currentSort;
+    M.FormSelect.init(sortSelect);
+});
+</script>
+{% endblock %}

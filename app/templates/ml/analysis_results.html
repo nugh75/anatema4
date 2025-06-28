@@ -1,0 +1,331 @@
+{% extends "base.html" %}
+
+{% block title %}Risultati Analisi ML - {{ analysis.sheet.name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col s12">
+            <nav>
+                <div class="nav-wrapper">
+                    <div class="col s12">
+                        <a href="{{ url_for('main.dashboard') }}" class="breadcrumb">Dashboard</a>
+                        <a href="{{ url_for('projects.view_project', project_id=analysis.sheet.file.project.id) }}" class="breadcrumb">{{ analysis.sheet.file.project.name }}</a>
+                        <a href="{{ url_for('ml.view_ml_dashboard', project_id=analysis.sheet.file.project.id) }}" class="breadcrumb">Machine Learning</a>
+                        <span class="breadcrumb">Risultati Analisi</span>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Header Analisi -->
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">
+                        <i class="material-icons left">analytics</i>
+                        Risultati Analisi: {{ analysis.sheet.name }}
+                    </span>
+                    <div class="row">
+                        <div class="col s12 m6">
+                            <p><strong>File:</strong> {{ analysis.sheet.file.filename }}</p>
+                            <p><strong>Avviata:</strong> {{ analysis.created_at.strftime('%d/%m/%Y %H:%M') }}</p>
+                            <p><strong>Completata:</strong> {{ analysis.completed_at.strftime('%d/%m/%Y %H:%M') if analysis.completed_at else 'In corso...' }}</p>
+                        </div>
+                        <div class="col s12 m6">
+                            <p><strong>Stato:</strong> 
+                                <span class="chip {{ 'green' if analysis.status == 'completed' else 'orange' if analysis.status == 'running' else 'red' }} white-text">
+                                    {{ analysis.status.upper() }}
+                                </span>
+                            </p>
+                            <p><strong>Colonne analizzate:</strong> {{ analysis.column_analyses.count() }}</p>
+                            <p><strong>Etichette generate:</strong> {{ analysis.auto_labels.count() }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-action">
+                    <a href="{{ url_for('ml.export_analysis_results', analysis_id=analysis.id) }}" class="btn waves-effect waves-light green">
+                        <i class="material-icons left">file_download</i>
+                        Esporta Risultati
+                    </a>
+                    <a href="#" class="btn waves-effect waves-light blue" id="apply-labels-btn">
+                        <i class="material-icons left">label</i>
+                        Applica Etichette
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Riepilogo Analisi -->
+    <div class="row">
+        <div class="col s12 m6 l3">
+            <div class="card center-align">
+                <div class="card-content">
+                    <i class="material-icons large blue-text">table_chart</i>
+                    <h4>{{ analysis.column_analyses.count() }}</h4>
+                    <p>Colonne Analizzate</p>
+                </div>
+            </div>
+        </div>
+        <div class="col s12 m6 l3">
+            <div class="card center-align">
+                <div class="card-content">
+                    <i class="material-icons large green-text">psychology</i>
+                    <h4>{{ analysis.column_analyses.filter_by(column_type='open_question').count() }}</h4>
+                    <p>Domande Aperte</p>
+                </div>
+            </div>
+        </div>
+        <div class="col s12 m6 l3">
+            <div class="card center-align">
+                <div class="card-content">
+                    <i class="material-icons large orange-text">label</i>
+                    <h4>{{ analysis.auto_labels.count() }}</h4>
+                    <p>Etichette Generate</p>
+                </div>
+            </div>
+        </div>
+        <div class="col s12 m6 l3">
+            <div class="card center-align">
+                <div class="card-content">
+                    <i class="material-icons large purple-text">sentiment_satisfied</i>
+                    <h4>{{ analysis.auto_labels.filter(AutoLabel.sentiment_score.isnot(None)).count() }}</h4>
+                    <p>Con Sentiment</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analisi Colonne -->
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">
+                        <i class="material-icons left">view_column</i>
+                        Analisi delle Colonne
+                    </span>
+                    
+                    <div class="collection">
+                        {% for column_analysis in analysis.column_analyses %}
+                        <div class="collection-item">
+                            <div class="row valign-wrapper">
+                                <div class="col s8">
+                                    <h6>{{ column_analysis.column_name }}</h6>
+                                    <p>
+                                        <span class="chip {{ 'green' if column_analysis.column_type == 'open_question' else 'blue' if column_analysis.column_type == 'categorical' else 'grey' }} white-text">
+                                            {{ column_analysis.column_type.replace('_', ' ').title() }}
+                                        </span>
+                                        <br>
+                                        <strong>Confidenza:</strong> {{ "%.1f" | format(column_analysis.confidence * 100) }}%
+                                        {% if column_analysis.unique_values_count %}
+                                        | <strong>Valori unici:</strong> {{ column_analysis.unique_values_count }}
+                                        {% endif %}
+                                        {% if column_analysis.text_variability %}
+                                        | <strong>Variabilità:</strong> {{ "%.2f" | format(column_analysis.text_variability) }}
+                                        {% endif %}
+                                    </p>
+                                    {% if column_analysis.sample_values %}
+                                    <p class="grey-text">
+                                        <strong>Esempi:</strong> {{ column_analysis.sample_values[:3] | join(', ') }}
+                                        {% if column_analysis.sample_values | length > 3 %}...{% endif %}
+                                    </p>
+                                    {% endif %}
+                                </div>
+                                <div class="col s4 right-align">
+                                    {% set labels_count = column_analysis.auto_labels.count() %}
+                                    {% if labels_count > 0 %}
+                                    <span class="chip green white-text">{{ labels_count }} etichette</span>
+                                    <br><br>
+                                    <a href="#column-{{ column_analysis.id }}-labels" class="btn waves-effect waves-light blue modal-trigger">
+                                        <i class="material-icons left">visibility</i>
+                                        Visualizza
+                                    </a>
+                                    {% else %}
+                                    <span class="grey-text">Nessuna etichetta</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Etichette Generate -->
+    {% if analysis.auto_labels %}
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">
+                        <i class="material-icons left">label</i>
+                        Etichette Generate Automaticamente
+                    </span>
+                    
+                    <div class="row">
+                        {% for label in analysis.auto_labels %}
+                        <div class="col s12 m6 l4">
+                            <div class="card">
+                                <div class="card-content">
+                                    <span class="card-title">{{ label.label_text }}</span>
+                                    <p>
+                                        <strong>Colonna:</strong> {{ label.column_analysis.column_name }}<br>
+                                        <strong>Confidenza:</strong> {{ "%.1f" | format(label.confidence * 100) }}%<br>
+                                        <strong>Campioni:</strong> {{ label.sample_count }}
+                                        {% if label.sentiment_score is not none %}
+                                        <br><strong>Sentiment:</strong> 
+                                        <span class="chip {{ 'green' if label.sentiment_score > 0.1 else 'red' if label.sentiment_score < -0.1 else 'grey' }} white-text">
+                                            {% if label.sentiment_score > 0.1 %}Positivo{% elif label.sentiment_score < -0.1 %}Negativo{% else %}Neutro{% endif %}
+                                            ({{ "%.2f" | format(label.sentiment_score) }})
+                                        </span>
+                                        {% endif %}
+                                    </p>
+                                    {% if label.sample_responses %}
+                                    <div class="divider"></div>
+                                    <p class="grey-text">
+                                        <strong>Esempi:</strong><br>
+                                        {% for sample in label.sample_responses[:2] %}
+                                        "{{ sample[:100] }}{% if sample|length > 100 %}...{% endif %}"<br>
+                                        {% endfor %}
+                                    </p>
+                                    {% endif %}
+                                </div>
+                                <div class="card-action">
+                                    <label>
+                                        <input type="checkbox" class="label-checkbox" data-label-id="{{ label.id }}" checked>
+                                        <span>Applica</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Modal per dettagli colonne -->
+{% for column_analysis in analysis.column_analyses %}
+{% if column_analysis.auto_labels %}
+<div id="column-{{ column_analysis.id }}-labels" class="modal modal-fixed-footer">
+    <div class="modal-content">
+        <h4>Etichette per: {{ column_analysis.column_name }}</h4>
+        <div class="collection">
+            {% for label in column_analysis.auto_labels %}
+            <div class="collection-item">
+                <div class="row valign-wrapper">
+                    <div class="col s8">
+                        <h6>{{ label.label_text }}</h6>
+                        <p>
+                            Confidenza: {{ "%.1f" | format(label.confidence * 100) }}% | 
+                            Campioni: {{ label.sample_count }}
+                            {% if label.sentiment_score is not none %}
+                            | Sentiment: {{ "%.2f" | format(label.sentiment_score) }}
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="col s4 right-align">
+                        <label>
+                            <input type="checkbox" class="label-checkbox" data-label-id="{{ label.id }}" checked>
+                            <span>Applica</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="modal-footer">
+        <a href="#!" class="modal-close waves-effect waves-green btn-flat">Chiudi</a>
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+
+<!-- Modal per applicazione etichette -->
+<div id="apply-labels-modal" class="modal">
+    <div class="modal-content">
+        <h4>Applicazione Etichette</h4>
+        <div class="progress">
+            <div class="indeterminate"></div>
+        </div>
+        <p id="apply-status">Applicazione etichette in corso...</p>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Inizializza componenti Materialize
+    M.Modal.init(document.querySelectorAll('.modal'));
+    
+    // Gestisci applicazione etichette
+    document.getElementById('apply-labels-btn').addEventListener('click', function(e) {
+        e.preventDefault();
+        
+        const selectedLabels = Array.from(document.querySelectorAll('.label-checkbox:checked'))
+                                   .map(checkbox => checkbox.dataset.labelId);
+        
+        if (selectedLabels.length === 0) {
+            M.toast({html: 'Seleziona almeno un\'etichetta da applicare', classes: 'orange'});
+            return;
+        }
+        
+        const modal = M.Modal.getInstance(document.getElementById('apply-labels-modal'));
+        const statusElement = document.getElementById('apply-status');
+        
+        modal.open();
+        statusElement.textContent = `Applicazione di ${selectedLabels.length} etichette...`;
+        
+        fetch('{{ url_for("ml.apply_auto_labels", analysis_id=analysis.id) }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                label_ids: selectedLabels
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                statusElement.textContent = `Etichette applicate con successo! ${data.applied_count} etichette create.`;
+                setTimeout(() => {
+                    modal.close();
+                    M.toast({html: 'Etichette applicate con successo!', classes: 'green'});
+                }, 2000);
+            } else {
+                statusElement.textContent = `Errore: ${data.message}`;
+                setTimeout(() => {
+                    modal.close();
+                }, 3000);
+            }
+        })
+        .catch(error => {
+            statusElement.textContent = `Errore di rete: ${error.message}`;
+            setTimeout(() => {
+                modal.close();
+            }, 3000);
+        });
+    });
+    
+    // Gestisci selezione/deselezione tutte le etichette
+    document.addEventListener('keydown', function(e) {
+        if (e.ctrlKey && e.key === 'a') {
+            e.preventDefault();
+            const checkboxes = document.querySelectorAll('.label-checkbox');
+            const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+            checkboxes.forEach(cb => cb.checked = !allChecked);
+        }
+    });
+});
+</script>
+{% endblock %}

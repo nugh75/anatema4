@@ -1,0 +1,337 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Anatema{% endblock %}
+
+{% block content %}
+<div class="container" style="margin-top: 30px;">
+    <!-- Page Header -->
+    <div class="row">
+        <div class="col s12">
+            <h4 class="blue-text text-darken-2">
+                <i class="material-icons left">dashboard</i>Dashboard
+            </h4>
+            <p class="grey-text">Benvenuto, {{ current_user.username }}! Ecco una panoramica dei tuoi dati.</p>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row">
+        <div class="col s12 m4">
+            <div class="card blue darken-2 white-text">
+                <div class="card-content">
+                    <div class="row valign-wrapper" style="margin-bottom: 0;">
+                        <div class="col s8">
+                            <h5 style="margin: 0;">{{ stats.projects_count }}</h5>
+                            <p style="margin: 0;">Progetti</p>
+                        </div>
+                        <div class="col s4 right-align">
+                            <i class="material-icons large">folder</i>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-action">
+                    <a href="{{ url_for('projects.list_projects') }}" class="white-text">
+                        Visualizza tutti <i class="material-icons right">arrow_forward</i>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col s12 m4">
+            <div class="card green darken-2 white-text">
+                <div class="card-content">
+                    <div class="row valign-wrapper" style="margin-bottom: 0;">
+                        <div class="col s8">
+                            <h5 style="margin: 0;">{{ stats.files_count }}</h5>
+                            <p style="margin: 0;">File</p>
+                        </div>
+                        <div class="col s4 right-align">
+                            <i class="material-icons large">description</i>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-action">
+                    <a href="{{ url_for('projects.list_projects') }}" class="white-text">
+                        Gestisci file <i class="material-icons right">arrow_forward</i>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col s12 m4">
+            <div class="card orange darken-2 white-text">
+                <div class="card-content">
+                    <div class="row valign-wrapper" style="margin-bottom: 0;">
+                        <div class="col s8">
+                            <h5 style="margin: 0;">{{ stats.labels_count }}</h5>
+                            <p style="margin: 0;">Etichette</p>
+                        </div>
+                        <div class="col s4 right-align">
+                            <i class="material-icons large">label</i>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-action">
+                    <a href="{{ url_for('projects.list_projects') }}" class="white-text">
+                        Gestisci etichette <i class="material-icons right">arrow_forward</i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">
+                        <i class="material-icons left">flash_on</i>Azioni Rapide
+                    </span>
+                    <div class="row" style="margin-top: 20px;">
+                        <div class="col s12 m6 l3">
+                            <a href="{{ url_for('projects.create_project') }}" class="btn-large waves-effect waves-light blue darken-2 full-width">
+                                <i class="material-icons left">add</i>Nuovo Progetto
+                            </a>
+                        </div>
+                        <div class="col s12 m6 l3">
+                            <a href="#search-modal" class="btn-large waves-effect waves-light green darken-2 full-width modal-trigger">
+                                <i class="material-icons left">search</i>Cerca
+                            </a>
+                        </div>
+                        <div class="col s12 m6 l3">
+                            <a href="{{ url_for('main.help') }}" class="btn-large waves-effect waves-light orange darken-2 full-width">
+                                <i class="material-icons left">help</i>Aiuto
+                            </a>
+                        </div>
+                        <div class="col s12 m6 l3">
+                            <a href="{{ url_for('auth.profile') }}" class="btn-large waves-effect waves-light purple darken-2 full-width">
+                                <i class="material-icons left">person</i>Profilo
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Projects and Files -->
+    <div class="row">
+        <!-- Recent Projects -->
+        <div class="col s12 l6">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">
+                        <i class="material-icons left">folder</i>Progetti Recenti
+                    </span>
+                    {% if stats.recent_projects %}
+                        <div class="collection">
+                            {% for project in stats.recent_projects %}
+                                <a href="{{ url_for('projects.view_project', project_id=project.id) }}" class="collection-item">
+                                    <div>
+                                        <strong>{{ project.name }}</strong>
+                                        <p class="grey-text">
+                                            {% if project.description %}
+                                                {{ project.description[:50] }}{% if project.description|length > 50 %}...{% endif %}
+                                            {% else %}
+                                                Nessuna descrizione
+                                            {% endif %}
+                                        </p>
+                                        <span class="secondary-content">
+                                            <i class="material-icons grey-text">chevron_right</i>
+                                        </span>
+                                    </div>
+                                </a>
+                            {% endfor %}
+                        </div>
+                        <div class="card-action">
+                            <a href="{{ url_for('projects.list_projects') }}">Visualizza tutti i progetti</a>
+                        </div>
+                    {% else %}
+                        <div class="center-align grey-text" style="padding: 40px 0;">
+                            <i class="material-icons large">folder_open</i>
+                            <p>Nessun progetto ancora creato</p>
+                            <a href="{{ url_for('projects.create_project') }}" class="btn waves-effect waves-light blue darken-2">
+                                <i class="material-icons left">add</i>Crea il primo progetto
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Files -->
+        <div class="col s12 l6">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">
+                        <i class="material-icons left">description</i>File Recenti
+                    </span>
+                    {% if stats.recent_files %}
+                        <div class="collection">
+                            {% for file in stats.recent_files %}
+                                <a href="{{ url_for('files.view_file', file_id=file.id) }}" class="collection-item">
+                                    <div>
+                                        <strong>{{ file.original_name }}</strong>
+                                        <p class="grey-text">
+                                            {{ file.file_type.upper() }} • {{ (file.file_size / 1024) | round(1) }} KB
+                                        </p>
+                                        <span class="secondary-content">
+                                            {% if file.processing_status == 'completed' %}
+                                                <i class="material-icons green-text">check_circle</i>
+                                            {% elif file.processing_status == 'processing' %}
+                                                <i class="material-icons orange-text">hourglass_empty</i>
+                                            {% elif file.processing_status == 'error' %}
+                                                <i class="material-icons red-text">error</i>
+                                            {% else %}
+                                                <i class="material-icons grey-text">pending</i>
+                                            {% endif %}
+                                        </span>
+                                    </div>
+                                </a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="center-align grey-text" style="padding: 40px 0;">
+                            <i class="material-icons large">cloud_upload</i>
+                            <p>Nessun file ancora caricato</p>
+                            {% if stats.recent_projects %}
+                                <a href="{{ url_for('projects.view_project', project_id=stats.recent_projects[0].id) }}" class="btn waves-effect waves-light green darken-2">
+                                    <i class="material-icons left">cloud_upload</i>Carica il primo file
+                                </a>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Search Modal -->
+<div id="search-modal" class="modal">
+    <div class="modal-content">
+        <h4><i class="material-icons left">search</i>Ricerca</h4>
+        <div class="input-field">
+            <input id="search-input" type="text" placeholder="Cerca progetti, file, etichette...">
+            <label for="search-input">Termine di ricerca</label>
+        </div>
+        <div id="search-results"></div>
+    </div>
+    <div class="modal-footer">
+        <a href="#!" class="modal-close waves-effect waves-green btn-flat">Chiudi</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.full-width {
+    width: 100%;
+    margin-bottom: 10px;
+}
+
+.card {
+    transition: transform 0.2s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+}
+
+.collection-item {
+    transition: background-color 0.2s ease;
+}
+
+.collection-item:hover {
+    background-color: #f5f5f5;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize modals
+    var modals = document.querySelectorAll('.modal');
+    M.Modal.init(modals);
+    
+    // Search functionality
+    const searchInput = document.getElementById('search-input');
+    const searchResults = document.getElementById('search-results');
+    
+    let searchTimeout;
+    
+    searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        const query = this.value.trim();
+        
+        if (query.length < 2) {
+            searchResults.innerHTML = '';
+            return;
+        }
+        
+        searchTimeout = setTimeout(() => {
+            fetch(`{{ url_for('main.search') }}?q=${encodeURIComponent(query)}`)
+                .then(response => response.json())
+                .then(data => {
+                    displaySearchResults(data.results);
+                })
+                .catch(error => {
+                    console.error('Search error:', error);
+                    searchResults.innerHTML = '<p class="red-text">Errore durante la ricerca</p>';
+                });
+        }, 300);
+    });
+    
+    function displaySearchResults(results) {
+        let html = '';
+        
+        if (results.projects.length > 0) {
+            html += '<h6>Progetti</h6><div class="collection">';
+            results.projects.forEach(project => {
+                html += `<a href="/projects/${project.id}" class="collection-item">
+                    <div>
+                        <strong>${project.name}</strong>
+                        <p class="grey-text">${project.description ? (project.description.length > 50 ? project.description.substring(0, 50) + '...' : project.description) : 'Nessuna descrizione'}</p>
+                    </div>
+                </a>`;
+            });
+            html += '</div>';
+        }
+        
+        if (results.files.length > 0) {
+            html += '<h6>File</h6><div class="collection">';
+            results.files.forEach(file => {
+                html += `<a href="/files/${file.id}" class="collection-item">
+                    <div>
+                        <strong>${file.original_name}</strong>
+                        <p class="grey-text">${file.file_type.toUpperCase()}</p>
+                    </div>
+                </a>`;
+            });
+            html += '</div>';
+        }
+        
+        if (results.labels.length > 0) {
+            html += '<h6>Etichette</h6><div class="collection">';
+            results.labels.forEach(label => {
+                html += `<a href="/labels/${label.id}" class="collection-item">
+                    <div>
+                        <span class="badge" style="background-color: ${label.color}; color: white;">${label.name}</span>
+                        <p class="grey-text">${label.description ? (label.description.length > 50 ? label.description.substring(0, 50) + '...' : label.description) : 'Nessuna descrizione'}</p>
+                    </div>
+                </a>`;
+            });
+            html += '</div>';
+        }
+        
+        if (html === '') {
+            html = '<p class="grey-text center-align">Nessun risultato trovato</p>';
+        }
+        
+        searchResults.innerHTML = html;
+    }
+});
+</script>
+{% endblock %}

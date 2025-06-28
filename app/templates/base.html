@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Anatema - Sistema di Etichettatura Dati{% endblock %}</title>
+    
+    <!-- Material Design CSS -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <link href="{{ url_for('static', filename='css/app.css') }}" rel="stylesheet">
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="blue darken-2">
+        <div class="nav-wrapper container">
+            <a href="{{ url_for('main.index') }}" class="brand-logo">
+                <i class="material-icons left">label</i>Anatema
+            </a>
+            
+            <!-- Mobile menu trigger -->
+            <a href="#" data-target="mobile-nav" class="sidenav-trigger">
+                <i class="material-icons">menu</i>
+            </a>
+            
+            <!-- Desktop navigation -->
+            <ul class="right hide-on-med-and-down">
+                {% if current_user.is_authenticated %}
+                    <li><a href="{{ url_for('main.dashboard') }}">
+                        <i class="material-icons left">dashboard</i>Dashboard
+                    </a></li>
+                    <li><a href="{{ url_for('projects.list_projects') }}">
+                        <i class="material-icons left">folder</i>Progetti
+                    </a></li>
+                    <li><a class="dropdown-trigger" href="#!" data-target="user-dropdown">
+                        <i class="material-icons left">account_circle</i>{{ current_user.username }}
+                        <i class="material-icons right">arrow_drop_down</i>
+                    </a></li>
+                {% else %}
+                    <li><a href="{{ url_for('auth.login') }}">
+                        <i class="material-icons left">login</i>Login
+                    </a></li>
+                    <li><a href="{{ url_for('auth.register') }}">
+                        <i class="material-icons left">person_add</i>Registrati
+                    </a></li>
+                {% endif %}
+            </ul>
+        </div>
+    </nav>
+
+    <!-- User dropdown -->
+    {% if current_user.is_authenticated %}
+    <ul id="user-dropdown" class="dropdown-content">
+        <li><a href="{{ url_for('auth.profile') }}">
+            <i class="material-icons left">person</i>Profilo
+        </a></li>
+        <li class="divider"></li>
+        <li><a href="{{ url_for('auth.logout') }}">
+            <i class="material-icons left">logout</i>Logout
+        </a></li>
+    </ul>
+    {% endif %}
+
+    <!-- Mobile navigation -->
+    <ul class="sidenav" id="mobile-nav">
+        {% if current_user.is_authenticated %}
+            <li><div class="user-view">
+                <div class="background blue darken-2"></div>
+                <a href="{{ url_for('auth.profile') }}">
+                    <i class="material-icons circle white-text">account_circle</i>
+                </a>
+                <a href="{{ url_for('auth.profile') }}">
+                    <span class="white-text name">{{ current_user.username }}</span>
+                </a>
+                <a href="{{ url_for('auth.profile') }}">
+                    <span class="white-text email">{{ current_user.email }}</span>
+                </a>
+            </div></li>
+            <li><a href="{{ url_for('main.dashboard') }}">
+                <i class="material-icons">dashboard</i>Dashboard
+            </a></li>
+            <li><a href="{{ url_for('projects.list_projects') }}">
+                <i class="material-icons">folder</i>Progetti
+            </a></li>
+            <li><div class="divider"></div></li>
+            <li><a href="{{ url_for('auth.profile') }}">
+                <i class="material-icons">person</i>Profilo
+            </a></li>
+            <li><a href="{{ url_for('auth.logout') }}">
+                <i class="material-icons">logout</i>Logout
+            </a></li>
+        {% else %}
+            <li><a href="{{ url_for('auth.login') }}">
+                <i class="material-icons">login</i>Login
+            </a></li>
+            <li><a href="{{ url_for('auth.register') }}">
+                <i class="material-icons">person_add</i>Registrati
+            </a></li>
+        {% endif %}
+    </ul>
+
+    <!-- Flash messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="container" style="margin-top: 20px;">
+                {% for category, message in messages %}
+                    <div class="card-panel {{ 'red lighten-4' if category == 'error' else 'green lighten-4' if category == 'success' else 'blue lighten-4' if category == 'info' else 'orange lighten-4' }}">
+                        <span class="{{ 'red-text text-darken-2' if category == 'error' else 'green-text text-darken-2' if category == 'success' else 'blue-text text-darken-2' if category == 'info' else 'orange-text text-darken-2' }}">
+                            <i class="material-icons left">
+                                {{ 'error' if category == 'error' else 'check_circle' if category == 'success' else 'info' if category == 'info' else 'warning' }}
+                            </i>
+                            {{ message }}
+                        </span>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <!-- Main content -->
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="page-footer blue darken-2">
+        <div class="container">
+            <div class="row">
+                <div class="col l6 s12">
+                    <h5 class="white-text">Anatema</h5>
+                    <p class="grey-text text-lighten-4">
+                        Sistema avanzato per l'etichettatura e l'analisi di dati Excel.
+                    </p>
+                </div>
+                <div class="col l4 offset-l2 s12">
+                    <h5 class="white-text">Links</h5>
+                    <ul>
+                        <li><a class="grey-text text-lighten-3" href="{{ url_for('main.help') }}">Aiuto</a></li>
+                        <li><a class="grey-text text-lighten-3" href="{{ url_for('main.about') }}">Chi siamo</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="footer-copyright">
+            <div class="container">
+                © 2024 Anatema. Tutti i diritti riservati.
+            </div>
+        </div>
+    </footer>
+
+    <!-- Material Design JavaScript -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+    
+    <!-- Custom JavaScript -->
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

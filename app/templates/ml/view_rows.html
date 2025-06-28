@@ -1,0 +1,555 @@
+{% extends "base.html" %}
+
+{% block title %}Vista Righe - {{ sheet.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col s12">
+            <nav>
+                <div class="nav-wrapper">
+                    <div class="col s12">
+                        <a href="{{ url_for('main.dashboard') }}" class="breadcrumb">Dashboard</a>
+                        <a href="{{ url_for('projects.view_project', project_id=project.id) }}" class="breadcrumb">{{ project.name }}</a>
+                        <a href="{{ url_for('ml.view_ml_dashboard', project_id=project.id) }}" class="breadcrumb">Machine Learning</a>
+                        <span class="breadcrumb">Vista Righe - {{ sheet.name }}</span>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">
+                        <i class="material-icons left">view_list</i>
+                        Vista Righe - {{ sheet.name }}
+                    </span>
+                    <p>Visualizza e etichetta i dati riga per riga. Clicca su una cella per etichettarla manualmente o con l'aiuto dell'AI.</p>
+                </div>
+                <div class="card-action">
+                    <a href="{{ url_for('ml.view_sheet_columns', project_id=project.id, sheet_id=sheet.id) }}" 
+                       class="btn waves-effect waves-light blue">
+                        <i class="material-icons left">view_column</i>
+                        Vista Colonne
+                    </a>
+                    <a href="{{ url_for('ml.view_ml_dashboard', project_id=project.id) }}" 
+                       class="btn waves-effect waves-light grey">
+                        <i class="material-icons left">arrow_back</i>
+                        Torna al Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Controlli Paginazione -->
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <div class="row valign-wrapper">
+                        <div class="col s6">
+                            <span>
+                                Righe {{ (pagination.page - 1) * pagination.per_page + 1 }} - 
+                                {{ pagination.page * pagination.per_page if pagination.page * pagination.per_page < pagination.total else pagination.total }} 
+                                di {{ pagination.total }}
+                            </span>
+                        </div>
+                        <div class="col s6 right-align">
+                            <div class="pagination-controls">
+                                {% if pagination.has_prev %}
+                                <a href="{{ url_for('ml.view_sheet_rows', project_id=project.id, sheet_id=sheet.id, page=pagination.page-1, per_page=pagination.per_page) }}" 
+                                   class="btn-small waves-effect waves-light blue">
+                                    <i class="material-icons">chevron_left</i>
+                                </a>
+                                {% endif %}
+                                
+                                <span class="pagination-info">
+                                    Pagina {{ pagination.page }} di {{ pagination.pages }}
+                                </span>
+                                
+                                {% if pagination.has_next %}
+                                <a href="{{ url_for('ml.view_sheet_rows', project_id=project.id, sheet_id=sheet.id, page=pagination.page+1, per_page=pagination.per_page) }}" 
+                                   class="btn-small waves-effect waves-light blue">
+                                    <i class="material-icons">chevron_right</i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabella Dati -->
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <div class="table-container" style="overflow-x: auto;">
+                        <table class="striped responsive-table">
+                            <thead>
+                                <tr class="header-fix">
+                                    <th>Riga #</th>
+                                    {% for column in columns %}
+                                    <th>{{ column }}</th>
+                                    {% endfor %}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in rows_data %}
+                                <tr>
+                                    <td class="row-index">
+                                        <div class="row-header">
+                                            <strong>{{ row.index }}</strong>
+                                            <br>
+                                            <button class="btn-small waves-effect waves-light orange toggle-aggregation-btn"
+                                                    data-row="{{ row.index }}">
+                                                <i class="material-icons">expand_more</i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                    {% for column in columns %}
+                                    {% set cell_key = row.index ~ "_" ~ column %}
+                                    {% set cell_label = applied_labels.get(cell_key) %}
+                                    <td class="data-cell {{ 'labeled-cell' if cell_label else '' }}"
+                                        data-row="{{ row.index }}"
+                                        data-column="{{ column }}"
+                                        {% if cell_label %}
+                                        data-label="{{ cell_label.label_name }}"
+                                        data-description="{{ cell_label.label_description }}"
+                                        data-confidence="{{ cell_label.confidence }}"
+                                        {% endif %}>
+                                        <div class="cell-content">
+                                            <span class="cell-value">{{ row.data[column] if row.data[column] is not none else '' }}</span>
+                                            {% if cell_label %}
+                                            <div class="cell-label">
+                                                <span class="chip green white-text">{{ cell_label.label_name }}</span>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    {% endfor %}
+                                </tr>
+                                
+                                <!-- Riga di Aggregazione (nascosta di default) -->
+                                <tr class="aggregation-row" id="aggregation-{{ row.index }}" style="display: none;">
+                                    <td colspan="{{ columns|length + 1 }}" class="aggregation-content">
+                                        <div class="card-panel blue-grey lighten-5">
+                                            <h6><i class="material-icons left">analytics</i>Aggregazione Riga {{ row.index }}</h6>
+                                            <div class="row">
+                                                <!-- Calcola occorrenze valori nella riga -->
+                                                {% set row_values = {} %}
+                                                {% for column in columns %}
+                                                    {% set value = row.data[column] if row.data[column] is not none else '' %}
+                                                    {% if value %}
+                                                        {% if row_values.update({value: row_values.get(value, 0) + 1}) %}{% endif %}
+                                                    {% endif %}
+                                                {% endfor %}
+                                                
+                                                <div class="col s12">
+                                                    <div class="collection" style="max-height: 200px; overflow-y: auto;">
+                                                        <div class="collection-item header-fix">
+                                                            <strong>Valore</strong>
+                                                            <span class="right"><strong>Frequenza in Riga</strong></span>
+                                                        </div>
+                                                        {% for value, count in row_values.items() %}
+                                                        <div class="collection-item clickable-row-value"
+                                                             data-row="{{ row.index }}"
+                                                             data-value="{{ value }}"
+                                                             style="cursor: pointer;">
+                                                            <span class="truncate">{{ value }}</span>
+                                                            <span class="right">
+                                                                <span class="badge orange white-text">{{ count }}</span>
+                                                            </span>
+                                                        </div>
+                                                        {% endfor %}
+                                                        {% if row_values|length == 0 %}
+                                                        <div class="collection-item grey-text">
+                                                            Nessun valore non vuoto in questa riga
+                                                        </div>
+                                                        {% endif %}
+                                                    </div>
+                                                    <div class="center-align" style="margin-top: 10px;">
+                                                        <button class="btn-small waves-effect waves-light orange label-all-row-btn"
+                                                                data-row="{{ row.index }}">
+                                                            <i class="material-icons left">label</i>
+                                                            Etichetta Tutta la Riga
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Controlli Paginazione Inferiori -->
+    <div class="row">
+        <div class="col s12 center-align">
+            <ul class="pagination">
+                {% if pagination.has_prev %}
+                <li class="waves-effect">
+                    <a href="{{ url_for('ml.view_sheet_rows', project_id=project.id, sheet_id=sheet.id, page=1, per_page=pagination.per_page) }}">
+                        <i class="material-icons">first_page</i>
+                    </a>
+                </li>
+                <li class="waves-effect">
+                    <a href="{{ url_for('ml.view_sheet_rows', project_id=project.id, sheet_id=sheet.id, page=pagination.page-1, per_page=pagination.per_page) }}">
+                        <i class="material-icons">chevron_left</i>
+                    </a>
+                </li>
+                {% endif %}
+                
+                {% for page_num in range(max(1, pagination.page - 2), min(pagination.pages + 1, pagination.page + 3)) %}
+                <li class="waves-effect {{ 'active' if page_num == pagination.page else '' }}">
+                    <a href="{{ url_for('ml.view_sheet_rows', project_id=project.id, sheet_id=sheet.id, page=page_num, per_page=pagination.per_page) }}">
+                        {{ page_num }}
+                    </a>
+                </li>
+                {% endfor %}
+                
+                {% if pagination.has_next %}
+                <li class="waves-effect">
+                    <a href="{{ url_for('ml.view_sheet_rows', project_id=project.id, sheet_id=sheet.id, page=pagination.page+1, per_page=pagination.per_page) }}">
+                        <i class="material-icons">chevron_right</i>
+                    </a>
+                </li>
+                <li class="waves-effect">
+                    <a href="{{ url_for('ml.view_sheet_rows', project_id=project.id, sheet_id=sheet.id, page=pagination.pages, per_page=pagination.per_page) }}">
+                        <i class="material-icons">last_page</i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- Modal per Etichettatura Cella -->
+<div id="label-cell-modal" class="modal">
+    <div class="modal-content">
+        <h4>Etichetta Cella</h4>
+        <div class="row">
+            <div class="col s12">
+                <div class="card-panel grey lighten-4">
+                    <p><strong>Posizione:</strong> Riga <span id="modal-row"></span>, Colonna <span id="modal-column"></span></p>
+                    <p><strong>Valore:</strong> <span id="modal-value"></span></p>
+                </div>
+            </div>
+        </div>
+        
+        <form id="label-cell-form">
+            <div class="row">
+                <div class="input-field col s12">
+                    <input id="cell-label-name" type="text" required>
+                    <label for="cell-label-name">Nome Etichetta</label>
+                </div>
+            </div>
+            <div class="row">
+                <div class="input-field col s12">
+                    <textarea id="cell-label-description" class="materialize-textarea"></textarea>
+                    <label for="cell-label-description">Descrizione Etichetta</label>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col s12">
+                    <p>
+                        <label>
+                            <input type="checkbox" id="use-ai-suggestion" />
+                            <span>Usa suggerimento AI per questa etichetta</span>
+                        </label>
+                    </p>
+                </div>
+            </div>
+        </form>
+    </div>
+    <div class="modal-footer">
+        <a href="#!" class="modal-close waves-effect waves-green btn-flat">Annulla</a>
+        <a href="#!" class="waves-effect waves-orange btn" id="get-ai-suggestion-btn">
+            <i class="material-icons left">psychology</i>
+            Suggerimento AI
+        </a>
+        <a href="#!" class="waves-effect waves-green btn" id="save-cell-label-btn">Salva Etichetta</a>
+    </div>
+</div>
+
+<!-- Modal per Suggerimento AI -->
+<div id="ai-suggestion-modal" class="modal">
+    <div class="modal-content">
+        <h4>Suggerimento AI</h4>
+        <div class="progress" id="ai-progress" style="display: none;">
+            <div class="indeterminate"></div>
+        </div>
+        <div id="ai-suggestion-content" style="display: none;">
+            <div class="card-panel blue lighten-4">
+                <h6>Suggerimento AI:</h6>
+                <p id="ai-suggested-label"></p>
+                <p id="ai-suggested-description"></p>
+            </div>
+        </div>
+    </div>
+    <div class="modal-footer">
+        <a href="#!" class="modal-close waves-effect waves-green btn-flat">Chiudi</a>
+        <a href="#!" class="waves-effect waves-green btn" id="accept-ai-suggestion-btn" style="display: none;">
+            Accetta Suggerimento
+        </a>
+    </div>
+</div>
+
+<style>
+.data-cell {
+    cursor: pointer;
+    transition: background-color 0.3s;
+    position: relative;
+    min-width: 150px;
+    max-width: 300px;
+}
+
+.data-cell:hover {
+    background-color: #e3f2fd !important;
+}
+
+.labeled-cell {
+    background-color: #e8f5e8 !important;
+}
+
+.cell-content {
+    position: relative;
+}
+
+.cell-value {
+    display: block;
+    word-wrap: break-word;
+    max-height: 60px;
+    overflow: hidden;
+}
+
+.cell-label {
+    margin-top: 5px;
+}
+
+.table-container {
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.pagination-controls {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.pagination-info {
+    margin: 0 10px;
+    font-weight: 500;
+}
+
+.row-index {
+    background-color: #f5f5f5;
+    font-weight: bold;
+    text-align: center;
+    min-width: 80px;
+}
+
+.header-fix th, .header-fix td, .header-fix {
+    background-color: #f5f5f5 !important;
+    color: #111 !important;
+    font-weight: bold;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Inizializza modal
+    M.Modal.init(document.querySelectorAll('.modal'));
+    
+    let currentCell = null;
+    // Gestisci toggle aggregazione righe
+    document.querySelectorAll('.toggle-aggregation-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const rowIndex = this.dataset.row;
+            const aggregationRow = document.getElementById(`aggregation-${rowIndex}`);
+            const icon = this.querySelector('i');
+            
+            if (aggregationRow.style.display === 'none') {
+                aggregationRow.style.display = 'table-row';
+                icon.textContent = 'expand_less';
+                this.classList.remove('orange');
+                this.classList.add('blue');
+            } else {
+                aggregationRow.style.display = 'none';
+                icon.textContent = 'expand_more';
+                this.classList.remove('blue');
+                this.classList.add('orange');
+            }
+        });
+    });
+    
+    // Gestisci etichettatura di tutta la riga
+    document.querySelectorAll('.label-all-row-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const rowIndex = this.dataset.row;
+            M.toast({html: `Funzionalità di etichettatura completa riga ${rowIndex} in sviluppo`, classes: 'blue'});
+        });
+    });
+    
+    // Gestisci click su valori aggregati
+    document.querySelectorAll('.clickable-row-value').forEach(item => {
+        item.addEventListener('click', function() {
+            const rowIndex = this.dataset.row;
+            const value = this.dataset.value;
+            M.toast({html: `Selezionato valore "${value}" dalla riga ${rowIndex}`, classes: 'blue'});
+        });
+    });
+    
+    // Gestisci click su cella
+    document.querySelectorAll('.data-cell').forEach(cell => {
+        cell.addEventListener('click', function() {
+            currentCell = this;
+            const row = this.dataset.row;
+            const column = this.dataset.column;
+            const value = this.querySelector('.cell-value').textContent;
+            
+            // Popola modal
+            document.getElementById('modal-row').textContent = row;
+            document.getElementById('modal-column').textContent = column;
+            document.getElementById('modal-value').textContent = value || '(vuoto)';
+            
+            // Se la cella è già etichettata, mostra l'etichetta esistente
+            if (this.dataset.label) {
+                document.getElementById('cell-label-name').value = this.dataset.label;
+                document.getElementById('cell-label-description').value = this.dataset.description || '';
+                M.updateTextFields();
+            } else {
+                document.getElementById('cell-label-name').value = '';
+                document.getElementById('cell-label-description').value = '';
+                M.updateTextFields();
+            }
+            
+            const modal = M.Modal.getInstance(document.getElementById('label-cell-modal'));
+            modal.open();
+        });
+    });
+    
+    // Salva etichetta cella
+    document.getElementById('save-cell-label-btn').addEventListener('click', function() {
+        if (!currentCell) return;
+        
+        const data = {
+            row_index: currentCell.dataset.row,
+            column_name: currentCell.dataset.column,
+            label_name: document.getElementById('cell-label-name').value,
+            label_description: document.getElementById('cell-label-description').value
+        };
+        
+        fetch('{{ url_for("ml.label_cell_manually", project_id=project.id, sheet_id=sheet.id) }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.message) {
+                M.toast({html: data.message, classes: 'green'});
+                const modal = M.Modal.getInstance(document.getElementById('label-cell-modal'));
+                modal.close();
+                
+                // Aggiorna la cella visivamente
+                currentCell.classList.add('labeled-cell');
+                currentCell.dataset.label = document.getElementById('cell-label-name').value;
+                currentCell.dataset.description = document.getElementById('cell-label-description').value;
+                
+                // Aggiungi chip etichetta se non esiste
+                let labelDiv = currentCell.querySelector('.cell-label');
+                if (!labelDiv) {
+                    labelDiv = document.createElement('div');
+                    labelDiv.className = 'cell-label';
+                    currentCell.querySelector('.cell-content').appendChild(labelDiv);
+                }
+                labelDiv.innerHTML = `<span class="chip green white-text">${data.auto_label.label_name}</span>`;
+                
+            } else {
+                M.toast({html: data.error || 'Errore nell\'etichettatura', classes: 'red'});
+            }
+        })
+        .catch(error => {
+            M.toast({html: 'Errore di rete: ' + error.message, classes: 'red'});
+        });
+    });
+    
+    // Suggerimento AI
+    document.getElementById('get-ai-suggestion-btn').addEventListener('click', function() {
+        if (!currentCell) return;
+        
+        const aiModal = M.Modal.getInstance(document.getElementById('ai-suggestion-modal'));
+        const progress = document.getElementById('ai-progress');
+        const content = document.getElementById('ai-suggestion-content');
+        const acceptBtn = document.getElementById('accept-ai-suggestion-btn');
+        
+        progress.style.display = 'block';
+        content.style.display = 'none';
+        acceptBtn.style.display = 'none';
+        
+        aiModal.open();
+        
+        // Simula chiamata AI (sostituire con vera chiamata API)
+        setTimeout(() => {
+            const cellValue = currentCell.querySelector('.cell-value').textContent;
+            const columnName = currentCell.dataset.column;
+            
+            // Suggerimenti AI simulati basati sul contenuto
+            let suggestedLabel = 'Contenuto Generico';
+            let suggestedDescription = 'Contenuto identificato automaticamente';
+            
+            if (cellValue.toLowerCase().includes('positiv') || cellValue.toLowerCase().includes('buon') || cellValue.toLowerCase().includes('ottim')) {
+                suggestedLabel = 'Sentiment Positivo';
+                suggestedDescription = 'Contenuto con sentiment positivo identificato dall\'AI';
+            } else if (cellValue.toLowerCase().includes('negativ') || cellValue.toLowerCase().includes('cattiv') || cellValue.toLowerCase().includes('pessim')) {
+                suggestedLabel = 'Sentiment Negativo';
+                suggestedDescription = 'Contenuto con sentiment negativo identificato dall\'AI';
+            } else if (cellValue.match(/\d+/)) {
+                suggestedLabel = 'Valore Numerico';
+                suggestedDescription = 'Contenuto numerico identificato dall\'AI';
+            }
+            
+            document.getElementById('ai-suggested-label').textContent = suggestedLabel;
+            document.getElementById('ai-suggested-description').textContent = suggestedDescription;
+            
+            progress.style.display = 'none';
+            content.style.display = 'block';
+            acceptBtn.style.display = 'inline-block';
+        }, 2000);
+    });
+    
+    // Accetta suggerimento AI
+    document.getElementById('accept-ai-suggestion-btn').addEventListener('click', function() {
+        const suggestedLabel = document.getElementById('ai-suggested-label').textContent;
+        const suggestedDescription = document.getElementById('ai-suggested-description').textContent;
+        
+        document.getElementById('cell-label-name').value = suggestedLabel;
+        document.getElementById('cell-label-description').value = suggestedDescription;
+        M.updateTextFields();
+        
+        const aiModal = M.Modal.getInstance(document.getElementById('ai-suggestion-modal'));
+        aiModal.close();
+        
+        M.toast({html: 'Suggerimento AI applicato!', classes: 'blue'});
+    });
+});
+</script>
+{% endblock %}

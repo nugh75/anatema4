@@ -1,0 +1,290 @@
+{% extends "base.html" %}
+
+{% block title %}{{ file.original_name }} - Anatema{% endblock %}
+
+{% block content %}
+<div class="container" style="margin-top: 30px;">
+    <!-- Breadcrumb -->
+    <div class="row">
+        <div class="col s12">
+            <nav class="transparent z-depth-0">
+                <div class="nav-wrapper">
+                    <div class="col s12">
+                        <a href="{{ url_for('main.dashboard') }}" class="breadcrumb blue-text">Dashboard</a>
+                        <a href="{{ url_for('projects.list_projects') }}" class="breadcrumb blue-text">Progetti</a>
+                        <a href="{{ url_for('projects.view_project', project_id=file.project_id) }}" class="breadcrumb blue-text">{{ file.project.name }}</a>
+                        <a href="#!" class="breadcrumb grey-text">{{ file.original_name }}</a>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </div>
+
+    <!-- File Header -->
+    <div class="row">
+        <div class="col s12">
+            <div class="card-panel blue darken-2 white-text">
+                <div class="row valign-wrapper" style="margin-bottom: 0;">
+                    <div class="col s12 m8">
+                        <h4 style="margin: 0;">
+                            <i class="material-icons left">
+                                {% if file.file_type in ['xlsx', 'xls'] %}
+                                    table_chart
+                                {% elif file.file_type == 'csv' %}
+                                    grid_on
+                                {% else %}
+                                    description
+                                {% endif %}
+                            </i>{{ file.original_name }}
+                        </h4>
+                        <p style="margin: 0;">
+                            Caricato il {{ file.uploaded_at.strftime('%d/%m/%Y alle %H:%M') }} da {{ file.uploader.username }}
+                        </p>
+                    </div>
+                    <div class="col s12 m4 right-align">
+                        <a href="{{ url_for('files.download_file', file_id=file.id) }}" class="btn waves-effect waves-light white blue-text">
+                            <i class="material-icons left">download</i>Scarica
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- File Info -->
+    <div class="row">
+        <div class="col s12 m6">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">
+                        <i class="material-icons left">info</i>Informazioni File
+                    </span>
+                    <div class="collection">
+                        <div class="collection-item header-fix">
+                            <strong>Nome originale:</strong> {{ file.original_name }}
+                        </div>
+                        <div class="collection-item">
+                            <strong>Tipo:</strong> {{ file.file_type.upper() }}
+                        </div>
+                        <div class="collection-item">
+                            <strong>Dimensione:</strong> 
+                            {% if file.file_size %}
+                                {{ "%.2f"|format(file.file_size / 1024 / 1024) }} MB
+                            {% else %}
+                                Non disponibile
+                            {% endif %}
+                        </div>
+                        <div class="collection-item">
+                            <strong>Stato elaborazione:</strong>
+                            <span class="chip {{ 'green' if file.processing_status == 'completed' else 'orange' if file.processing_status == 'processing' else 'red' if file.processing_status == 'error' else 'grey' }}">
+                                {{ file.processing_status|title }}
+                            </span>
+                        </div>
+                        <div class="collection-item">
+                            <strong>Caricato da:</strong> {{ file.uploader.username }}
+                        </div>
+                        <div class="collection-item">
+                            <strong>Data caricamento:</strong> {{ file.uploaded_at.strftime('%d/%m/%Y %H:%M') }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col s12 m6">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">
+                        <i class="material-icons left">build</i>Azioni
+                    </span>
+                    <div class="collection">
+                        <a href="{{ url_for('files.download_file', file_id=file.id) }}" class="collection-item waves-effect">
+                            <i class="material-icons left">download</i>Scarica file originale
+                        </a>
+                        {% if file.file_type in ['xlsx', 'xls'] and file.processing_status == 'error' %}
+                            <a href="#reprocess-modal" class="collection-item waves-effect modal-trigger">
+                                <i class="material-icons left">refresh</i>Rielabora file
+                            </a>
+                        {% endif %}
+                        <a href="#delete-modal" class="collection-item waves-effect red-text modal-trigger">
+                            <i class="material-icons left">delete</i>Elimina file
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Excel Sheets (if applicable) -->
+    {% if file.file_type in ['xlsx', 'xls'] and sheets %}
+        <div class="row">
+            <div class="col s12">
+                <div class="card">
+                    <div class="card-content">
+                        <span class="card-title">
+                            <i class="material-icons left">tab</i>Fogli Excel ({{ sheets|length }})
+                        </span>
+                        
+                        {% if file.processing_status == 'completed' %}
+                            <div class="collection">
+                                {% for sheet in sheets %}
+                                    <div class="collection-item">
+                                        <div class="row valign-wrapper" style="margin-bottom: 0;">
+                                            <div class="col s12 m8">
+                                                <h6 style="margin: 0;">
+                                                    <i class="material-icons left">table_chart</i>{{ sheet.name }}
+                                                </h6>
+                                                <small class="grey-text">
+                                                    {{ sheet.row_count }} righe × {{ sheet.column_count }} colonne
+                                                </small>
+                                            </div>
+                                            <div class="col s12 m4 right-align">
+                                                <a href="{{ url_for('files.view_sheet', file_id=file.id, sheet_id=sheet.id) }}" 
+                                                   class="btn waves-effect waves-light blue">
+                                                    <i class="material-icons left">visibility</i>Visualizza
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% elif file.processing_status == 'processing' %}
+                            <div class="center-align" style="padding: 40px 20px;">
+                                <div class="preloader-wrapper active">
+                                    <div class="spinner-layer spinner-blue-only">
+                                        <div class="circle-clipper left">
+                                            <div class="circle"></div>
+                                        </div>
+                                        <div class="gap-patch">
+                                            <div class="circle"></div>
+                                        </div>
+                                        <div class="circle-clipper right">
+                                            <div class="circle"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <h6 class="grey-text">Elaborazione in corso...</h6>
+                                <p class="grey-text">Il file è in fase di elaborazione. Ricarica la pagina tra qualche istante.</p>
+                            </div>
+                        {% elif file.processing_status == 'error' %}
+                            <div class="center-align" style="padding: 40px 20px;">
+                                <i class="material-icons large red-text">error</i>
+                                <h6 class="red-text">Errore durante l'elaborazione</h6>
+                                <p class="grey-text">Si è verificato un errore durante l'elaborazione del file Excel.</p>
+                                <a href="#reprocess-modal" class="btn waves-effect waves-light orange modal-trigger">
+                                    <i class="material-icons left">refresh</i>Riprova Elaborazione
+                                </a>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% elif file.file_type in ['xlsx', 'xls'] and not sheets %}
+        <div class="row">
+            <div class="col s12">
+                <div class="card orange lighten-5">
+                    <div class="card-content center-align">
+                        <i class="material-icons large orange-text">warning</i>
+                        <h6 class="orange-text">File Excel non elaborato</h6>
+                        <p>Il file Excel non è stato ancora elaborato o si è verificato un errore.</p>
+                        {% if file.processing_status == 'error' %}
+                            <a href="#reprocess-modal" class="btn waves-effect waves-light orange modal-trigger">
+                                <i class="material-icons left">refresh</i>Riprova Elaborazione
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Reprocess Modal -->
+{% if file.file_type in ['xlsx', 'xls'] %}
+<div id="reprocess-modal" class="modal">
+    <div class="modal-content">
+        <h4><i class="material-icons left orange-text">refresh</i>Rielabora File</h4>
+        <p>Vuoi rielaborare il file Excel? Questa operazione:</p>
+        <ul>
+            <li>Cancellerà tutti i dati precedentemente estratti</li>
+            <li>Rielaborerà completamente il file</li>
+            <li>Potrebbe richiedere alcuni minuti</li>
+        </ul>
+    </div>
+    <div class="modal-footer">
+        <a href="#!" class="modal-close waves-effect waves-green btn-flat">Annulla</a>
+        <form method="POST" action="{{ url_for('files.reprocess_file', file_id=file.id) }}" style="display: inline;">
+            <button type="submit" class="waves-effect waves-orange btn orange">
+                <i class="material-icons left">refresh</i>Rielabora
+            </button>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+<!-- Delete Modal -->
+<div id="delete-modal" class="modal">
+    <div class="modal-content">
+        <h4><i class="material-icons left red-text">warning</i>Conferma Eliminazione</h4>
+        <p>Sei sicuro di voler eliminare il file <strong>"{{ file.original_name }}"</strong>?</p>
+        <p class="red-text">
+            <i class="material-icons left">info</i>
+            Questa azione eliminerà anche tutti i dati elaborati e le etichette associate al file.
+        </p>
+    </div>
+    <div class="modal-footer">
+        <a href="#!" class="modal-close waves-effect waves-green btn-flat">Annulla</a>
+        <form method="POST" action="{{ url_for('files.delete_file', file_id=file.id) }}" style="display: inline;">
+            <button type="submit" class="waves-effect waves-red btn red">
+                <i class="material-icons left">delete</i>Elimina
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.breadcrumb {
+    font-size: 14px;
+}
+
+.chip {
+    margin: 5px 0;
+}
+
+.collection .collection-item {
+    padding: 15px 20px;
+}
+
+.preloader-wrapper {
+    width: 50px;
+    height: 50px;
+    margin: 0 auto;
+}
+
+.header-fix {
+    background-color: #f5f5f5 !important;
+    color: #111 !important;
+    font-weight: bold;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize modals
+    var modals = document.querySelectorAll('.modal');
+    M.Modal.init(modals);
+    
+    // Auto-refresh if processing
+    {% if file.processing_status == 'processing' %}
+        setTimeout(function() {
+            location.reload();
+        }, 10000); // Refresh every 10 seconds
+    {% endif %}
+});
+</script>
+{% endblock %}

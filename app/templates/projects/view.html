@@ -1,0 +1,399 @@
+{% extends "base.html" %}
+
+{% block title %}{{ project.name }} - Anatema{% endblock %}
+
+{% block content %}
+<div class="container" style="margin-top: 30px;">
+    <!-- Breadcrumb -->
+    <div class="row">
+        <div class="col s12">
+            <nav class="transparent z-depth-0">
+                <div class="nav-wrapper">
+                    <div class="col s12">
+                        <a href="{{ url_for('main.dashboard') }}" class="breadcrumb blue-text">Dashboard</a>
+                        <a href="{{ url_for('projects.list_projects') }}" class="breadcrumb blue-text">Progetti</a>
+                        <a href="#!" class="breadcrumb grey-text">{{ project.name }}</a>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Project Header -->
+    <div class="row">
+        <div class="col s12">
+            <div class="card-panel blue darken-2 white-text">
+                <div class="row valign-wrapper" style="margin-bottom: 0;">
+                    <div class="col s12 m8">
+                        <h4 style="margin: 0;">
+                            <i class="material-icons left">folder</i>{{ project.name }}
+                        </h4>
+                        <p style="margin: 0;">
+                            {% if project.description %}
+                                {{ project.description }}
+                            {% else %}
+                                Nessuna descrizione disponibile
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="col s12 m4 right-align">
+                        <a href="{{ url_for('projects.edit_project', project_id=project.id) }}" class="btn waves-effect waves-light white blue-text">
+                            <i class="material-icons left">edit</i>Modifica
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Project Stats -->
+    <div class="row">
+        <div class="col s12 m4">
+            <div class="card">
+                <div class="card-content center-align">
+                    <i class="material-icons large blue-text">description</i>
+                    <h5>{{ files|length }}</h5>
+                    <p class="grey-text">File caricati</p>
+                </div>
+            </div>
+        </div>
+        <div class="col s12 m4">
+            <div class="card">
+                <div class="card-content center-align">
+                    <i class="material-icons large green-text">label</i>
+                    <h5>{{ labels|length }}</h5>
+                    <p class="grey-text">Etichette create</p>
+                </div>
+            </div>
+        </div>
+        <div class="col s12 m4">
+            <div class="card">
+                <div class="card-content center-align">
+                    {% if project.is_public %}
+                        <i class="material-icons large green-text">public</i>
+                        <h5>Pubblico</h5>
+                        <p class="grey-text">Visibile a tutti</p>
+                    {% else %}
+                        <i class="material-icons large orange-text">lock</i>
+                        <h5>Privato</h5>
+                        <p class="grey-text">Solo per te</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Project Details -->
+    <div class="row">
+        <div class="col s12 m6">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">
+                        <i class="material-icons left">info</i>Dettagli Progetto
+                    </span>
+                    <div class="collection">
+                        <div class="collection-item">
+                            <strong>Creato:</strong> {{ project.created_at.strftime('%d/%m/%Y %H:%M') }}
+                        </div>
+                        <div class="collection-item">
+                            <strong>Ultimo aggiornamento:</strong> {{ project.updated_at.strftime('%d/%m/%Y %H:%M') }}
+                        </div>
+                        <div class="collection-item">
+                            <strong>Proprietario:</strong> {{ project.owner.username }}
+                        </div>
+                        <div class="collection-item">
+                            <strong>ID Progetto:</strong> 
+                            <code class="grey-text">{{ project.id }}</code>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col s12 m6">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">
+                        <i class="material-icons left">build</i>Azioni Rapide
+                    </span>
+                    <div class="collection">
+                        <a href="{{ url_for('files.upload_file', project_id=project.id) }}" class="collection-item waves-effect">
+                            <i class="material-icons left">cloud_upload</i>Carica nuovo file
+                        </a>
+                        <a href="{{ url_for('labels.create_label', project_id=project.id) }}" class="collection-item waves-effect">
+                            <i class="material-icons left">add</i>Crea nuova etichetta
+                        </a>
+                        <a href="{{ url_for('ml.view_ml_dashboard', project_id=project.id) }}" class="collection-item waves-effect">
+                            <i class="material-icons left">psychology</i>Machine Learning
+                        </a>
+                        <a href="{{ url_for('projects.project_stats', project_id=project.id) }}" class="collection-item waves-effect">
+                            <i class="material-icons left">analytics</i>Visualizza statistiche
+                        </a>
+                        <a href="#export-modal" class="collection-item waves-effect modal-trigger">
+                            <i class="material-icons left">download</i>Esporta dati
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Files Section -->
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">
+                        <i class="material-icons left">description</i>File del Progetto
+                        <a href="{{ url_for('files.upload_file', project_id=project.id) }}" class="btn-floating btn-small waves-effect waves-light blue right">
+                            <i class="material-icons">add</i>
+                        </a>
+                    </span>
+                    
+                    {% if files %}
+                        <div class="collection">
+                            {% for file in files %}
+                                <div class="collection-item">
+                                    <div class="row valign-wrapper" style="margin-bottom: 0;">
+                                        <div class="col s12 m8">
+                                            <i class="material-icons left">
+                                                {% if file.file_type == 'excel' %}
+                                                    table_chart
+                                                {% elif file.file_type == 'csv' %}
+                                                    grid_on
+                                                {% else %}
+                                                    description
+                                                {% endif %}
+                                            </i>
+                                            <strong>{{ file.original_name }}</strong>
+                                            <br>
+                                            <small class="grey-text">
+                                                Caricato il {{ file.uploaded_at.strftime('%d/%m/%Y %H:%M') }} - 
+                                                {% if file.file_size %}
+                                                    {{ "%.2f"|format(file.file_size / 1024 / 1024) }} MB
+                                                {% else %}
+                                                    Dimensione sconosciuta
+                                                {% endif %}
+                                            </small>
+                                        </div>
+                                        <div class="col s12 m4 right-align">
+                                            <span class="chip {{ 'green' if file.processing_status == 'completed' else 'orange' if file.processing_status == 'processing' else 'red' if file.processing_status == 'error' else 'grey' }}">
+                                                {{ file.processing_status|title }}
+                                            </span>
+                                            <a href="{{ url_for('files.view_file', file_id=file.id) }}" class="btn-small waves-effect waves-light blue">
+                                                <i class="material-icons left">visibility</i>Visualizza
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="center-align" style="padding: 40px 20px;">
+                            <i class="material-icons large grey-text">cloud_upload</i>
+                            <h6 class="grey-text">Nessun file caricato</h6>
+                            <p class="grey-text">Carica il primo file per iniziare l'etichettatura dei dati.</p>
+                            <a href="{{ url_for('files.upload_file', project_id=project.id) }}" class="btn waves-effect waves-light blue">
+                                <i class="material-icons left">cloud_upload</i>Carica File
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Labels Section -->
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">
+                        <i class="material-icons left">label</i>Etichette del Progetto
+                        <a href="{{ url_for('labels.create_label', project_id=project.id) }}" class="btn-floating btn-small waves-effect waves-light green right">
+                            <i class="material-icons">add</i>
+                        </a>
+                    </span>
+                    
+                    {% if labels %}
+                        <div class="row">
+                            {% for label in labels %}
+                                <div class="col s12 m6 l4">
+                                    <div class="card-panel" style="border-left: 4px solid {{ label.color }};">
+                                        <h6 style="margin-top: 0;">{{ label.name }}</h6>
+                                        {% if label.description %}
+                                            <p class="grey-text">{{ label.description }}</p>
+                                        {% endif %}
+                                        <div class="chip" style="background-color: {{ label.color }}; color: white;">
+                                            {{ label.cell_labels.count() }} utilizzi
+                                        </div>
+                                        <div class="right-align">
+                                            <a href="{{ url_for('labels.edit_label', label_id=label.id) }}" class="btn-small waves-effect waves-light orange">
+                                                <i class="material-icons">edit</i>
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="center-align" style="padding: 40px 20px;">
+                            <i class="material-icons large grey-text">label</i>
+                            <h6 class="grey-text">Nessuna etichetta creata</h6>
+                            <p class="grey-text">Crea la prima etichetta per iniziare a classificare i tuoi dati.</p>
+                            <a href="{{ url_for('labels.create_label', project_id=project.id) }}" class="btn waves-effect waves-light green">
+                                <i class="material-icons left">add</i>Crea Etichetta
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Project Section -->
+    <div class="row">
+        <div class="col s12">
+            <div class="card red lighten-5">
+                <div class="card-content">
+                    <span class="card-title red-text">
+                        <i class="material-icons left">warning</i>Zona Pericolosa
+                    </span>
+                    <p>L'eliminazione del progetto è un'azione irreversibile che rimuoverà tutti i file, le etichette e i dati associati.</p>
+                    <a href="#delete-project-modal" class="btn waves-effect waves-light red modal-trigger">
+                        <i class="material-icons left">delete</i>Elimina Progetto
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Export Modal -->
+<div id="export-modal" class="modal">
+    <div class="modal-content">
+        <h4><i class="material-icons left">download</i>Esporta Dati Progetto</h4>
+        <p>Seleziona il formato di esportazione per i dati del progetto:</p>
+        <div class="collection">
+            <a href="#!" class="collection-item waves-effect">
+                <i class="material-icons left">table_chart</i>Excel (.xlsx) - Include tutti i dati e le etichette
+            </a>
+            <a href="#!" class="collection-item waves-effect">
+                <i class="material-icons left">grid_on</i>CSV - Solo dati tabulari
+            </a>
+            <a href="#!" class="collection-item waves-effect">
+                <i class="material-icons left">code</i>JSON - Formato strutturato per sviluppatori
+            </a>
+        </div>
+    </div>
+    <div class="modal-footer">
+        <a href="#!" class="modal-close waves-effect waves-green btn-flat">Annulla</a>
+    </div>
+</div>
+
+<!-- Delete Project Modal -->
+<div id="delete-project-modal" class="modal">
+    <div class="modal-content">
+        <h4><i class="material-icons left red-text">warning</i>Conferma Eliminazione Progetto</h4>
+        <p>Sei sicuro di voler eliminare il progetto <strong>"{{ project.name }}"</strong>?</p>
+        <p class="red-text">
+            <i class="material-icons left">info</i>
+            Questa azione eliminerà permanentemente:
+        </p>
+        <ul class="red-text">
+            <li>Tutti i file caricati ({{ files|length }} file)</li>
+            <li>Tutte le etichette create ({{ labels|length }} etichette)</li>
+            <li>Tutti i dati di etichettatura associati</li>
+            <li>Le statistiche e i metadati del progetto</li>
+        </ul>
+        <p class="red-text"><strong>Questa azione non può essere annullata!</strong></p>
+    </div>
+    <div class="modal-footer">
+        <a href="#!" class="modal-close waves-effect waves-green btn-flat">Annulla</a>
+        <form method="POST" action="{{ url_for('projects.delete_project', project_id=project.id) }}" style="display: inline;">
+            <button type="submit" class="waves-effect waves-red btn red">
+                <i class="material-icons left">delete</i>Elimina Definitivamente
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.breadcrumb {
+    font-size: 14px;
+}
+
+.card-panel {
+    position: relative;
+}
+
+.chip {
+    margin: 5px 0;
+}
+
+code {
+    background-color: #f5f5f5;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9em;
+}
+
+.collection .collection-item {
+    padding: 15px 20px;
+}
+
+.collection .collection-item .row {
+    margin-bottom: 0;
+}
+
+.modal .collection .collection-item {
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.modal .collection .collection-item:hover {
+    background-color: #f5f5f5;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize modals
+    var modals = document.querySelectorAll('.modal');
+    M.Modal.init(modals);
+    
+    // Initialize floating action buttons
+    var fabs = document.querySelectorAll('.fixed-action-btn');
+    M.FloatingActionButton.init(fabs);
+    
+    // Copy project ID to clipboard
+    const projectIdCode = document.querySelector('code');
+    if (projectIdCode) {
+        projectIdCode.addEventListener('click', function() {
+            navigator.clipboard.writeText(this.textContent).then(function() {
+                M.toast({html: 'ID progetto copiato negli appunti', classes: 'green'});
+            });
+        });
+        projectIdCode.style.cursor = 'pointer';
+        projectIdCode.title = 'Clicca per copiare';
+    }
+    
+    // Export functionality (placeholder)
+    const exportLinks = document.querySelectorAll('#export-modal .collection-item');
+    exportLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const format = this.textContent.includes('Excel') ? 'xlsx' : 
+                          this.textContent.includes('CSV') ? 'csv' : 'json';
+            M.toast({html: `Esportazione in formato ${format.toUpperCase()} non ancora implementata`, classes: 'orange'});
+            M.Modal.getInstance(document.getElementById('export-modal')).close();
+        });
+    });
+});
+</script>
+{% endblock %}

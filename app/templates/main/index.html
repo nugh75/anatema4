@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+
+{% block title %}Anatema - Sistema di Etichettatura Dati{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="section blue darken-1 white-text">
+    <div class="container">
+        <div class="row">
+            <div class="col s12 m8 offset-m2 center">
+                <h1 class="header">Benvenuto in Anatema</h1>
+                <h4 class="light">Sistema avanzato per l'etichettatura e l'analisi di dati Excel</h4>
+                <p class="flow-text">
+                    Organizza, etichetta e analizza i tuoi dati Excel con facilità. 
+                    Crea progetti, carica file e applica etichette personalizzate per una migliore gestione dei dati.
+                </p>
+                <div class="row" style="margin-top: 40px;">
+                    <div class="col s12 m6">
+                        <a href="{{ url_for('auth.register') }}" class="btn-large waves-effect waves-light white blue-text">
+                            <i class="material-icons left">person_add</i>Inizia Ora
+                        </a>
+                    </div>
+                    <div class="col s12 m6">
+                        <a href="{{ url_for('auth.login') }}" class="btn-large waves-effect waves-light transparent white-text">
+                            <i class="material-icons left">login</i>Accedi
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Features Section -->
+<div class="section white">
+    <div class="container">
+        <div class="row">
+            <div class="col s12 center">
+                <h3 class="blue-text text-darken-2">Funzionalità Principali</h3>
+                <p class="flow-text grey-text text-darken-1">
+                    Tutto quello che ti serve per gestire i tuoi dati
+                </p>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col s12 m4">
+                <div class="card hoverable">
+                    <div class="card-content center">
+                        <i class="material-icons large blue-text">folder_open</i>
+                        <h5>Gestione Progetti</h5>
+                        <p>Organizza i tuoi dati in progetti strutturati. Crea, modifica e gestisci facilmente i tuoi workspace.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col s12 m4">
+                <div class="card hoverable">
+                    <div class="card-content center">
+                        <i class="material-icons large green-text">cloud_upload</i>
+                        <h5>Upload File Excel</h5>
+                        <p>Carica file Excel (.xlsx, .xls) e CSV. Il sistema elabora automaticamente i dati per l'etichettatura.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col s12 m4">
+                <div class="card hoverable">
+                    <div class="card-content center">
+                        <i class="material-icons large orange-text">label</i>
+                        <h5>Etichettatura Avanzata</h5>
+                        <p>Crea etichette personalizzate con colori e categorie. Applica etichette a celle specifiche per organizzare i dati.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col s12 m4">
+                <div class="card hoverable">
+                    <div class="card-content center">
+                        <i class="material-icons large purple-text">analytics</i>
+                        <h5>Analisi Dati</h5>
+                        <p>Visualizza statistiche sui tuoi progetti, file e etichette. Monitora l'utilizzo e le tendenze.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col s12 m4">
+                <div class="card hoverable">
+                    <div class="card-content center">
+                        <i class="material-icons large red-text">search</i>
+                        <h5>Ricerca Avanzata</h5>
+                        <p>Trova rapidamente progetti, file e etichette con la funzione di ricerca integrata.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col s12 m4">
+                <div class="card hoverable">
+                    <div class="card-content center">
+                        <i class="material-icons large teal-text">api</i>
+                        <h5>API REST</h5>
+                        <p>Integra Anatema con altre applicazioni tramite le API REST complete e documentate.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- How it works Section -->
+<div class="section grey lighten-4">
+    <div class="container">
+        <div class="row">
+            <div class="col s12 center">
+                <h3 class="blue-text text-darken-2">Come Funziona</h3>
+                <p class="flow-text grey-text text-darken-1">
+                    Semplice e intuitivo in 4 passaggi
+                </p>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col s12 m6 l3">
+                <div class="card-panel white center">
+                    <div class="circle blue darken-2 white-text" style="width: 60px; height: 60px; line-height: 60px; margin: 0 auto 20px;">1</div>
+                    <h6><strong>Crea un Progetto</strong></h6>
+                    <p>Inizia creando un nuovo progetto per organizzare i tuoi dati.</p>
+                </div>
+            </div>
+            
+            <div class="col s12 m6 l3">
+                <div class="card-panel white center">
+                    <div class="circle blue darken-2 white-text" style="width: 60px; height: 60px; line-height: 60px; margin: 0 auto 20px;">2</div>
+                    <h6><strong>Carica i File</strong></h6>
+                    <p>Carica i tuoi file Excel o CSV nel progetto.</p>
+                </div>
+            </div>
+            
+            <div class="col s12 m6 l3">
+                <div class="card-panel white center">
+                    <div class="circle blue darken-2 white-text" style="width: 60px; height: 60px; line-height: 60px; margin: 0 auto 20px;">3</div>
+                    <h6><strong>Crea Etichette</strong></h6>
+                    <p>Definisci etichette personalizzate per categorizzare i dati.</p>
+                </div>
+            </div>
+            
+            <div class="col s12 m6 l3">
+                <div class="card-panel white center">
+                    <div class="circle blue darken-2 white-text" style="width: 60px; height: 60px; line-height: 60px; margin: 0 auto 20px;">4</div>
+                    <h6><strong>Etichetta i Dati</strong></h6>
+                    <p>Applica le etichette alle celle per organizzare i contenuti.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- CTA Section -->
+<div class="section blue darken-2 white-text">
+    <div class="container">
+        <div class="row">
+            <div class="col s12 center">
+                <h4>Pronto per iniziare?</h4>
+                <p class="flow-text">
+                    Registrati ora e inizia a organizzare i tuoi dati con Anatema
+                </p>
+                <a href="{{ url_for('auth.register') }}" class="btn-large waves-effect waves-light white blue-text">
+                    <i class="material-icons left">rocket_launch</i>Inizia Gratuitamente
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.circle {
+    border-radius: 50%;
+    display: inline-block;
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.card {
+    transition: transform 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+}
+
+.hero-section {
+    padding: 80px 0;
+}
+
+.section {
+    padding: 60px 0;
+}
+</style>
+{% endblock %}

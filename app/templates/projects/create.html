@@ -1,0 +1,274 @@
+{% extends "base.html" %}
+
+{% block title %}Nuovo Progetto - Anatema{% endblock %}
+
+{% block content %}
+<div class="container" style="margin-top: 30px;">
+    <!-- Breadcrumb -->
+    <div class="row">
+        <div class="col s12">
+            <nav class="transparent z-depth-0">
+                <div class="nav-wrapper">
+                    <div class="col s12">
+                        <a href="{{ url_for('main.dashboard') }}" class="breadcrumb blue-text">Dashboard</a>
+                        <a href="{{ url_for('projects.list_projects') }}" class="breadcrumb blue-text">Progetti</a>
+                        <a href="#!" class="breadcrumb grey-text">Nuovo Progetto</a>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Page Header -->
+    <div class="row">
+        <div class="col s12">
+            <div class="card-panel green darken-2 white-text">
+                <h4 style="margin: 0;">
+                    <i class="material-icons left">add</i>Crea Nuovo Progetto
+                </h4>
+                <p style="margin: 0;">Configura un nuovo progetto per organizzare i tuoi dati</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Project Form -->
+    <div class="row">
+        <div class="col s12 l8 offset-l2">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">
+                        <i class="material-icons left">settings</i>Configurazione Progetto
+                    </span>
+
+                    <form method="POST" action="{{ url_for('projects.create_project') }}" id="project-form">
+                        <!-- Project Name -->
+                        <div class="input-field">
+                            <i class="material-icons prefix">folder</i>
+                            <input id="name" name="name" type="text" class="validate" required maxlength="200">
+                            <label for="name">Nome Progetto *</label>
+                            <span class="helper-text" data-error="Nome progetto richiesto" data-success="Nome valido">
+                                Scegli un nome descrittivo per il tuo progetto
+                            </span>
+                        </div>
+
+                        <!-- Project Description -->
+                        <div class="input-field">
+                            <i class="material-icons prefix">description</i>
+                            <textarea id="description" name="description" class="materialize-textarea" maxlength="1000"></textarea>
+                            <label for="description">Descrizione</label>
+                            <span class="helper-text">
+                                Descrivi brevemente lo scopo e il contenuto del progetto (opzionale)
+                            </span>
+                        </div>
+
+                        <!-- Project Visibility -->
+                        <div class="row">
+                            <div class="col s12">
+                                <h6><i class="material-icons left">visibility</i>Visibilità</h6>
+                                <p>
+                                    <label>
+                                        <input name="is_public" type="radio" value="false" checked />
+                                        <span>
+                                            <i class="material-icons left orange-text">lock</i>
+                                            <strong>Privato</strong> - Solo tu puoi accedere al progetto
+                                        </span>
+                                    </label>
+                                </p>
+                                <p>
+                                    <label>
+                                        <input name="is_public" type="radio" value="true" />
+                                        <span>
+                                            <i class="material-icons left green-text">public</i>
+                                            <strong>Pubblico</strong> - Altri utenti possono visualizzare il progetto
+                                        </span>
+                                    </label>
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Project Template (Future Enhancement) -->
+                        <div class="row">
+                            <div class="col s12">
+                                <h6><i class="material-icons left">template</i>Template Progetto</h6>
+                                <div class="collection">
+                                    <label class="collection-item">
+                                        <input type="radio" name="template" value="blank" checked />
+                                        <span>
+                                            <strong>Progetto Vuoto</strong><br>
+                                            <small class="grey-text">Inizia da zero senza configurazioni predefinite</small>
+                                        </span>
+                                    </label>
+                                    <label class="collection-item">
+                                        <input type="radio" name="template" value="data_analysis" />
+                                        <span>
+                                            <strong>Analisi Dati</strong><br>
+                                            <small class="grey-text">Template ottimizzato per l'analisi di dataset</small>
+                                        </span>
+                                    </label>
+                                    <label class="collection-item">
+                                        <input type="radio" name="template" value="classification" />
+                                        <span>
+                                            <strong>Classificazione</strong><br>
+                                            <small class="grey-text">Template per progetti di classificazione dati</small>
+                                        </span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="row" style="margin-top: 30px;">
+                            <div class="col s12 center-align">
+                                <a href="{{ url_for('projects.list_projects') }}" class="btn-large waves-effect waves-light grey">
+                                    <i class="material-icons left">cancel</i>Annulla
+                                </a>
+                                <button type="submit" class="btn-large waves-effect waves-light green darken-2" id="submit-btn">
+                                    <i class="material-icons left">save</i>Crea Progetto
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Section -->
+    <div class="row">
+        <div class="col s12 l8 offset-l2">
+            <div class="card blue lighten-5">
+                <div class="card-content">
+                    <span class="card-title blue-text">
+                        <i class="material-icons left">help</i>Suggerimenti
+                    </span>
+                    <ul class="collection">
+                        <li class="collection-item">
+                            <i class="material-icons left blue-text">lightbulb_outline</i>
+                            <strong>Nome del Progetto:</strong> Usa nomi descrittivi che identifichino chiaramente il contenuto
+                        </li>
+                        <li class="collection-item">
+                            <i class="material-icons left blue-text">lightbulb_outline</i>
+                            <strong>Descrizione:</strong> Includi informazioni sul tipo di dati e l'obiettivo dell'etichettatura
+                        </li>
+                        <li class="collection-item">
+                            <i class="material-icons left blue-text">lightbulb_outline</i>
+                            <strong>Visibilità:</strong> I progetti privati sono visibili solo a te, quelli pubblici possono essere condivisi
+                        </li>
+                        <li class="collection-item">
+                            <i class="material-icons left blue-text">lightbulb_outline</i>
+                            <strong>Template:</strong> Scegli un template per iniziare con configurazioni ottimizzate
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.collection .collection-item label {
+    display: block;
+    width: 100%;
+    cursor: pointer;
+    padding: 10px 0;
+}
+
+.collection .collection-item input[type="radio"] {
+    margin-right: 10px;
+}
+
+.breadcrumb {
+    font-size: 14px;
+}
+
+.prefix {
+    color: #4caf50 !important;
+}
+
+.input-field input:focus + label,
+.input-field textarea:focus + label {
+    color: #4caf50 !important;
+}
+
+.input-field input:focus,
+.input-field textarea:focus {
+    border-bottom: 1px solid #4caf50 !important;
+    box-shadow: 0 1px 0 0 #4caf50 !important;
+}
+
+.radio-group {
+    margin: 20px 0;
+}
+
+.radio-group p {
+    margin: 15px 0;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Focus on name field
+    document.getElementById('name').focus();
+    
+    // Character counter for description
+    const description = document.getElementById('description');
+    M.CharacterCounter.init(description);
+    
+    // Form validation
+    const form = document.getElementById('project-form');
+    const submitBtn = document.getElementById('submit-btn');
+    
+    form.addEventListener('submit', function(e) {
+        const name = document.getElementById('name').value.trim();
+        
+        if (!name) {
+            e.preventDefault();
+            M.toast({html: 'Il nome del progetto è richiesto', classes: 'red'});
+            document.getElementById('name').focus();
+            return;
+        }
+        
+        if (name.length < 3) {
+            e.preventDefault();
+            M.toast({html: 'Il nome del progetto deve essere di almeno 3 caratteri', classes: 'red'});
+            document.getElementById('name').focus();
+            return;
+        }
+        
+        // Show loading state
+        submitBtn.innerHTML = '<i class="material-icons left">hourglass_empty</i>Creazione in corso...';
+        submitBtn.disabled = true;
+    });
+    
+    // Real-time validation
+    const nameInput = document.getElementById('name');
+    nameInput.addEventListener('input', function() {
+        const value = this.value.trim();
+        
+        if (value.length >= 3) {
+            this.classList.add('valid');
+            this.classList.remove('invalid');
+        } else if (value.length > 0) {
+            this.classList.add('invalid');
+            this.classList.remove('valid');
+        } else {
+            this.classList.remove('valid', 'invalid');
+        }
+    });
+    
+    // Template selection feedback
+    const templateRadios = document.querySelectorAll('input[name="template"]');
+    templateRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            if (this.checked) {
+                M.toast({html: `Template "${this.nextElementSibling.querySelector('strong').textContent}" selezionato`, classes: 'blue'});
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

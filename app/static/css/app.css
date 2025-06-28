@@ -1,0 +1,355 @@
+/* Anatema Custom Styles */
+
+/* Global Styles */
+body {
+    font-family: 'Roboto', sans-serif;
+    background-color: #fafafa;
+}
+
+main {
+    flex: 1 0 auto;
+    min-height: calc(100vh - 200px);
+}
+
+/* Navigation */
+.brand-logo {
+    font-weight: 500;
+}
+
+.sidenav .user-view {
+    padding: 32px 32px 0;
+}
+
+/* Cards */
+.card {
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    transform: translateY(-2px);
+}
+
+.card-panel {
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* Buttons */
+.btn, .btn-large, .btn-small {
+    border-radius: 4px;
+    text-transform: none;
+    font-weight: 500;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.btn:hover, .btn-large:hover, .btn-small:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+}
+
+.btn-floating {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.btn-floating:hover {
+    box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+}
+
+/* Forms */
+.input-field input:focus + label {
+    color: #1976d2 !important;
+}
+
+.input-field input:focus {
+    border-bottom: 1px solid #1976d2 !important;
+    box-shadow: 0 1px 0 0 #1976d2 !important;
+}
+
+.input-field .prefix.active {
+    color: #1976d2 !important;
+}
+
+/* Collections */
+.collection {
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.collection .collection-item {
+    transition: background-color 0.2s ease;
+}
+
+.collection .collection-item:hover {
+    background-color: #f5f5f5;
+}
+
+/* Progress bars */
+.progress {
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+/* Chips */
+.chip {
+    border-radius: 16px;
+    font-weight: 500;
+}
+
+/* Tables */
+.table-container {
+    overflow-x: auto;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+table {
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+table thead {
+    background-color: #1976d2;
+}
+
+table thead th {
+    color: white;
+    font-weight: 500;
+}
+
+table tbody tr:hover {
+    background-color: #f5f5f5;
+}
+
+/* Modals */
+.modal {
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.modal .modal-content {
+    padding: 32px;
+}
+
+/* Pagination */
+.pagination li.active {
+    background-color: #1976d2;
+}
+
+.pagination li a {
+    color: #1976d2;
+}
+
+/* File upload area */
+.file-upload-area {
+    border: 2px dashed #1976d2;
+    border-radius: 8px;
+    padding: 40px;
+    text-align: center;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.file-upload-area:hover {
+    background-color: #e3f2fd;
+    border-color: #1565c0;
+}
+
+.file-upload-area.dragover {
+    background-color: #e3f2fd;
+    border-color: #1565c0;
+    transform: scale(1.02);
+}
+
+/* Label colors */
+.label-chip {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 16px;
+    color: white;
+    font-size: 0.8rem;
+    font-weight: 500;
+    margin: 2px;
+}
+
+/* Data table styles */
+.data-table {
+    font-size: 0.9rem;
+}
+
+.data-table th {
+    background-color: #f5f5f5;
+    font-weight: 600;
+    padding: 12px 8px;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.data-table td {
+    padding: 8px;
+    border-bottom: 1px solid #e0e0e0;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.data-table td.labeled {
+    background-color: #fff3e0;
+    border-left: 4px solid #ff9800;
+}
+
+/* Statistics cards */
+.stat-card {
+    text-align: center;
+    padding: 20px;
+    border-radius: 8px;
+    color: white;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.stat-card.blue {
+    background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+}
+
+.stat-card.green {
+    background: linear-gradient(135deg, #388e3c 0%, #2e7d32 100%);
+}
+
+.stat-card.orange {
+    background: linear-gradient(135deg, #f57c00 0%, #ef6c00 100%);
+}
+
+.stat-card.purple {
+    background: linear-gradient(135deg, #7b1fa2 0%, #6a1b9a 100%);
+}
+
+/* Loading states */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 3px solid rgba(255,255,255,.3);
+    border-radius: 50%;
+    border-top-color: #fff;
+    animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Responsive utilities */
+.full-width {
+    width: 100% !important;
+}
+
+.center-align {
+    text-align: center !important;
+}
+
+.left-align {
+    text-align: left !important;
+}
+
+.right-align {
+    text-align: right !important;
+}
+
+/* Custom spacing */
+.mt-0 { margin-top: 0 !important; }
+.mt-1 { margin-top: 0.5rem !important; }
+.mt-2 { margin-top: 1rem !important; }
+.mt-3 { margin-top: 1.5rem !important; }
+.mt-4 { margin-top: 2rem !important; }
+.mt-5 { margin-top: 3rem !important; }
+
+.mb-0 { margin-bottom: 0 !important; }
+.mb-1 { margin-bottom: 0.5rem !important; }
+.mb-2 { margin-bottom: 1rem !important; }
+.mb-3 { margin-bottom: 1.5rem !important; }
+.mb-4 { margin-bottom: 2rem !important; }
+.mb-5 { margin-bottom: 3rem !important; }
+
+.pt-0 { padding-top: 0 !important; }
+.pt-1 { padding-top: 0.5rem !important; }
+.pt-2 { padding-top: 1rem !important; }
+.pt-3 { padding-top: 1.5rem !important; }
+.pt-4 { padding-top: 2rem !important; }
+.pt-5 { padding-top: 3rem !important; }
+
+.pb-0 { padding-bottom: 0 !important; }
+.pb-1 { padding-bottom: 0.5rem !important; }
+.pb-2 { padding-bottom: 1rem !important; }
+.pb-3 { padding-bottom: 1.5rem !important; }
+.pb-4 { padding-bottom: 2rem !important; }
+.pb-5 { padding-bottom: 3rem !important; }
+
+/* Dark mode support (future enhancement) */
+@media (prefers-color-scheme: dark) {
+    body {
+        background-color: #121212;
+        color: #ffffff;
+    }
+    
+    .card {
+        background-color: #1e1e1e;
+        color: #ffffff;
+    }
+    
+    .collection .collection-item {
+        background-color: #1e1e1e;
+        border-bottom: 1px solid #333;
+    }
+    
+    .collection .collection-item:hover {
+        background-color: #333;
+    }
+}
+
+/* Print styles */
+@media print {
+    .no-print {
+        display: none !important;
+    }
+    
+    .card {
+        box-shadow: none !important;
+        border: 1px solid #ddd;
+    }
+    
+    .btn, .btn-large, .btn-small {
+        display: none !important;
+    }
+}
+
+/* Mobile optimizations */
+@media only screen and (max-width: 600px) {
+    .container {
+        width: 95%;
+    }
+    
+    .card-content {
+        padding: 16px;
+    }
+    
+    .btn-large {
+        padding: 0 16px;
+        height: 48px;
+        line-height: 48px;
+    }
+    
+    .data-table {
+        font-size: 0.8rem;
+    }
+    
+    .data-table td {
+        padding: 6px 4px;
+        max-width: 120px;
+    }
+}

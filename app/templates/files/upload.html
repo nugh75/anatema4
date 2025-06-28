@@ -1,0 +1,280 @@
+{% extends "base.html" %}
+
+{% block title %}Carica File - {{ project.name }} - Anatema{% endblock %}
+
+{% block content %}
+<div class="container" style="margin-top: 30px;">
+    <!-- Breadcrumb -->
+    <div class="row">
+        <div class="col s12">
+            <nav class="transparent z-depth-0">
+                <div class="nav-wrapper">
+                    <div class="col s12">
+                        <a href="{{ url_for('main.dashboard') }}" class="breadcrumb blue-text">Dashboard</a>
+                        <a href="{{ url_for('projects.list_projects') }}" class="breadcrumb blue-text">Progetti</a>
+                        <a href="{{ url_for('projects.view_project', project_id=project.id) }}" class="breadcrumb blue-text">{{ project.name }}</a>
+                        <a href="#!" class="breadcrumb grey-text">Carica File</a>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Page Header -->
+    <div class="row">
+        <div class="col s12">
+            <div class="card-panel green darken-2 white-text">
+                <h4 style="margin: 0;">
+                    <i class="material-icons left">cloud_upload</i>Carica Nuovo File
+                </h4>
+                <p style="margin: 0;">Aggiungi un file al progetto "{{ project.name }}"</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upload Form -->
+    <div class="row">
+        <div class="col s12 l8 offset-l2">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">
+                        <i class="material-icons left">attach_file</i>Seleziona File
+                    </span>
+
+                    <form method="POST" action="{{ url_for('files.upload_file', project_id=project.id) }}" 
+                          enctype="multipart/form-data" id="upload-form">
+                        
+                        <!-- File Input -->
+                        <div class="file-field input-field">
+                            <div class="btn blue darken-2">
+                                <span><i class="material-icons left">folder</i>Scegli File</span>
+                                <input type="file" name="file" id="file-input" accept=".xlsx,.xls,.csv" required>
+                            </div>
+                            <div class="file-path-wrapper">
+                                <input class="file-path validate" type="text" placeholder="Nessun file selezionato">
+                            </div>
+                        </div>
+
+                        <!-- File Info -->
+                        <div id="file-info" class="card-panel grey lighten-4" style="display: none;">
+                            <h6><i class="material-icons left">info</i>Informazioni File</h6>
+                            <div id="file-details"></div>
+                        </div>
+
+                        <!-- Upload Progress -->
+                        <div id="upload-progress" class="progress" style="display: none;">
+                            <div class="determinate" style="width: 0%"></div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="row" style="margin-top: 30px;">
+                            <div class="col s12 center-align">
+                                <a href="{{ url_for('projects.view_project', project_id=project.id) }}" 
+                                   class="btn-large waves-effect waves-light grey">
+                                    <i class="material-icons left">cancel</i>Annulla
+                                </a>
+                                <button type="submit" class="btn-large waves-effect waves-light green darken-2" 
+                                        id="upload-btn" disabled>
+                                    <i class="material-icons left">cloud_upload</i>Carica File
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Supported Formats -->
+    <div class="row">
+        <div class="col s12 l8 offset-l2">
+            <div class="card blue lighten-5">
+                <div class="card-content">
+                    <span class="card-title blue-text">
+                        <i class="material-icons left">info</i>Formati Supportati
+                    </span>
+                    <div class="collection">
+                        <div class="collection-item">
+                            <i class="material-icons left blue-text">table_chart</i>
+                            <strong>Excel (.xlsx, .xls)</strong><br>
+                            <small class="grey-text">
+                                File Excel con supporto per fogli multipli, elaborazione automatica di righe e colonne
+                            </small>
+                        </div>
+                        <div class="collection-item">
+                            <i class="material-icons left blue-text">grid_on</i>
+                            <strong>CSV (.csv)</strong><br>
+                            <small class="grey-text">
+                                File di valori separati da virgola, formato semplice per dati tabulari
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upload Tips -->
+    <div class="row">
+        <div class="col s12 l8 offset-l2">
+            <div class="card orange lighten-5">
+                <div class="card-content">
+                    <span class="card-title orange-text">
+                        <i class="material-icons left">lightbulb_outline</i>Suggerimenti per il Caricamento
+                    </span>
+                    <ul class="collection">
+                        <li class="collection-item">
+                            <i class="material-icons left orange-text">check</i>
+                            Assicurati che il file non superi i 50MB
+                        </li>
+                        <li class="collection-item">
+                            <i class="material-icons left orange-text">check</i>
+                            I file Excel verranno elaborati automaticamente per estrarre tutti i fogli
+                        </li>
+                        <li class="collection-item">
+                            <i class="material-icons left orange-text">check</i>
+                            Usa nomi di colonna descrittivi per facilitare l'etichettatura
+                        </li>
+                        <li class="collection-item">
+                            <i class="material-icons left orange-text">check</i>
+                            Evita celle unite o formattazioni complesse per migliori risultati
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.breadcrumb {
+    font-size: 14px;
+}
+
+.file-field .file-path {
+    border-bottom: 1px solid #4caf50;
+}
+
+.file-field .file-path:focus {
+    border-bottom: 1px solid #4caf50;
+    box-shadow: 0 1px 0 0 #4caf50;
+}
+
+.progress {
+    margin: 20px 0;
+}
+
+#file-info {
+    margin: 20px 0;
+}
+
+.collection .collection-item {
+    padding: 15px 20px;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fileInput = document.getElementById('file-input');
+    const uploadBtn = document.getElementById('upload-btn');
+    const fileInfo = document.getElementById('file-info');
+    const fileDetails = document.getElementById('file-details');
+    const uploadForm = document.getElementById('upload-form');
+    const uploadProgress = document.getElementById('upload-progress');
+    
+    // File selection handler
+    fileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        
+        if (file) {
+            // Enable upload button
+            uploadBtn.disabled = false;
+            
+            // Show file info
+            const fileSize = (file.size / 1024 / 1024).toFixed(2);
+            const fileType = file.name.split('.').pop().toLowerCase();
+            
+            fileDetails.innerHTML = `
+                <p><strong>Nome:</strong> ${file.name}</p>
+                <p><strong>Dimensione:</strong> ${fileSize} MB</p>
+                <p><strong>Tipo:</strong> ${fileType.toUpperCase()}</p>
+                <p><strong>Ultima modifica:</strong> ${new Date(file.lastModified).toLocaleString('it-IT')}</p>
+            `;
+            
+            fileInfo.style.display = 'block';
+            
+            // Validate file size (50MB limit)
+            if (file.size > 50 * 1024 * 1024) {
+                M.toast({html: 'Il file è troppo grande. Dimensione massima: 50MB', classes: 'red'});
+                uploadBtn.disabled = true;
+                return;
+            }
+            
+            // Validate file type
+            const allowedTypes = ['xlsx', 'xls', 'csv'];
+            if (!allowedTypes.includes(fileType)) {
+                M.toast({html: 'Tipo di file non supportato', classes: 'red'});
+                uploadBtn.disabled = true;
+                return;
+            }
+            
+            M.toast({html: 'File selezionato correttamente', classes: 'green'});
+        } else {
+            uploadBtn.disabled = true;
+            fileInfo.style.display = 'none';
+        }
+    });
+    
+    // Form submission handler
+    uploadForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(uploadForm);
+        
+        // Show progress bar
+        uploadProgress.style.display = 'block';
+        uploadBtn.innerHTML = '<i class="material-icons left">hourglass_empty</i>Caricamento...';
+        uploadBtn.disabled = true;
+        
+        // Simulate progress (replace with actual upload progress if available)
+        let progress = 0;
+        const progressBar = uploadProgress.querySelector('.determinate');
+        const progressInterval = setInterval(() => {
+            progress += Math.random() * 15;
+            if (progress > 90) progress = 90;
+            progressBar.style.width = progress + '%';
+        }, 200);
+        
+        // Submit form
+        fetch(uploadForm.action, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            clearInterval(progressInterval);
+            progressBar.style.width = '100%';
+            
+            if (response.ok) {
+                M.toast({html: 'File caricato con successo!', classes: 'green'});
+                setTimeout(() => {
+                    window.location.href = "{{ url_for('projects.view_project', project_id=project.id) }}";
+                }, 1000);
+            } else {
+                throw new Error('Errore durante il caricamento');
+            }
+        })
+        .catch(error => {
+            clearInterval(progressInterval);
+            uploadProgress.style.display = 'none';
+            uploadBtn.innerHTML = '<i class="material-icons left">cloud_upload</i>Carica File';
+            uploadBtn.disabled = false;
+            M.toast({html: 'Errore durante il caricamento del file', classes: 'red'});
+        });
+    });
+});
+</script>
+{% endblock %}

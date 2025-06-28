@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block title %}Vista Singola Riga - {{ sheet.name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col s12">
+            <nav>
+                <div class="nav-wrapper">
+                    <div class="col s12">
+                        <a href="{{ url_for('main.dashboard') }}" class="breadcrumb">Dashboard</a>
+                        <a href="{{ url_for('projects.view_project', project_id=project.id) }}" class="breadcrumb">{{ project.name }}</a>
+                        <a href="{{ url_for('ml.view_ml_dashboard', project_id=project.id) }}" class="breadcrumb">Machine Learning</a>
+                        <span class="breadcrumb">Vista Riga - {{ sheet.name }}</span>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">
+                        <i class="material-icons left">view_list</i>
+                        Vista Singola Riga
+                    </span>
+                    <p>Visualizzazione orizzontale di una singola riga con tutte le sue celle</p>
+                </div>
+                <div class="card-action">
+                    <a href="{{ url_for('ml.single_column_view', project_id=project.id, sheet_id=sheet.id) }}" 
+                       class="btn waves-effect waves-light blue">
+                        <i class="material-icons left">view_column</i>
+                        Vista Singola Colonna
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Row Selection -->
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">Seleziona Riga</span>
+                    <div class="input-field">
+                        <input id="row-selector" type="number" min="1" placeholder="Inserisci numero riga">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Row Data Display -->
+    <div class="row" id="row-data-display" style="display: none;">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title" id="row-title">Dati Riga</span>
+                    <div class="row" id="row-cells-container">
+                        <!-- Le celle verranno caricate dinamicamente qui -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Gestione selezione riga
+    document.getElementById('row-selector').addEventListener('change', function() {
+        const rowNumber = parseInt(this.value);
+        if (!rowNumber || rowNumber < 1) return;
+
+        // Mostra sezione dati
+        document.getElementById('row-data-display').style.display = 'block';
+        document.getElementById('row-title').textContent = `Dati Riga: ${rowNumber}`;
+
+        // Simula caricamento dati (sostituire con chiamata API reale)
+        const container = document.getElementById('row-cells-container');
+        container.innerHTML = '';
+
+        // Simula colonne
+        const columns = ['Colonna1', 'Colonna2', 'Colonna3', 'Colonna4', 'Colonna5'];
+        
+        columns.forEach((column, index) => {
+            const cell = document.createElement('div');
+            cell.className = 'col s12 m6 l3';
+            cell.innerHTML = `<div class="card-panel">
+                <h6>${column}</h6>
+                <div class="cell-value">Valore ${rowNumber}-${index + 1}</div>
+            </div>`;
+            container.appendChild(cell);
+        });
+    });
+});
+</script>
+
+<style>
+.cell-value {
+    padding: 10px;
+    background-color: #f5f5f5;
+    border-radius: 4px;
+    margin-top: 10px;
+    min-height: 60px;
+}
+
+.card-panel {
+    min-height: 180px;
+    background-color: #1976d2;
+    color: white;
+    border-radius: 4px;
+    padding: 15px;
+    margin-bottom: 10px;
+}
+
+.card-panel h6 {
+    color: white;
+    font-weight: bold;
+    border-bottom: 1px solid rgba(255,255,255,0.2);
+    padding-bottom: 8px;
+    margin-top: 0;
+}
+
+.cell-value {
+    padding: 10px;
+    background-color: rgba(255,255,255,0.1);
+    border-radius: 4px;
+    margin-top: 10px;
+    min-height: 60px;
+    word-break: break-word;
+}
+</style>
+{% endblock %}

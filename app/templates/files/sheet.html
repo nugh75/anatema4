@@ -1,0 +1,565 @@
+{% extends "base.html" %}
+
+{% block title %}{{ sheet.name }} - {{ file.original_name }} - Anatema{% endblock %}
+
+{% block content %}
+<div class="container-fluid" style="margin-top: 30px;">
+    <!-- Breadcrumb -->
+    <div class="row">
+        <div class="col s12">
+            <nav class="transparent z-depth-0">
+                <div class="nav-wrapper">
+                    <div class="col s12">
+                        <a href="{{ url_for('main.dashboard') }}" class="breadcrumb blue-text">Dashboard</a>
+                        <a href="{{ url_for('projects.list_projects') }}" class="breadcrumb blue-text">Progetti</a>
+                        <a href="{{ url_for('projects.view_project', project_id=file.project_id) }}" class="breadcrumb blue-text">{{ file.project.name }}</a>
+                        <a href="{{ url_for('files.view_file', file_id=file.id) }}" class="breadcrumb blue-text">{{ file.original_name }}</a>
+                        <a href="#!" class="breadcrumb grey-text">{{ sheet.name }}</a>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Sheet Header -->
+    <div class="row">
+        <div class="col s12">
+            <div class="card-panel blue darken-2 white-text">
+                <div class="row valign-wrapper" style="margin-bottom: 0;">
+                    <div class="col s12 m8">
+                        <h4 style="margin: 0;">
+                            <i class="material-icons left">table_chart</i>{{ sheet.name }}
+                        </h4>
+                        <p style="margin: 0;">
+                            {{ sheet.row_count }} righe × {{ sheet.column_count }} colonne
+                        </p>
+                    </div>
+                    <div class="col s12 m4 right-align">
+                        <a href="{{ url_for('files.view_file', file_id=file.id) }}" class="btn waves-effect waves-light white blue-text">
+                            <i class="material-icons left">arrow_back</i>Torna al File
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sheet Controls -->
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <div class="row" style="margin-bottom: 0;">
+                        <div class="col s12 m6">
+                            <h6><i class="material-icons left">settings</i>Controlli Visualizzazione</h6>
+                            <div class="switch">
+                                <label>
+                                    Modalità Compatta
+                                    <input type="checkbox" id="compact-mode">
+                                    <span class="lever"></span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col s12 m6">
+                            <h6><i class="material-icons left">label</i>Etichettatura</h6>
+                            <a href="#label-modal" class="btn waves-effect waves-light green modal-trigger">
+                                <i class="material-icons left">add</i>Applica Etichetta
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Table -->
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">
+                        <i class="material-icons left">grid_on</i>Dati del Foglio
+                        <span class="right">
+                            Pagina {{ rows.page }} di {{ rows.pages }} 
+                            ({{ rows.total }} righe totali)
+                        </span>
+                    </span>
+                    
+                    {% if rows.items %}
+                        <div class="table-container" style="overflow-x: auto;">
+                            <table class="striped responsive-table" id="data-table">
+                                <thead>
+                                    <tr class="header-fix">
+                                        <th style="width: 50px;">#</th>
+                                        {% for column in columns %}
+                                            <th data-column-index="{{ column.column_index }}">
+                                                {{ column.name }}
+                                                <br><small class="grey-text">{{ column.data_type }}</small>
+                                            </th>
+                                        {% endfor %}
+                                        <th style="width: 100px;">Azioni</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for row in rows.items %}
+                                        <tr data-row-id="{{ row.id }}" data-row-index="{{ row.row_index }}">
+                                            <td><strong>{{ row.row_index + 1 }}</strong></td>
+                                            {% for column in columns %}
+                                                <td class="data-cell" 
+                                                    data-column-index="{{ column.column_index }}"
+                                                    data-column-name="{{ column.name }}"
+                                                    data-cell-value="{{ row.data.get(column.name, '') if row.data else '' }}">
+                                                    <div class="cell-content">
+                                                        {{ row.data.get(column.name, '') if row.data else '' }}
+                                                    </div>
+                                                    <div class="cell-labels"></div>
+                                                </td>
+                                            {% endfor %}
+                                            <td>
+                                                <a href="#" class="btn-small waves-effect waves-light blue label-cell-btn" 
+                                                   data-row-id="{{ row.id }}">
+                                                    <i class="material-icons">label</i>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- Pagination -->
+                        {% if rows.pages > 1 %}
+                            <div class="row" style="margin-top: 20px;">
+                                <div class="col s12 center-align">
+                                    <ul class="pagination">
+                                        {% if rows.has_prev %}
+                                            <li class="waves-effect">
+                                                <a href="{{ url_for('files.view_sheet', file_id=file.id, sheet_id=sheet.id, page=rows.prev_num) }}">
+                                                    <i class="material-icons">chevron_left</i>
+                                                </a>
+                                            </li>
+                                        {% endif %}
+                                        
+                                        {% for page_num in rows.iter_pages() %}
+                                            {% if page_num %}
+                                                {% if page_num != rows.page %}
+                                                    <li class="waves-effect">
+                                                        <a href="{{ url_for('files.view_sheet', file_id=file.id, sheet_id=sheet.id, page=page_num) }}">{{ page_num }}</a>
+                                                    </li>
+                                                {% else %}
+                                                    <li class="active blue darken-2">
+                                                        <a href="#!">{{ page_num }}</a>
+                                                    </li>
+                                                {% endif %}
+                                            {% else %}
+                                                <li class="disabled">
+                                                    <span>…</span>
+                                                </li>
+                                            {% endif %}
+                                        {% endfor %}
+                                        
+                                        {% if rows.has_next %}
+                                            <li class="waves-effect">
+                                                <a href="{{ url_for('files.view_sheet', file_id=file.id, sheet_id=sheet.id, page=rows.next_num) }}">
+                                                    <i class="material-icons">chevron_right</i>
+                                                </a>
+                                            </li>
+                                        {% endif %}
+                                    </ul>
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="center-align" style="padding: 40px 20px;">
+                            <i class="material-icons large grey-text">grid_off</i>
+                            <h6 class="grey-text">Nessun dato disponibile</h6>
+                            <p class="grey-text">Il foglio non contiene dati o non è stato elaborato correttamente.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Label Application Modal -->
+<div id="label-modal" class="modal modal-fixed-footer">
+    <div class="modal-content">
+        <h4><i class="material-icons left">label</i>Applica Etichetta</h4>
+        
+        <div id="selected-cell-info" class="card-panel grey lighten-4" style="display: block;">
+            <h6>Cella Selezionata</h6>
+            <p id="cell-details"></p>
+        </div>
+        
+        <div class="input-field">
+            <select id="label-select">
+                <option value="" disabled selected>Scegli un'etichetta</option>
+                {% for label in file.project.labels %}
+                    <option value="{{ label.id }}" data-color="{{ label.color }}">{{ label.name }}</option>
+                {% endfor %}
+            </select>
+            <label>Etichetta</label>
+        </div>
+        
+        <!-- Sezione AI e Prompt Scientifico -->
+        <div class="row">
+            <div class="col s12">
+                <div class="card-panel blue lighten-5">
+                    <h6><i class="material-icons left">psychology</i>Assistenza AI per Ricerca Scientifica</h6>
+                    <p>
+                        <label>
+                            <input type="checkbox" id="use-ai-suggestion" />
+                            <span>Usa suggerimento AI per questa etichetta</span>
+                        </label>
+                    </p>
+                    <div class="input-field">
+                        <textarea id="scientific-prompt" class="materialize-textarea">{% if file.project.ai_research_prompt %}{{ file.project.ai_research_prompt }}{% else %}Durante l'analisi di questo dataset per ricerca scientifica, considera il contesto tematico e suggerisci etichette che possano rivelare pattern significativi. Se la tassonomia esistente è insufficiente, proponi nuovi codici tematicamente rilevanti che possano contribuire all'avanzamento della conoscenza nel dominio di ricerca.{% endif %}</textarea>
+                        <label for="scientific-prompt">Prompt per AI (configurabile per protocolli di ricerca specifici)</label>
+                    </div>
+                    <p class="grey-text text-darken-1">
+                        <i class="material-icons tiny">info</i>
+                        Questo prompt guida l'AI nella creazione di etichette scientificamente rilevanti per il tuo protocollo di ricerca.
+                    </p>
+                    <div class="center-align">
+                        <button type="button" class="btn waves-effect waves-light orange" id="get-ai-suggestion-btn">
+                            <i class="material-icons left">lightbulb_outline</i>Ottieni Suggerimento AI
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        {% if not file.project.labels %}
+            <div class="card-panel orange lighten-4">
+                <p class="orange-text">
+                    <i class="material-icons left">warning</i>
+                    Nessuna etichetta disponibile. 
+                    <a href="{{ url_for('labels.create_label', project_id=file.project_id) }}" class="orange-text">
+                        Crea la prima etichetta
+                    </a>
+                </p>
+            </div>
+        {% endif %}
+    </div>
+    <div class="modal-footer">
+        <a href="#!" class="modal-close waves-effect waves-green btn-flat">Annulla</a>
+        <button type="button" class="waves-effect waves-green btn green" id="apply-label-btn" disabled>
+            <i class="material-icons left">check</i>Applica Etichetta
+        </button>
+    </div>
+</div>
+
+<!-- Box conferma etichetta applicata -->
+<div id="label-confirm-box" class="modal">
+    <div class="modal-content">
+        <h5><i class="material-icons left">check_circle</i>Etichetta applicata!</h5>
+        <p id="label-confirm-details"></p>
+    </div>
+    <div class="modal-footer">
+        <a href="#!" class="modal-close waves-effect waves-green btn-flat">OK</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.breadcrumb {
+    font-size: 14px;
+}
+
+.table-container {
+    max-height: 98vh;
+    overflow-y: auto;
+    min-width: 1200px;
+    max-width: 99vw;
+}
+
+#data-table {
+    font-size: 1rem;
+    min-width: 1200px;
+    max-width: 100%;
+}
+
+#data-table th,
+#data-table td.data-cell {
+    min-width: 300px;
+}
+
+.header-fix th, .header-fix td, .header-fix {
+    background-color: #f5f5f5 !important;
+    color: #111 !important;
+    font-weight: bold;
+}
+
+#data-table th {
+    background-color: #f5f5f5;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.data-cell {
+    position: relative;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.data-cell:hover {
+    background-color: #e3f2fd;
+}
+
+.data-cell.selected {
+    /* background-color: #2196f3; */
+    /* color: white; */
+}
+
+.cell-content {
+    min-width: 300px;
+    word-break: break-word;
+    white-space: pre-line;
+}
+
+.cell-labels {
+    margin-top: 5px;
+}
+
+.cell-label-chip {
+    font-size: 0.7rem;
+    height: 20px;
+    line-height: 20px;
+    margin: 2px;
+}
+
+.compact-mode #data-table {
+    font-size: 0.8rem;
+}
+
+.compact-mode .cell-content {
+    min-width: 200px;
+    word-break: break-word;
+    white-space: pre-line;
+}
+
+.compact-mode #data-table th,
+.compact-mode #data-table td {
+    padding: 8px 5px;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize components
+    var modals = document.querySelectorAll('.modal');
+    M.Modal.init(modals);
+    
+    var selects = document.querySelectorAll('select');
+    M.FormSelect.init(selects);
+    
+    var textareas = document.querySelectorAll('textarea');
+    M.textareaAutoResize(textareas);
+    
+    // Variables
+    let selectedCell = null;
+    let lastClickedCell = null;
+    const labelModal = M.Modal.getInstance(document.getElementById('label-modal'));
+    const labelConfirmBox = document.getElementById('label-confirm-box');
+    const labelConfirmModal = M.Modal.init(labelConfirmBox, {dismissible: true});
+    const selectedCellInfo = document.getElementById('selected-cell-info');
+    const cellDetails = document.getElementById('cell-details');
+    const labelSelect = document.getElementById('label-select');
+    const applyLabelBtn = document.getElementById('apply-label-btn');
+    const labelConfirmDetails = document.getElementById('label-confirm-details');
+    
+    // Compact mode toggle
+    const compactModeToggle = document.getElementById('compact-mode');
+    compactModeToggle.addEventListener('change', function() {
+        document.body.classList.toggle('compact-mode', this.checked);
+    });
+    
+    document.querySelectorAll('.data-cell').forEach(cell => {
+        cell.addEventListener('click', function() {
+            // Aggiorna info cella
+            selectedCell = {
+                rowId: this.closest('tr').dataset.rowId,
+                columnIndex: this.dataset.columnIndex,
+                columnName: this.dataset.columnName,
+                cellValue: this.dataset.cellValue,
+                rowIndex: this.closest('tr').dataset.rowIndex
+            };
+            lastClickedCell = this; // salva riferimento alla cella cliccata
+            cellDetails.innerHTML = `
+                <strong>Riga:</strong> ${parseInt(selectedCell.rowIndex) + 1}<br>
+                <strong>Colonna:</strong> ${selectedCell.columnName}<br>
+                <strong>Valore:</strong> ${selectedCell.cellValue || '(vuoto)'}
+            `;
+            selectedCellInfo.style.display = 'block';
+            if (labelSelect.value) {
+                applyLabelBtn.disabled = false;
+            }
+            labelModal.open();
+        });
+    });
+    
+    // Label selection
+    labelSelect.addEventListener('change', function() {
+        if (selectedCell && this.value) {
+            applyLabelBtn.disabled = false;
+        } else {
+            applyLabelBtn.disabled = true;
+        }
+    });
+    
+    // Apply label
+    applyLabelBtn.addEventListener('click', function() {
+        if (!selectedCell || !labelSelect.value) {
+            M.toast({html: 'Seleziona una cella e un\'etichetta', classes: 'red'});
+            return;
+        }
+        const formData = new FormData();
+        formData.append('row_id', selectedCell.rowId);
+        formData.append('label_id', labelSelect.value);
+        formData.append('column_index', selectedCell.columnIndex);
+        const payload = {
+            row_id: selectedCell.rowId,
+            label_id: labelSelect.value,
+            column_index: selectedCell.columnIndex,
+            cell_value: selectedCell.cellValue
+        };
+        
+        fetch('{{ url_for("labels.apply_label") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.message) {
+                M.toast({html: data.message, classes: 'green'});
+                // Add visual label to cell (usa lastClickedCell invece di .selected)
+                if (lastClickedCell) {
+                    const labelOption = labelSelect.options[labelSelect.selectedIndex];
+                    const labelColor = labelOption.dataset.color;
+                    const labelName = labelOption.text;
+                    const labelChip = document.createElement('div');
+                    labelChip.className = 'chip cell-label-chip';
+                    labelChip.style.backgroundColor = labelColor;
+                    labelChip.style.color = 'white';
+                    labelChip.textContent = labelName;
+                    lastClickedCell.querySelector('.cell-labels').appendChild(labelChip);
+                }
+                // Mostra box conferma
+                labelConfirmDetails.innerHTML = `
+                    <strong>Etichetta:</strong> <span class=\"chip\" style=\"background:${labelOption.dataset.color};color:white;\">${labelOption.text}</span><br>
+                    <strong>Riga:</strong> ${parseInt(selectedCell.rowIndex) + 1}<br>
+                    <strong>Colonna:</strong> ${selectedCell.columnName}<br>
+                    <strong>Valore:</strong> ${selectedCell.cellValue || '(vuoto)'}
+                `;
+                labelConfirmModal.open();
+                // Chiudi e resetta il modal etichetta
+                labelModal.close();
+                selectedCell = null;
+                lastClickedCell = null;
+                selectedCellInfo.style.display = 'block';
+                labelSelect.selectedIndex = 0;
+                M.FormSelect.init(labelSelect);
+                applyLabelBtn.disabled = true;
+            } else {
+                M.toast({html: data.error || 'Errore durante l\'applicazione dell\'etichetta', classes: 'red'});
+            }
+        })
+        .catch(error => {
+            M.toast({html: 'Errore di connessione', classes: 'red'});
+        });
+    });
+    
+    // Quick label buttons
+    document.querySelectorAll('.label-cell-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const row = this.closest('tr');
+            const firstCell = row.querySelector('.data-cell');
+            if (firstCell) {
+                firstCell.click();
+                labelModal.open();
+            }
+        });
+    });
+    
+    // AI Suggestion functionality
+    const getAiSuggestionBtn = document.getElementById('get-ai-suggestion-btn');
+    const scientificPrompt = document.getElementById('scientific-prompt');
+    
+    if (getAiSuggestionBtn) {
+        getAiSuggestionBtn.addEventListener('click', function() {
+            if (!selectedCell) {
+                M.toast({html: 'Seleziona prima una cella', classes: 'red'});
+                return;
+            }
+            
+            // Disabilita il pulsante durante la richiesta
+            this.disabled = true;
+            this.innerHTML = '<i class="material-icons left">hourglass_empty</i>Analizzando...';
+            
+            const requestData = {
+                cell_value: selectedCell.cellValue,
+                column_name: selectedCell.columnName,
+                row_index: selectedCell.rowIndex,
+                scientific_prompt: scientificPrompt.value,
+                existing_labels: Array.from(labelSelect.options).slice(1).map(opt => ({
+                    id: opt.value,
+                    name: opt.text
+                }))
+            };
+            
+            // Simula chiamata AI (sostituire con vera chiamata API)
+            setTimeout(() => {
+                let suggestedLabel = 'Contenuto Generico';
+                const cellValue = selectedCell.cellValue?.toLowerCase() || '';
+                
+                // Logica AI simulata basata sul contenuto
+                if (cellValue.includes('positiv') || cellValue.includes('buon') || cellValue.includes('ottim')) {
+                    suggestedLabel = 'Sentiment Positivo';
+                } else if (cellValue.includes('negativ') || cellValue.includes('cattiv') || cellValue.includes('pessim')) {
+                    suggestedLabel = 'Sentiment Negativo';
+                } else if (cellValue.match(/\d+/)) {
+                    suggestedLabel = 'Valore Numerico';
+                } else if (cellValue.includes('import') || cellValue.includes('rilevan')) {
+                    suggestedLabel = 'Importante';
+                } else if (cellValue.includes('problem') || cellValue.includes('error')) {
+                    suggestedLabel = 'Problematico';
+                }
+                
+                // Verifica se l'etichetta suggerita esiste già
+                const existingOption = Array.from(labelSelect.options).find(opt =>
+                    opt.text.toLowerCase() === suggestedLabel.toLowerCase()
+                );
+                
+                if (existingOption) {
+                    // Seleziona l'etichetta esistente
+                    labelSelect.value = existingOption.value;
+                    M.FormSelect.init(labelSelect);
+                    M.toast({html: `AI suggerisce l'etichetta esistente: "${suggestedLabel}"`, classes: 'blue'});
+                } else {
+                    // Mostra suggerimento per nuova etichetta
+                    M.toast({html: `AI suggerisce una nuova etichetta: "${suggestedLabel}". Considera di crearla nel progetto.`, classes: 'orange'});
+                }
+                
+                // Re-abilita il pulsante
+                getAiSuggestionBtn.disabled = false;
+                getAiSuggestionBtn.innerHTML = '<i class="material-icons left">lightbulb_outline</i>Ottieni Suggerimento AI';
+                
+                // Abilita il pulsante applica se c'è una selezione
+                if (labelSelect.value) {
+                    applyLabelBtn.disabled = false;
+                }
+            }, 2000);
+        });
+    }
+});
+</script>
+{% endblock %}

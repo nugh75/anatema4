@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+
+{% block title %}Login - Anatema{% endblock %}
+
+{% block content %}
+<div class="container" style="margin-top: 50px;">
+    <div class="row">
+        <div class="col s12 m8 offset-m2 l6 offset-l3">
+            <div class="card">
+                <div class="card-content">
+                    <div class="center-align" style="margin-bottom: 30px;">
+                        <i class="material-icons large blue-text">account_circle</i>
+                        <h4 class="blue-text text-darken-2">Accedi</h4>
+                        <p class="grey-text">Inserisci le tue credenziali per accedere</p>
+                    </div>
+
+                    <form method="POST" action="{{ url_for('auth.login') }}">
+                        <div class="input-field">
+                            <i class="material-icons prefix">person</i>
+                            <input id="username" name="username" type="text" class="validate" required>
+                            <label for="username">Username o Email</label>
+                        </div>
+
+                        <div class="input-field">
+                            <i class="material-icons prefix">lock</i>
+                            <input id="password" name="password" type="password" class="validate" required>
+                            <label for="password">Password</label>
+                        </div>
+
+                        <div class="input-field">
+                            <label>
+                                <input type="checkbox" name="remember" />
+                                <span>Ricordami</span>
+                            </label>
+                        </div>
+
+                        <div class="center-align" style="margin-top: 30px;">
+                            <button type="submit" class="btn-large waves-effect waves-light blue darken-2">
+                                <i class="material-icons left">login</i>Accedi
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="card-action center-align">
+                    <p>Non hai un account? 
+                        <a href="{{ url_for('auth.register') }}" class="blue-text">Registrati qui</a>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Demo Account Info -->
+            <div class="card blue lighten-5">
+                <div class="card-content">
+                    <span class="card-title blue-text">
+                        <i class="material-icons left">info</i>Account Demo
+                    </span>
+                    <p>Per testare l'applicazione, puoi utilizzare:</p>
+                    <ul class="collection">
+                        <li class="collection-item">
+                            <strong>Username:</strong> admin<br>
+                            <strong>Password:</strong> admin123
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.card {
+    margin-top: 20px;
+    border-radius: 8px;
+}
+
+.input-field {
+    margin-bottom: 25px;
+}
+
+.prefix {
+    color: #1976d2 !important;
+}
+
+.btn-large {
+    width: 100%;
+    border-radius: 25px;
+}
+
+.card-action {
+    background-color: #fafafa;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Focus on username field
+    document.getElementById('username').focus();
+    
+    // Handle form submission
+    const form = document.querySelector('form');
+    form.addEventListener('submit', function(e) {
+        const submitBtn = form.querySelector('button[type="submit"]');
+        submitBtn.innerHTML = '<i class="material-icons left">hourglass_empty</i>Accesso in corso...';
+        submitBtn.disabled = true;
+    });
+});
+</script>
+{% endblock %}

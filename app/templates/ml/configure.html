@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+
+{% block title %}Configurazione Machine Learning - {{ project.name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col s12">
+            <nav>
+                <div class="nav-wrapper">
+                    <div class="col s12">
+                        <a href="{{ url_for('main.dashboard') }}" class="breadcrumb">Dashboard</a>
+                        <a href="{{ url_for('projects.view_project', project_id=project.id) }}" class="breadcrumb">{{ project.name }}</a>
+                        <span class="breadcrumb">Configurazione ML</span>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">
+                        <i class="material-icons left">settings</i>
+                        Configurazione Machine Learning
+                    </span>
+                    <p>Configura le impostazioni per l'analisi automatica e l'etichettatura intelligente dei dati.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <form method="POST" id="ml-config-form">
+        <div class="row">
+            <!-- Informazioni Generali -->
+            <div class="col s12 l6">
+                <div class="card">
+                    <div class="card-content">
+                        <span class="card-title">Informazioni Generali</span>
+                        
+                        <div class="input-field">
+                            <input id="name" name="name" type="text" class="validate" required 
+                                   value="{{ current_config.name if current_config else '' }}">
+                            <label for="name">Nome Configurazione</label>
+                        </div>
+
+                        <div class="input-field">
+                            <textarea id="description" name="description" class="materialize-textarea">{{ current_config.description if current_config else '' }}</textarea>
+                            <label for="description">Descrizione</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Provider ML -->
+            <div class="col s12 l6">
+                <div class="card">
+                    <div class="card-content">
+                        <span class="card-title">Provider Machine Learning</span>
+                        
+                        <div class="input-field">
+                            <select id="ml_provider" name="ml_provider" required>
+                                <option value="openrouter" {{ 'selected' if current_config and current_config.ml_provider == 'openrouter' else '' }}>OpenRouter</option>
+                                <option value="ollama" {{ 'selected' if current_config and current_config.ml_provider == 'ollama' else '' }}>Ollama (Locale)</option>
+                            </select>
+                            <label>Provider</label>
+                        </div>
+
+                        <div class="input-field">
+                            <input id="ml_model" name="ml_model" type="text" class="validate" required
+                                   value="{{ current_config.ml_model if current_config else 'anthropic/claude-3-haiku' }}">
+                            <label for="ml_model">Modello</label>
+                            <span class="helper-text">Es: anthropic/claude-3-haiku, llama2, mistral</span>
+                        </div>
+
+                        <div class="input-field" id="api_key_field">
+                            <input id="api_key" name="api_key" type="password" class="validate"
+                                   value="{{ current_config.api_key_encrypted if current_config else '' }}">
+                            <label for="api_key">API Key</label>
+                            <span class="helper-text">Richiesta per OpenRouter</span>
+                        </div>
+
+                        <div class="input-field">
+                            <input id="api_url" name="api_url" type="url" class="validate"
+                                   value="{{ current_config.api_url if current_config else '' }}">
+                            <label for="api_url">URL API (opzionale)</label>
+                            <span class="helper-text">Lascia vuoto per usare l'URL di default</span>
+                        </div>
+
+                        <div class="row">
+                            <div class="col s12">
+                                <button type="button" class="btn waves-effect waves-light orange" id="test-connection-btn">
+                                    <i class="material-icons left">wifi</i>
+                                    Testa Connessione
+                                </button>
+                                <div id="connection-test-result" class="card-panel" style="display: none; margin-top: 10px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Impostazioni Analisi -->
+            <div class="col s12 l6">
+                <div class="card">
+                    <div class="card-content">
+                        <span class="card-title">Impostazioni Analisi</span>
+                        
+                        <p>
+                            <label>
+                                <input type="checkbox" name="auto_detect_columns" value="true" 
+                                       {{ 'checked' if current_config and current_config.auto_detect_columns else 'checked' }}>
+                                <span>Rilevamento automatico tipi di colonna</span>
+                            </label>
+                        </p>
+
+                        <p>
+                            <label>
+                                <input type="checkbox" name="sentiment_analysis_enabled" value="true"
+                                       {{ 'checked' if current_config and current_config.sentiment_analysis_enabled else 'checked' }}>
+                                <span>Analisi del sentiment</span>
+                            </label>
+                        </p>
+
+                        <div class="input-field">
+                            <input id="min_unique_values" name="min_unique_values" type="number" min="1" max="50" class="validate"
+                                   value="{{ current_config.min_unique_values if current_config else 3 }}">
+                            <label for="min_unique_values">Valori unici minimi per analisi</label>
+                        </div>
+
+                        <div class="input-field">
+                            <input id="max_text_length" name="max_text_length" type="number" min="100" max="5000" class="validate"
+                                   value="{{ current_config.max_text_length if current_config else 1000 }}">
+                            <label for="max_text_length">Lunghezza massima testo (caratteri)</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Impostazioni Clustering -->
+            <div class="col s12 l6">
+                <div class="card">
+                    <div class="card-content">
+                        <span class="card-title">Impostazioni Clustering</span>
+                        
+                        <div class="input-field">
+                            <input id="clustering_min_samples" name="clustering_min_samples" type="number" min="2" max="20" class="validate"
+                                   value="{{ current_config.clustering_min_samples if current_config else 5 }}">
+                            <label for="clustering_min_samples">Campioni minimi per cluster</label>
+                        </div>
+
+                        <div class="range-field">
+                            <label for="preferred_open_question_threshold">Soglia domande aperte: <span id="threshold-value">{{ current_config.preferred_open_question_threshold if current_config else 0.7 }}</span></label>
+                            <input type="range" id="preferred_open_question_threshold" name="preferred_open_question_threshold" 
+                                   min="0.1" max="1.0" step="0.1" 
+                                   value="{{ current_config.preferred_open_question_threshold if current_config else 0.7 }}">
+                        </div>
+
+                        <div class="range-field">
+                            <label for="text_variability_threshold">Soglia variabilità testo: <span id="variability-value">{{ current_config.text_variability_threshold if current_config else 0.5 }}</span></label>
+                            <input type="range" id="text_variability_threshold" name="text_variability_threshold" 
+                                   min="0.1" max="1.0" step="0.1" 
+                                   value="{{ current_config.text_variability_threshold if current_config else 0.5 }}">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col s12">
+                <div class="card">
+                    <div class="card-action">
+                        <button type="submit" class="btn waves-effect waves-light blue">
+                            <i class="material-icons left">save</i>
+                            Salva Configurazione
+                        </button>
+                        <a href="{{ url_for('ml.view_ml_dashboard', project_id=project.id) }}" class="btn waves-effect waves-light grey">
+                            <i class="material-icons left">cancel</i>
+                            Annulla
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Inizializza componenti Materialize
+    M.FormSelect.init(document.querySelectorAll('select'));
+    
+    // Aggiorna valori range
+    const thresholdRange = document.getElementById('preferred_open_question_threshold');
+    const thresholdValue = document.getElementById('threshold-value');
+    const variabilityRange = document.getElementById('text_variability_threshold');
+    const variabilityValue = document.getElementById('variability-value');
+    
+    thresholdRange.addEventListener('input', function() {
+        thresholdValue.textContent = this.value;
+    });
+    
+    variabilityRange.addEventListener('input', function() {
+        variabilityValue.textContent = this.value;
+    });
+    
+    // Gestisci cambio provider
+    const providerSelect = document.getElementById('ml_provider');
+    const apiKeyField = document.getElementById('api_key_field');
+    
+    function toggleApiKeyField() {
+        if (providerSelect.value === 'ollama') {
+            apiKeyField.style.display = 'none';
+            document.getElementById('api_key').removeAttribute('required');
+        } else {
+            apiKeyField.style.display = 'block';
+            document.getElementById('api_key').setAttribute('required', 'required');
+        }
+    }
+    
+    providerSelect.addEventListener('change', toggleApiKeyField);
+    toggleApiKeyField(); // Inizializza
+    
+    // Test connessione
+    document.getElementById('test-connection-btn').addEventListener('click', function() {
+        const btn = this;
+        const resultDiv = document.getElementById('connection-test-result');
+        
+        btn.disabled = true;
+        btn.innerHTML = '<i class="material-icons left">hourglass_empty</i>Testando...';
+        
+        const formData = new FormData();
+        formData.append('ml_provider', document.getElementById('ml_provider').value);
+        formData.append('ml_model', document.getElementById('ml_model').value);
+        formData.append('api_key', document.getElementById('api_key').value);
+        formData.append('api_url', document.getElementById('api_url').value);
+        
+        fetch('{{ url_for("ml.test_ml_connection") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(Object.fromEntries(formData))
+        })
+        .then(response => response.json())
+        .then(data => {
+            resultDiv.style.display = 'block';
+            
+            if (data.status === 'success') {
+                resultDiv.className = 'card-panel green lighten-4';
+                resultDiv.innerHTML = `
+                    <i class="material-icons left green-text">check_circle</i>
+                    <strong>Connessione riuscita!</strong><br>
+                    Provider: ${data.provider}<br>
+                    Modello: ${data.model}<br>
+                    Tempo di risposta: ${data.response_time.toFixed(2)}s
+                `;
+            } else {
+                resultDiv.className = 'card-panel red lighten-4';
+                resultDiv.innerHTML = `
+                    <i class="material-icons left red-text">error</i>
+                    <strong>Connessione fallita:</strong><br>
+                    ${data.error || data.message}
+                `;
+            }
+        })
+        .catch(error => {
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'card-panel red lighten-4';
+            resultDiv.innerHTML = `
+                <i class="material-icons left red-text">error</i>
+                <strong>Errore:</strong> ${error.message}
+            `;
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="material-icons left">wifi</i>Testa Connessione';
+        });
+    });
+});
+</script>
+{% endblock %}
