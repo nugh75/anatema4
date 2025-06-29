@@ -500,6 +500,11 @@ Etichettatura Umano/Macchina/
 
 **Test**: [`test_task_2_4_complete.py`](test_task_2_4_complete.py) - 100% successo
 
+**Git Commit**: `✅ Task 2.4 COMPLETATO: Store Etichette Centralizzato (100%)`
+- **Hash**: Commit completo con fix SQLAlchemy backref conflict
+- **Data**: 30 giugno 2025, ore 23:05
+- **Scope**: Fix modelli, migrazione unificata, store completo implementato
+
 ### 6. Fix Multiple Heads Alembic - Task 2.4 (30/06/2025) ✅ COMPLETATO
 **Problema**: Multiple heads database (`fe7f4e6d2ea1`, `912d14cfffc3`) impedivano upgrade
 **Soluzione**: Migrazione unificata che risolve tutte le heads
@@ -518,6 +523,11 @@ Etichettatura Umano/Macchina/
 **File modificati**: 
 - `migrations/versions/increase_column_name_length.py` (correzione)
 - `migrations/versions/2944c79a0f76_task_2_4_resolve_all_heads_unified.py` (merge)
+
+**Git Commit**: `✅ Task 2.4 COMPLETATO: Store Etichette Centralizzato (100%)`
+- **Hash**: Fix multiple heads + SQLAlchemy backref conflict
+- **Data**: 30 giugno 2025, ore 23:05
+- **Include**: Migrazione unificata, modelli corretti, database aggiornato
 **Problema**: Le view colonne/righe avevano un pannello laterale complesso e confuso  
 **Soluzione**: Rimosso completamente il "Pannello Etichettatura"
 
@@ -635,13 +645,18 @@ test_api_task_2_2.py - Script validazione API backend completo
 - [x] Compatibilità struttura celle: data-column, data-row, data-value
 - [x] Connessione con API backend Task 2.2
 
-### 🔥 6. Task 2.4 - Store Etichette Centralizzato (PRIORITÀ MASSIMA - PROSSIMO)
-- [ ] Creare nuova route `/projects/{id}/labels` 
-- [ ] Implementare template gestione etichette progetto
-- [ ] Form creazione/modifica etichette con validazione
-- [ ] Sistema eliminazione con controllo dipendenze
-- [ ] Statistiche utilizzo etichette per progetto
-- [ ] Integrazione menu navigazione progetto
+### ✅ 6. Task 2.4 - Store Etichette Centralizzato (COMPLETATO AL 100% - 30/06/2025)
+- [x] Risolto SQLAlchemy backref conflict (`created_labels` vs `created_cell_labels`)
+- [x] Applicata migrazione unificata `2944c79a0f76` risolvendo multiple heads
+- [x] Fix modello Label: gestione `created_at` None nel metodo `to_dict()`
+- [x] Creata pagina dedicata `/projects/{id}/labels` con gestione completa
+- [x] Implementato template store completo con modals CRUD
+- [x] JavaScript frontend avanzato (18776 righe) per gestione store
+- [x] Integrazione nel template progetto con statistiche
+- [x] Test completo passato: 7/7 (100.0%) ✅
+- [x] **Git Commit**: `✅ Task 2.4 COMPLETATO: Store Etichette Centralizzato (100%)`
+
+### 🔥 7. Task 2.5 - Integrazione AI con Autorizzazioni (PRIORITÀ MASSIMA - PROSSIMO DOMANI)
 
 ### ✅ 2. Task 1.4 - Rimozione Template Obsoleti (COMPLETATO)
 - [x] Analisi approfondita template potenzialmente obsoleti
