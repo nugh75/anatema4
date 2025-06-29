@@ -11,7 +11,7 @@
                     <div class="col s12">
                         <a href="{{ url_for('main.dashboard') }}" class="breadcrumb">Dashboard</a>
                         <a href="{{ url_for('projects.view_project', project_id=project.id) }}" class="breadcrumb">{{ project.name }}</a>
-                        <a href="{{ url_for('ml.view_ml_dashboard', project_id=project.id) }}" class="breadcrumb">Machine Learning</a>
+                        <a href="{{ url_for('ml.view_ml_dashboard', project_id=project.id) }}" class="breadcrumb">Etichettatura Umano/Macchina</a>
                         <span class="breadcrumb">Etichettatura Avanzata Colonne - {{ sheet.name }}</span>
                     </div>
                 </div>
@@ -105,161 +105,66 @@
                             </a>
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- AI Labeling Templates -->
-    <div class="row" id="ai-templates-section" style="display: none;">
-        <div class="col s12">
-            <div class="card">
-                <div class="card-content">
-                    <span class="card-title">Template AI per Etichettatura</span>
-                    <div class="row">
-                        <div class="col s12 m6 l4">
-                            <div class="card-panel hoverable ai-template" data-template="sentiment">
-                                <h6><i class="material-icons left">sentiment_satisfied</i>Analisi Sentiment</h6>
-                                <p>Classifica il sentiment come positivo, negativo o neutrale</p>
-                                <div class="chip green">Positivo</div>
-                                <div class="chip red">Negativo</div>
-                                <div class="chip grey">Neutrale</div>
-                            </div>
-                        </div>
-                        <div class="col s12 m6 l4">
-                            <div class="card-panel hoverable ai-template" data-template="emotion">
-                                <h6><i class="material-icons left">mood</i>Rilevamento Emozioni</h6>
-                                <p>Identifica emozioni specifiche nel testo</p>
-                                <div class="chip yellow">Gioia</div>
-                                <div class="chip red">Rabbia</div>
-                                <div class="chip blue">Tristezza</div>
-                                <div class="chip purple">Paura</div>
-                            </div>
-                        </div>
-                        <div class="col s12 m6 l4">
-                            <div class="card-panel hoverable ai-template" data-template="behavior">
-                                <h6><i class="material-icons left">psychology</i>Classificazione Comportamentale</h6>
-                                <p>Classifica il comportamento espresso</p>
-                                <div class="chip orange">Aggressivo</div>
-                                <div class="chip blue">Passivo</div>
-                                <div class="chip green">Assertivo</div>
-                            </div>
-                        </div>
-                        <div class="col s12 m6 l4">
-                            <div class="card-panel hoverable ai-template" data-template="topic">
-                                <h6><i class="material-icons left">topic</i>Categorizzazione Argomenti</h6>
-                                <p>Identifica l'argomento principale del contenuto</p>
-                                <div class="chip teal">Tecnologia</div>
-                                <div class="chip indigo">Business</div>
-                                <div class="chip pink">Personale</div>
-                            </div>
-                        </div>
-                        <div class="col s12 m6 l4">
-                            <div class="card-panel hoverable ai-template" data-template="intent">
-                                <h6><i class="material-icons left">track_changes</i>Classificazione Intenti</h6>
-                                <p>Determina l'intento dell'utente</p>
-                                <div class="chip cyan">Richiesta</div>
-                                <div class="chip amber">Reclamo</div>
-                                <div class="chip lime">Complimento</div>
-                            </div>
-                        </div>
-                        <div class="col s12 m6 l4">
-                            <div class="card-panel hoverable ai-template" data-template="custom">
-                                <h6><i class="material-icons left">edit</i>Categoria Personalizzata</h6>
-                                <p>Definisci le tue categorie personalizzate</p>
-                                <div class="chip grey">Personalizzabile</div>
-                            </div>
+                    <div class="row" style="margin-top: 10px;">
+                        <div class="col s12">
+                            <a href="#" class="btn waves-effect waves-light blue btn-block" id="reload-data">
+                                <i class="material-icons left">refresh</i>
+                                Ricarica Dati Etichette
+                            </a>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- I template AI sono stati spostati nel modale #batch-ai-modal -->
 
     <!-- Cell Labeling Interface -->
     <div class="row" id="labeling-interface" style="display: none;">
         <div class="col s12 m8">
             <div class="card">
                 <div class="card-content">
-                    <span class="card-title">Etichettatura Celle</span>
-                    <div id="cells-container">
+                    <span class="card-title">
+                        Celle della Colonna: <span id="current-column-title">-</span>
+                    </span>
+                    <p>Clicca su una cella per etichettarla. Le celle già etichettate sono evidenziate in verde.</p>
+                    
+                    <div class="row" style="margin-bottom: 10px;">
+                        <div class="col s12">
+                            <div class="chip">
+                                Totale celle: <span id="total-cells-display">0</span>
+                            </div>
+                            <div class="chip green white-text">
+                                Etichettate: <span id="labeled-cells-display">0</span>
+                            </div>
+                            <div class="chip orange white-text">
+                                Rimanenti: <span id="remaining-cells-display">0</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="cells-container" style="max-height: 500px; overflow-y: auto;">
                         <!-- Le celle verranno caricate dinamicamente qui -->
                     </div>
+                    
                     <div class="center-align" style="margin-top: 20px;">
-                        <a href="#" class="btn waves-effect waves-light blue" id="prev-cell" disabled>
-                            <i class="material-icons left">chevron_left</i>
-                            Precedente
+                        <a href="#" class="btn waves-effect waves-light green" id="label-all-selected">
+                            <i class="material-icons left">done_all</i>
+                            Etichetta Tutte Selezionate
                         </a>
-                        <span id="cell-counter" style="margin: 0 20px;">1 / 1</span>
-                        <a href="#" class="btn waves-effect waves-light blue" id="next-cell">
-                            <i class="material-icons left">chevron_right</i>
-                            Successiva
+                        <a href="#" class="btn waves-effect waves-light purple" id="select-all">
+                            <i class="material-icons left">done_all</i>
+                            Seleziona Tutto
                         </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col s12 m4">
-            <div class="card">
-                <div class="card-content">
-                    <span class="card-title">Pannello Etichettatura</span>
-                    <div id="current-cell-info">
-                        <div class="card-panel grey lighten-4">
-                            <p><strong>Posizione:</strong> Riga <span id="current-row">-</span></p>
-                            <p><strong>Colonna:</strong> <span id="current-column">-</span></p>
-                            <p><strong>Valore:</strong></p>
-                            <div class="cell-value-display" id="current-value">Seleziona una cella</div>
-                        </div>
-                    </div>
-                    
-                    <!-- Manual Labeling -->
-                    <div class="section">
-                        <h6>Etichettatura Manuale</h6>
-                        <div class="input-field">
-                            <input id="manual-label" type="text" placeholder="Nome etichetta">
-                            <label for="manual-label">Etichetta</label>
-                        </div>
-                        <div class="input-field">
-                            <textarea id="manual-description" class="materialize-textarea" placeholder="Descrizione opzionale"></textarea>
-                            <label for="manual-description">Descrizione</label>
-                        </div>
-                        <a href="#" class="btn waves-effect waves-light green btn-block" id="save-manual-label">
-                            <i class="material-icons left">save</i>
-                            Salva Etichetta
+                        <a href="#" class="btn waves-effect waves-light blue" id="select-all-unlabeled">
+                            <i class="material-icons left">select_all</i>
+                            Seleziona Non Etichettate
                         </a>
-                    </div>
-                    
-                    <!-- AI Suggestions -->
-                    <div class="section">
-                        <h6>Suggerimenti AI</h6>
-                        <div id="ai-suggestions" style="display: none;">
-                            <div class="collection" id="suggestions-list">
-                                <!-- I suggerimenti AI verranno caricati qui -->
-                            </div>
-                        </div>
-                        <a href="#" class="btn waves-effect waves-light orange btn-block" id="get-ai-suggestions">
-                            <i class="material-icons left">psychology</i>
-                            Ottieni Suggerimenti AI
+                        <a href="#" class="btn waves-effect waves-light orange" id="clear-selection">
+                            <i class="material-icons left">clear</i>
+                            Deseleziona Tutte
                         </a>
-                    </div>
-                    
-                    <!-- Quality Control -->
-                    <div class="section">
-                        <h6>Controllo Qualità</h6>
-                        <div class="switch">
-                            <label>
-                                Validazione Automatica
-                                <input type="checkbox" id="auto-validation">
-                                <span class="lever"></span>
-                            </label>
-                        </div>
-                        <div class="confidence-display" style="margin-top: 10px; display: none;">
-                            <p>Confidenza AI: <span id="confidence-score">-</span>%</p>
-                            <div class="progress">
-                                <div class="determinate" id="confidence-bar" style="width: 0%"></div>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -273,19 +178,72 @@
         <h4>Etichettatura AI Batch</h4>
         <p>Seleziona un template AI per etichettare automaticamente tutte le celle della colonna selezionata.</p>
         
-        <div class="row">
+        <!-- AI Labeling Templates -->
+        <div class="row" id="ai-templates-section">
             <div class="col s12">
-                <div class="input-field">
-                    <select id="batch-template-selector">
-                        <option value="" disabled selected>Scegli un template</option>
-                        <option value="sentiment">Analisi Sentiment</option>
-                        <option value="emotion">Rilevamento Emozioni</option>
-                        <option value="behavior">Classificazione Comportamentale</option>
-                        <option value="topic">Categorizzazione Argomenti</option>
-                        <option value="intent">Classificazione Intenti</option>
-                        <option value="custom">Categoria Personalizzata</option>
-                    </select>
-                    <label>Template AI</label>
+                <span class="card-title" style="font-size: 1.2rem; margin-bottom: 10px; display: block;">Seleziona un Template AI</span>
+                
+                <!-- Template AI in formato rettangolare verticale -->
+                <div class="ai-template-container">
+                    <div class="ai-template-item" data-template="sentiment">
+                        <div class="template-icon">
+                            <i class="material-icons">sentiment_satisfied</i>
+                        </div>
+                        <div class="template-content">
+                            <h6>Sentiment Analysis</h6>
+                            <p>Classifica il contenuto come positivo, negativo o neutrale in base al tono espresso nel testo.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="ai-template-item" data-template="emotion">
+                        <div class="template-icon">
+                            <i class="material-icons">mood</i>
+                        </div>
+                        <div class="template-content">
+                            <h6>Riconoscimento Emozioni</h6>
+                            <p>Identifica emozioni specifiche come gioia, rabbia, tristezza, paura, sorpresa e disgusto.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="ai-template-item" data-template="behavior">
+                        <div class="template-icon">
+                            <i class="material-icons">psychology</i>
+                        </div>
+                        <div class="template-content">
+                            <h6>Analisi Comportamentale</h6>
+                            <p>Classifica il comportamento espresso come aggressivo, passivo, assertivo o collaborativo.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="ai-template-item" data-template="topic">
+                        <div class="template-icon">
+                            <i class="material-icons">topic</i>
+                        </div>
+                        <div class="template-content">
+                            <h6>Classificazione Argomenti</h6>
+                            <p>Identifica l'argomento principale o la categoria tematica del contenuto analizzato.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="ai-template-item" data-template="intent">
+                        <div class="template-icon">
+                            <i class="material-icons">track_changes</i>
+                        </div>
+                        <div class="template-content">
+                            <h6>Riconoscimento Intenti</h6>
+                            <p>Determina l'intenzione del testo: richiesta di informazioni, reclamo, complimento, domanda.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="ai-template-item" data-template="custom">
+                        <div class="template-icon">
+                            <i class="material-icons">edit</i>
+                        </div>
+                        <div class="template-content">
+                            <h6>Template Personalizzato</h6>
+                            <p>Definisci le tue categorie personalizzate per un'analisi specifica del progetto.</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -332,6 +290,92 @@
 </div>
 
 <style>
+/* Template AI containers e stili*/
+.ai-template-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 15px;
+}
+
+.ai-template-item {
+    display: flex;
+    align-items: center;
+    padding: 16px;
+    background: white;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-height: 80px;
+}
+
+.ai-template-item:hover {
+    border-color: #2196f3;
+    box-shadow: 0 4px 12px rgba(33, 150, 243, 0.2);
+    transform: translateY(-2px);
+}
+
+.ai-template-item.selected {
+    border-color: #4caf50;
+    background-color: #e8f5e8;
+    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+}
+
+.template-icon {
+    flex-shrink: 0;
+    margin-right: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    background: #f5f5f5;
+    border-radius: 50%;
+    transition: background-color 0.3s;
+}
+
+.ai-template-item:hover .template-icon {
+    background: #2196f3;
+    color: white;
+}
+
+.ai-template-item.selected .template-icon {
+    background: #4caf50;
+    color: white;
+}
+
+.template-icon i {
+    font-size: 24px;
+}
+
+.template-content {
+    flex: 1;
+}
+
+.template-content h6 {
+    margin: 0 0 8px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+}
+
+.template-content p {
+    margin: 0;
+    font-size: 14px;
+    color: #666;
+    line-height: 1.4;
+}
+
+.ai-template-item.selected .template-content h6 {
+    color: #2e7d32;
+}
+
+.ai-template-item.selected .template-content p {
+    color: #4a4a4a;
+}
+
+/* Stili per i vecchi template ai (backwards compatibility) */
 .ai-template {
     cursor: pointer;
     transition: all 0.3s;
@@ -373,55 +417,278 @@
     border-bottom: none;
 }
 
+/* Stili per le celle della colonna */
+.column-cell-item {
+    background: white;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.column-cell-item:hover {
+    border-color: #2196f3;
+    box-shadow: 0 2px 8px rgba(33, 150, 243, 0.2);
+    transform: translateY(-1px);
+}
+
+.column-cell-item.selected {
+    border-color: #ff9800;
+    background-color: #fff3e0;
+    box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
+}
+
+.column-cell-item.labeled {
+    border-color: #4caf50;
+    background-color: #e8f5e8;
+}
+
+.column-cell-item.labeled.selected {
+    border-color: #ff9800;
+    background-color: #ffecb3;
+}
+
+.cell-row-number {
+    font-size: 12px;
+    color: #666;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.cell-value-text {
+    font-size: 14px;
+    line-height: 1.4;
+    color: #333;
+    word-wrap: break-word;
+    margin-bottom: 8px;
+    min-height: 40px;
+    max-height: 100px;
+    overflow-y: auto;
+}
+
+.cell-value-text.empty {
+    color: #999;
+    font-style: italic;
+}
+
+.cell-label-display {
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.label-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.cell-label-chip {
+    font-size: 11px;
+    margin-right: 5px;
+    padding: 2px 8px;
+    display: inline-block;
+    border-radius: 12px;
+    color: white;
+    font-weight: bold;
+}
+
+.remove-label-btn {
+    text-decoration: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    padding: 2px;
+    border-radius: 50%;
+    transition: background-color 0.2s;
+}
+
+.remove-label-btn:hover {
+    background-color: rgba(244, 67, 54, 0.1);
+}
+
+.remove-label-btn i {
+    font-size: 14px;
+}
+
+.cell-selection-checkbox {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+}
+
+.batch-actions {
+    position: sticky;
+    bottom: 0;
+    background: white;
+    padding: 15px;
+    border-top: 1px solid #e0e0e0;
+    z-index: 100;
+}
+
+/* Stili per suggerimenti AI */
 .suggestions-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px;
+    padding: 12px;
+    margin: 5px 0;
+    background: white;
     border: 1px solid #e0e0e0;
     border-radius: 4px;
-    margin: 5px 0;
     cursor: pointer;
-    transition: background-color 0.3s;
+    transition: all 0.3s ease;
 }
 
 .suggestions-item:hover {
-    background-color: #f5f5f5;
+    background: #f5f5f5;
+    border-color: #2196f3;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
 .confidence-badge {
-    font-size: 0.8em;
-    padding: 2px 8px;
+    padding: 4px 8px;
     border-radius: 12px;
     color: white;
+    font-size: 12px;
+    font-weight: bold;
 }
 
 .confidence-high { background-color: #4caf50; }
 .confidence-medium { background-color: #ff9800; }
 .confidence-low { background-color: #f44336; }
+
+/* Fix per dropdown che si nasconde sotto altri elementi */
+.dropdown-content {
+    z-index: 999 !important;
+}
+
+.select-wrapper {
+    z-index: 998 !important;
+}
+
+.select-dropdown {
+    z-index: 997 !important;
+}
+
+/* Assicura che i modal abbiano z-index alto */
+.modal {
+    z-index: 1000 !important;
+}
+
+.modal-overlay {
+    z-index: 999 !important;
+}
 </style>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Inizializza componenti Materialize
-    M.FormSelect.init(document.querySelectorAll('select'));
+    // Inizializza componenti Materialize con configurazioni specifiche
+    M.FormSelect.init(document.querySelectorAll('select'), {
+        dropdownOptions: {
+            container: document.body,
+            constrainWidth: false,
+            coverTrigger: false
+        }
+    });
     M.Modal.init(document.querySelectorAll('.modal'));
     M.updateTextFields();
     
+    // Forza la re-inizializzazione dopo un breve delay per assicurarsi che il DOM sia completamente caricato
+    setTimeout(() => {
+        M.FormSelect.init(document.querySelectorAll('select'), {
+            dropdownOptions: {
+                container: document.body,
+                constrainWidth: false,
+                coverTrigger: false
+            }
+        });
+    }, 100);
+    
     // Dati globali
     let currentColumn = null;
-    let columnData = {{ columns_data | tojsonfilter }};
-    let currentCellIndex = 0;
+    let columnData = {{ columns_data | tojson }};
+    let appliedLabels = {{ applied_labels | tojson }};
+    let projectLabels = {{ project_labels | tojson }};
+    let currentCellIndex = -1;
     let currentCells = [];
+    
+    // Funzione per escape HTML per evitare errori JavaScript con caratteri speciali
+    function escapeHtml(text) {
+        if (typeof text !== 'string') return text;
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+    }
     
     // Gestione selezione colonna
     document.getElementById('column-selector').addEventListener('change', function() {
         currentColumn = this.value;
         if (currentColumn && columnData[currentColumn]) {
-            loadColumnData();
-            showLabelingInterface();
+            // Ricarica i dati dal server per assicurarsi di avere le etichette aggiornate
+            reloadColumnDataFromServer();
         }
     });
+    
+    function reloadColumnDataFromServer() {
+        // Mostra un indicatore di caricamento
+        const cellsContainer = document.getElementById('cells-container');
+        cellsContainer.innerHTML = '<div class="center-align"><div class="preloader-wrapper small active"><div class="spinner-layer spinner-blue-only"><div class="circle-clipper left"><div class="circle"></div></div><div class="gap-patch"><div class="circle"></div></div><div class="circle-clipper right"><div class="circle"></div></div></div></div></div>';
+        
+        // Ricarica i dati dal server
+        fetch(window.location.href, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.applied_labels) {
+                // Aggiorna le etichette applicate con i dati freschi dal server
+                appliedLabels = data.applied_labels;
+                
+                // Ora carica i dati della colonna con le etichette aggiornate
+                loadColumnData();
+                showLabelingInterface();
+            } else {
+                // Fallback al metodo originale se la risposta JSON non è disponibile
+                loadColumnData();
+                showLabelingInterface();
+            }
+        })
+        .catch(error => {
+            console.error('Errore nel ricaricamento dati dal server:', error);
+            // Fallback al metodo originale in caso di errore
+            loadColumnData();
+            showLabelingInterface();
+        });
+    }
+    
+    // Funzione per re-inizializzare i componenti UI
+    function reinitializeUI() {
+        // Re-inizializza i dropdown
+        M.FormSelect.init(document.querySelectorAll('select'), {
+            dropdownOptions: {
+                container: document.body,
+                constrainWidth: false,
+                coverTrigger: false
+            }
+        });
+        M.updateTextFields();
+    }
     
     function loadColumnData() {
         const data = columnData[currentColumn];
@@ -432,64 +699,215 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('data-type').textContent = data.type;
         document.getElementById('column-info').style.display = 'block';
         
-        // Carica celle (simula dati per ora)
-        currentCells = Array.from({length: Math.min(data.unique_values, 100)}, (_, index) => ({
-            row: index,
-            value: data.sample_values[index % data.sample_values.length] || `Valore ${index + 1}`,
-            labeled: false,
-            label: null,
-            confidence: null
-        }));
+        // Carica celle reali dalla colonna con etichette aggiornate
+        currentCells = [];
+        data.all_values.forEach((value, rowIndex) => {
+            const labelKey = `${rowIndex}_${currentColumn}`;
+            const appliedLabelsForCell = appliedLabels[labelKey] || [];
+            
+            currentCells.push({
+                row: rowIndex,
+                value: value || '',
+                labeled: !!(appliedLabelsForCell && appliedLabelsForCell.length > 0),
+                labels: appliedLabelsForCell
+            });
+        });
         
         // Aggiorna contatori
         document.getElementById('total-count').textContent = currentCells.length;
         updateProgress();
         
-        // Mostra template AI
-        document.getElementById('ai-templates-section').style.display = 'block';
+        // Resetta indice cella
+        currentCellIndex = -1;
+        
+        console.log(`Caricata colonna ${currentColumn} con ${currentCells.length} celle. Etichette trovate per ${Object.keys(appliedLabels).filter(key => key.includes(currentColumn)).length} celle.`);
     }
     
     function showLabelingInterface() {
         document.getElementById('labeling-interface').style.display = 'block';
-        currentCellIndex = 0;
-        displayCurrentCell();
+        document.getElementById('current-column-title').textContent = currentColumn;
+        displayAllCells();
+        updateCellStatistics();
     }
     
-    function displayCurrentCell() {
-        if (currentCells.length === 0) return;
+    function displayAllCells() {
+        const cellsContainer = document.getElementById('cells-container');
+        cellsContainer.innerHTML = '';
         
-        const cell = currentCells[currentCellIndex];
-        
-        // Aggiorna info cella corrente
-        document.getElementById('current-row').textContent = cell.row + 1;
-        document.getElementById('current-column').textContent = currentColumn;
-        document.getElementById('current-value').textContent = cell.value || '(vuoto)';
-        
-        // Aggiorna contatore
-        document.getElementById('cell-counter').textContent = `${currentCellIndex + 1} / ${currentCells.length}`;
-        
-        // Aggiorna pulsanti navigazione
-        document.getElementById('prev-cell').classList.toggle('disabled', currentCellIndex === 0);
-        document.getElementById('next-cell').classList.toggle('disabled', currentCellIndex === currentCells.length - 1);
-        
-        // Se la cella è già etichettata, mostra l'etichetta
-        if (cell.labeled) {
-            document.getElementById('manual-label').value = cell.label;
-            document.getElementById('manual-description').value = cell.description || '';
-            M.updateTextFields();
-            
-            if (cell.confidence) {
-                showConfidence(cell.confidence);
-            }
-        } else {
-            document.getElementById('manual-label').value = '';
-            document.getElementById('manual-description').value = '';
-            M.updateTextFields();
-            hideConfidence();
+        if (currentCells.length === 0) {
+            cellsContainer.innerHTML = '<p class="center-align grey-text">Nessuna cella da visualizzare</p>';
+            return;
         }
         
-        // Nascondi suggerimenti AI precedenti
-        document.getElementById('ai-suggestions').style.display = 'none';
+        console.log(`Visualizzando ${currentCells.length} celle per la colonna ${currentColumn}`);
+        
+        currentCells.forEach((cell, index) => {
+            const cellDiv = document.createElement('div');
+            cellDiv.className = `column-cell-item ${cell.labeled ? 'labeled' : ''}`;
+            cellDiv.dataset.cellIndex = index;
+            cellDiv.dataset.rowIndex = cell.row;
+            
+            const cellValue = cell.value || '';
+            const isEmpty = !cellValue.trim();
+            
+            // Debug: log delle etichette per questa cella
+            if (cell.labeled && cell.labels && cell.labels.length > 0) {
+                console.log(`Cella ${cell.row + 1} ha ${cell.labels.length} etichette:`, cell.labels);
+            }
+            
+            // Crea HTML per le etichette multiple
+            let labelsHtml = '';
+            if (cell.labeled && cell.labels && cell.labels.length > 0) {
+                labelsHtml = '<div class="cell-label-display">';
+                cell.labels.forEach((label, labelIndex) => {
+                    const confidenceClass = label.confidence > 0.8 ? 'confidence-high' : 
+                                          label.confidence > 0.5 ? 'confidence-medium' : 'confidence-low';
+                    labelsHtml += `
+                        <div class="label-item" data-label-index="${labelIndex}">
+                            <span class="chip cell-label-chip green white-text" title="${escapeHtml(label.label_description || '')}">${escapeHtml(label.label_name)}</span>
+                            ${label.confidence ? `<span class="chip cell-label-chip ${confidenceClass} white-text">${Math.round(label.confidence * 100)}%</span>` : ''}
+                            <a href="#" class="remove-label-btn" data-application-id="${label.application_id}" title="Rimuovi etichetta">
+                                <i class="material-icons tiny red-text">close</i>
+                            </a>
+                        </div>
+                    `;
+                });
+                labelsHtml += '</div>';
+            }
+            
+            cellDiv.innerHTML = `
+                <div class="cell-selection-checkbox">
+                    <label>
+                        <input type="checkbox" class="cell-checkbox" />
+                        <span></span>
+                    </label>
+                </div>
+                <div class="cell-row-number">Riga ${cell.row + 1}</div>
+                <div class="cell-value-text ${isEmpty ? 'empty' : ''}">${escapeHtml(cellValue) || '(vuoto)'}</div>
+                ${labelsHtml}
+            `;
+            
+            // Event listener per selezione cella
+            cellDiv.addEventListener('click', function(e) {
+                if (e.target.type !== 'checkbox' && !e.target.closest('.remove-label-btn')) {
+                    selectCell(index);
+                }
+            });
+            
+            // Event listener per checkbox
+            const checkbox = cellDiv.querySelector('.cell-checkbox');
+            checkbox.addEventListener('change', function(e) {
+                e.stopPropagation();
+                updateBatchActionsVisibility();
+            });
+            
+            // Event listener per rimozione etichette
+            cellDiv.querySelectorAll('.remove-label-btn').forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const applicationId = this.dataset.applicationId;
+                    if (applicationId) {
+                        removeCellLabel(cell.row, currentColumn, applicationId);
+                    }
+                });
+            });
+            
+            cellsContainer.appendChild(cellDiv);
+        });
+    }
+    
+    function selectCell(cellIndex) {
+        // Rimuovi selezione precedente
+        document.querySelectorAll('.column-cell-item').forEach(cell => {
+            cell.classList.remove('selected');
+        });
+        
+        // Seleziona nuova cella
+        const cellElement = document.querySelector(`[data-cell-index="${cellIndex}"]`);
+        if (cellElement) {
+            cellElement.classList.add('selected');
+            currentCellIndex = cellIndex;
+            
+            // Scroll to selected cell
+            cellElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            
+            // Aggiorna pannello info
+            const cell = currentCells[cellIndex];
+            // updateCellInfoPanel rimossa - pannello non più presente
+        }
+    }
+    
+    // Funzione per rimuovere una etichetta specifica
+    function removeCellLabel(rowIndex, columnName, applicationId) {
+        if (!applicationId) {
+            M.toast({html: 'ID applicazione etichetta non valido', classes: 'red'});
+            return;
+        }
+        
+        const data = {
+            row_index: rowIndex,
+            column_name: columnName,
+            application_id: applicationId
+        };
+        
+        fetch(`{{ url_for('ml.remove_cell_label', project_id=project.id, sheet_id=sheet.id) }}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                M.toast({html: result.message, classes: 'green'});
+                
+                // Aggiorna i dati delle celle
+                const labelKey = `${rowIndex}_${columnName}`;
+                if (appliedLabels[labelKey]) {
+                    appliedLabels[labelKey] = appliedLabels[labelKey].filter(label => 
+                        label.application_id !== applicationId
+                    );
+                    
+                    // Se non ci sono più etichette, rimuovi la chiave
+                    if (appliedLabels[labelKey].length === 0) {
+                        delete appliedLabels[labelKey];
+                    }
+                }
+                
+                // Ricarica i dati della colonna e aggiorna l'interfaccia
+                loadColumnData();
+                displayAllCells();
+                updateCellStatistics();
+                
+                // Aggiorna il pannello informazioni se questa è la cella selezionata
+                if (currentCellIndex >= 0 && currentCells[currentCellIndex].row === rowIndex) {
+                    updateCellInfoPanel(currentCells[currentCellIndex]);
+                }
+            } else {
+                M.toast({html: 'Errore: ' + result.error, classes: 'red'});
+            }
+        })
+        .catch(error => {
+            console.error('Errore nella rimozione etichetta:', error);
+            M.toast({html: 'Errore nella rimozione etichetta', classes: 'red'});
+        });
+    }
+    
+    function updateCellStatistics() {
+        const total = currentCells.length;
+        const labeled = currentCells.filter(cell => cell.labeled).length;
+        const remaining = total - labeled;
+        
+        document.getElementById('total-cells-display').textContent = total;
+        document.getElementById('labeled-cells-display').textContent = labeled;
+        document.getElementById('remaining-cells-display').textContent = remaining;
+    }
+    
+    function updateBatchActionsVisibility() {
+        const selectedCheckboxes = document.querySelectorAll('.cell-checkbox:checked');
+        // Potresti aggiungere logica per mostrare/nascondere azioni batch qui
     }
     
     function updateProgress() {
@@ -502,104 +920,15 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('labeling-progress').style.width = percentage + '%';
     }
     
-    function showConfidence(confidence) {
-        document.getElementById('confidence-score').textContent = Math.round(confidence * 100);
-        document.getElementById('confidence-bar').style.width = (confidence * 100) + '%';
-        document.querySelector('.confidence-display').style.display = 'block';
-        
-        // Colora la barra in base alla confidenza
-        const bar = document.getElementById('confidence-bar');
-        if (confidence >= 0.8) {
-            bar.className = 'determinate green';
-        } else if (confidence >= 0.6) {
-            bar.className = 'determinate orange';
-        } else {
-            bar.className = 'determinate red';
-        }
-    }
-    
     function hideConfidence() {
-        document.querySelector('.confidence-display').style.display = 'none';
-    }
-    
-    // Navigazione celle
-    document.getElementById('prev-cell').addEventListener('click', function(e) {
-        e.preventDefault();
-        if (currentCellIndex > 0) {
-            currentCellIndex--;
-            displayCurrentCell();
-        }
-    });
-    
-    document.getElementById('next-cell').addEventListener('click', function(e) {
-        e.preventDefault();
-        if (currentCellIndex < currentCells.length - 1) {
-            currentCellIndex++;
-            displayCurrentCell();
-        }
-    });
-    
-    // Salvataggio etichetta manuale
-    document.getElementById('save-manual-label').addEventListener('click', function(e) {
-        e.preventDefault();
-        
-        const label = document.getElementById('manual-label').value.trim();
-        const description = document.getElementById('manual-description').value.trim();
-        
-        if (!label) {
-            M.toast({html: 'Inserisci un nome per l\'etichetta', classes: 'red'});
-            return;
-        }
-        
-        saveCellLabel(currentCellIndex, label, description, 1.0, 'manual');
-    });
-    
-    function saveCellLabel(cellIndex, label, description, confidence, source) {
-        const cell = currentCells[cellIndex];
-        
-        const data = {
-            row_index: cell.row,
-            column_name: currentColumn,
-            label_name: label,
-            label_description: description
-        };
-        
-        fetch('{{ url_for("ml.label_cell_manually", project_id=project.id, sheet_id=sheet.id) }}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(data)
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.message) {
-                // Aggiorna stato cella
-                cell.labeled = true;
-                cell.label = label;
-                cell.description = description;
-                cell.confidence = confidence;
-                cell.source = source;
-                
-                updateProgress();
-                M.toast({html: `Etichetta salvata: ${label}`, classes: 'green'});
-                
-                // Vai alla prossima cella non etichettata
-                goToNextUnlabeled();
-            } else {
-                M.toast({html: data.error || 'Errore nel salvataggio', classes: 'red'});
-            }
-        })
-        .catch(error => {
-            M.toast({html: 'Errore di rete: ' + error.message, classes: 'red'});
-        });
+        // Funzione placeholder - pannello rimosso
     }
     
     function goToNextUnlabeled() {
+        // Cerca la prossima cella non etichettata dopo quella corrente
         for (let i = currentCellIndex + 1; i < currentCells.length; i++) {
             if (!currentCells[i].labeled) {
-                currentCellIndex = i;
-                displayCurrentCell();
+                selectCell(i);
                 return;
             }
         }
@@ -607,8 +936,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Se non ci sono più celle non etichettate dopo la corrente, cerca dall'inizio
         for (let i = 0; i < currentCellIndex; i++) {
             if (!currentCells[i].labeled) {
-                currentCellIndex = i;
-                displayCurrentCell();
+                selectCell(i);
                 return;
             }
         }
@@ -617,93 +945,116 @@ document.addEventListener('DOMContentLoaded', function() {
         M.toast({html: 'Tutte le celle sono state etichettate!', classes: 'green'});
     }
     
-    // Suggerimenti AI
-    document.getElementById('get-ai-suggestions').addEventListener('click', function(e) {
-        e.preventDefault();
-        getAISuggestions();
-    });
-    
-    function getAISuggestions() {
-        const cell = currentCells[currentCellIndex];
-        const suggestionsContainer = document.getElementById('suggestions-list');
-        
-        // Mostra loading
-        suggestionsContainer.innerHTML = '<div class="center-align"><div class="preloader-wrapper small active"><div class="spinner-layer spinner-blue-only"><div class="circle-clipper left"><div class="circle"></div></div><div class="gap-patch"><div class="circle"></div></div><div class="circle-clipper right"><div class="circle"></div></div></div></div></div>';
-        document.getElementById('ai-suggestions').style.display = 'block';
-        
-        // Simula chiamata AI
-        setTimeout(() => {
-            const suggestions = generateAISuggestions(cell.value);
-            displaySuggestions(suggestions);
-        }, 2000);
-    }
-    
-    function generateAISuggestions(cellValue) {
-        const suggestions = [];
-        const value = (cellValue || '').toLowerCase();
-        
-        // Sentiment Analysis
-        if (value.includes('buon') || value.includes('ottim') || value.includes('eccell')) {
-            suggestions.push({label: 'Sentiment Positivo', confidence: 0.85, category: 'sentiment'});
-        } else if (value.includes('cattiv') || value.includes('pessim') || value.includes('terrib')) {
-            suggestions.push({label: 'Sentiment Negativo', confidence: 0.82, category: 'sentiment'});
-        } else {
-            suggestions.push({label: 'Sentiment Neutrale', confidence: 0.65, category: 'sentiment'});
-        }
-        
-        // Emotion Detection
-        if (value.includes('felice') || value.includes('gioi')) {
-            suggestions.push({label: 'Gioia', confidence: 0.78, category: 'emotion'});
-        } else if (value.includes('arrabbia') || value.includes('rabbia')) {
-            suggestions.push({label: 'Rabbia', confidence: 0.80, category: 'emotion'});
-        }
-        
-        // Topic Classification
-        if (value.includes('tecnolog') || value.includes('software') || value.includes('computer')) {
-            suggestions.push({label: 'Tecnologia', confidence: 0.75, category: 'topic'});
-        } else if (value.includes('business') || value.includes('lavoro') || value.includes('aziend')) {
-            suggestions.push({label: 'Business', confidence: 0.72, category: 'topic'});
-        }
-        
-        return suggestions;
-    }
-    
-    function displaySuggestions(suggestions) {
-        const container = document.getElementById('suggestions-list');
-        
-        if (suggestions.length === 0) {
-            container.innerHTML = '<div class="center-align grey-text">Nessun suggerimento disponibile</div>';
-            return;
-        }
-        
-        container.innerHTML = suggestions.map(suggestion => {
-            const confidenceClass = suggestion.confidence >= 0.8 ? 'confidence-high' : 
-                                  suggestion.confidence >= 0.6 ? 'confidence-medium' : 'confidence-low';
-            
-            return `
-                <div class="suggestions-item" data-label="${suggestion.label}" data-confidence="${suggestion.confidence}">
-                    <div>
-                        <strong>${suggestion.label}</strong>
-                        <br><small class="grey-text">${suggestion.category}</small>
-                    </div>
-                    <span class="confidence-badge ${confidenceClass}">${Math.round(suggestion.confidence * 100)}%</span>
-                </div>
-            `;
-        }).join('');
-        
-        // Aggiungi event listeners ai suggerimenti
-        container.querySelectorAll('.suggestions-item').forEach(item => {
-            item.addEventListener('click', function() {
-                const label = this.dataset.label;
-                const confidence = parseFloat(this.dataset.confidence);
-                
-                document.getElementById('manual-label').value = label;
-                M.updateTextFields();
-                showConfidence(confidence);
-                
-                M.toast({html: `Suggerimento applicato: ${label}`, classes: 'blue'});
-            });
+    function getSelectedCells() {
+        const selectedIndexes = [];
+        document.querySelectorAll('.cell-checkbox:checked').forEach(checkbox => {
+            const cellElement = checkbox.closest('.column-cell-item');
+            const cellIndex = parseInt(cellElement.dataset.cellIndex);
+            selectedIndexes.push(cellIndex);
         });
+        return selectedIndexes;
+    }
+    
+    function selectAll() {
+        document.querySelectorAll('.cell-checkbox').forEach(checkbox => {
+            checkbox.checked = true;
+        });
+        updateBatchActionsVisibility();
+        M.toast({html: 'Tutte le celle selezionate', classes: 'purple'});
+    }
+    
+    function selectAllUnlabeled() {
+        document.querySelectorAll('.column-cell-item').forEach(cellElement => {
+            const cellIndex = parseInt(cellElement.dataset.cellIndex);
+            const cell = currentCells[cellIndex];
+            const checkbox = cellElement.querySelector('.cell-checkbox');
+            
+            if (!cell.labeled) {
+                checkbox.checked = true;
+            }
+        });
+        updateBatchActionsVisibility();
+        M.toast({html: 'Celle non etichettate selezionate', classes: 'blue'});
+    }
+    
+    function clearAllSelection() {
+        document.querySelectorAll('.cell-checkbox:checked').forEach(checkbox => {
+            checkbox.checked = false;
+        });
+        updateBatchActionsVisibility();
+        M.toast({html: 'Selezione rimossa', classes: 'grey'});
+    }
+    
+    function batchLabelCells(cellIndexes, label, description) {
+        if (cellIndexes.length === 0) return;
+        
+        let completed = 0;
+        const total = cellIndexes.length;
+        
+        M.toast({html: `Applicando etichetta a ${total} celle...`, classes: 'blue'});
+        
+        // Processare una cella alla volta per evitare problemi di concorrenza
+        function processCellLabel(index) {
+            if (index >= cellIndexes.length) {
+                // Completato
+                displayAllCells();
+                updateCellStatistics();
+                updateProgress();
+                clearAllSelection();
+                M.toast({html: `${total} celle etichettate con successo!`, classes: 'green'});
+                return;
+            }
+            
+            const cellIndex = cellIndexes[index];
+            const cell = currentCells[cellIndex];
+            
+            // Salva nel backend
+            const data = {
+                row_index: cell.row,
+                column_name: currentColumn,
+                label_name: label,
+                label_description: description,
+                confidence: 1.0,
+                source: 'manual'
+            };
+            
+            fetch('{{ url_for("ml.save_cell_label", project_id=project.id, sheet_id=sheet.id) }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Aggiorna stato cella locale
+                    cell.labeled = true;
+                    cell.label = {
+                        name: label,
+                        description: description,
+                        confidence: 1.0
+                    };
+                    
+                    completed++;
+                    
+                    // Processa la prossima cella
+                    processCellLabel(index + 1);
+                } else {
+                    M.toast({html: `Errore su cella ${cell.row + 1}: ${data.error}`, classes: 'red'});
+                    // Continua con la prossima cella anche in caso di errore
+                    processCellLabel(index + 1);
+                }
+            })
+            .catch(error => {
+                M.toast({html: `Errore di rete su cella ${cell.row + 1}: ${error.message}`, classes: 'red'});
+                // Continua con la prossima cella anche in caso di errore
+                processCellLabel(index + 1);
+            });
+        }
+        
+        // Inizia il processo batch
+        processCellLabel(0);
     }
     
     // Export Labels
@@ -729,10 +1080,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 cell.row + 1,
                 currentColumn,
                 cell.value || '',
-                cell.label || '',
-                cell.description || '',
-                cell.confidence || '',
-                cell.source || ''
+                cell.label ? cell.label.name : '',
+                cell.label ? cell.label.description : '',
+                cell.label ? cell.label.confidence : '',
+                'manual'
             ])
         ].map(row => row.map(field => `"${field}"`).join(',')).join('\n');
         
@@ -760,21 +1111,42 @@ document.addEventListener('DOMContentLoaded', function() {
         modal.open();
     });
     
-    document.getElementById('batch-template-selector').addEventListener('change', function() {
-        const customDiv = document.getElementById('custom-categories');
-        customDiv.style.display = this.value === 'custom' ? 'block' : 'none';
-    });
-    
-    document.getElementById('start-batch-labeling').addEventListener('click', function() {
-        const template = document.getElementById('batch-template-selector').value;
-        const onlyUnlabeled = document.getElementById('only-unlabeled').checked;
-        
-        if (!template) {
-            M.toast({html: 'Seleziona un template', classes: 'red'});
+    // Ricarica dati manuale
+    document.getElementById('reload-data').addEventListener('click', function(e) {
+        e.preventDefault();
+        if (!currentColumn) {
+            M.toast({html: 'Seleziona prima una colonna', classes: 'orange'});
             return;
         }
         
-        startBatchLabeling(template, onlyUnlabeled);
+        M.toast({html: 'Ricaricando dati dal server...', classes: 'blue'});
+        reloadColumnDataFromServer();
+    });
+    
+    // Selezione Template AI nel modale
+    let selectedBatchTemplate = null;
+    document.querySelectorAll('#batch-ai-modal .ai-template-item').forEach(template => {
+        template.addEventListener('click', function() {
+            document.querySelectorAll('#batch-ai-modal .ai-template-item').forEach(t => t.classList.remove('selected'));
+            this.classList.add('selected');
+            selectedBatchTemplate = this.dataset.template;
+            
+            const customDiv = document.getElementById('custom-categories');
+            customDiv.style.display = selectedBatchTemplate === 'custom' ? 'block' : 'none';
+            
+            M.toast({html: `Template selezionato: ${this.querySelector('h6').textContent}`, classes: 'blue'});
+        });
+    });
+
+    document.getElementById('start-batch-labeling').addEventListener('click', function() {
+        const onlyUnlabeled = document.getElementById('only-unlabeled').checked;
+        
+        if (!selectedBatchTemplate) {
+            M.toast({html: 'Seleziona un template AI', classes: 'red'});
+            return;
+        }
+        
+        startBatchLabeling(selectedBatchTemplate, onlyUnlabeled);
     });
     
     function startBatchLabeling(template, onlyUnlabeled) {
@@ -805,8 +1177,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 const modal = M.Modal.getInstance(document.getElementById('batch-ai-modal'));
                 modal.close();
                 
-                updateProgress();
-                displayCurrentCell();
+                // Ricarica completamente i dati per assicurarsi che tutto sia aggiornato
+                reloadColumnDataFromServer();
                 return;
             }
             
@@ -817,19 +1189,63 @@ document.addEventListener('DOMContentLoaded', function() {
                 const aiLabel = generateAILabel(cell.value, template);
                 
                 if (aiLabel) {
-                    // Aggiorna stato cella localmente per il batch
-                    cell.labeled = true;
-                    cell.label = aiLabel.label;
-                    cell.description = aiLabel.description;
-                    cell.confidence = aiLabel.confidence;
-                    cell.source = 'ai_batch';
+                    // Salva nel backend
+                    const data = {
+                        row_index: cell.row,
+                        column_name: currentColumn,
+                        label_name: aiLabel.label,
+                        label_description: aiLabel.description,
+                        confidence: aiLabel.confidence,
+                        source: 'ai_batch'
+                    };
+                    
+                    fetch('{{ url_for("ml.save_cell_label", project_id=project.id, sheet_id=sheet.id) }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(data)
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Aggiorna stato cella locale con supporto multiple etichette
+                            cell.labeled = true;
+                            cell.labels = data.all_cell_labels || [];
+                            
+                            // Aggiorna anche applied_labels globale per mantenere coerenza
+                            const labelKey = `${cell.row}_${currentColumn}`;
+                            appliedLabels[labelKey] = data.all_cell_labels || [];
+                        } else {
+                            console.error('Errore dal backend:', data.error);
+                        }
+                        
+                        processed++;
+                        document.getElementById('batch-current').textContent = processed;
+                        document.getElementById('batch-progress-bar').style.width = ((processed / cellsToProcess.length) * 100) + '%';
+                        
+                        // Breve pausa per evitare sovraccarico del server
+                        setTimeout(() => {
+                            processNextCell();
+                        }, 50);
+                    })
+                    .catch(error => {
+                        console.error('Errore nel salvataggio AI batch:', error);
+                        processed++;
+                        document.getElementById('batch-current').textContent = processed;
+                        document.getElementById('batch-progress-bar').style.width = ((processed / cellsToProcess.length) * 100) + '%';
+                        
+                        setTimeout(() => {
+                            processNextCell();
+                        }, 50);
+                    });
+                } else {
+                    processed++;
+                    document.getElementById('batch-current').textContent = processed;
+                    document.getElementById('batch-progress-bar').style.width = ((processed / cellsToProcess.length) * 100) + '%';
+                    
+                    processNextCell();
                 }
-                
-                processed++;
-                document.getElementById('batch-current').textContent = processed;
-                document.getElementById('batch-progress-bar').style.width = ((processed / cellsToProcess.length) * 100) + '%';
-                
-                processNextCell();
             }, 300); // Simula tempo di elaborazione
         }
         
@@ -837,38 +1253,89 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function generateAILabel(value, template) {
-        const val = (value || '').toLowerCase();
+        const val = (value || '').toLowerCase().trim();
+        
+        // Se il valore è vuoto, non etichettare
+        if (!val) {
+            return null;
+        }
         
         switch (template) {
             case 'sentiment':
-                if (val.includes('buon') || val.includes('ottim') || val.includes('eccell')) {
-                    return {label: 'Positivo', description: 'Sentiment positivo rilevato', confidence: 0.85};
-                } else if (val.includes('cattiv') || val.includes('pessim') || val.includes('terrib')) {
-                    return {label: 'Negativo', description: 'Sentiment negativo rilevato', confidence: 0.82};
+                if (val.includes('buon') || val.includes('ottim') || val.includes('eccell') || val.includes('perfetto') || val.includes('magnifico')) {
+                    return {label: 'Positivo', description: 'Sentiment positivo rilevato nel testo', confidence: 0.85};
+                } else if (val.includes('cattiv') || val.includes('pessim') || val.includes('terrib') || val.includes('orribile') || val.includes('male')) {
+                    return {label: 'Negativo', description: 'Sentiment negativo rilevato nel testo', confidence: 0.82};
+                } else if (val.includes('ok') || val.includes('normale') || val.includes('medio')) {
+                    return {label: 'Neutrale', description: 'Sentiment neutrale rilevato nel testo', confidence: 0.75};
                 } else {
-                    return {label: 'Neutrale', description: 'Sentiment neutrale', confidence: 0.65};
+                    return {label: 'Neutrale', description: 'Sentiment neutrale (default)', confidence: 0.65};
                 }
                 
             case 'emotion':
-                if (val.includes('felice') || val.includes('gioi')) {
+                if (val.includes('felice') || val.includes('gioi') || val.includes('contento') || val.includes('allegr')) {
                     return {label: 'Gioia', description: 'Emozione di gioia rilevata', confidence: 0.78};
-                } else if (val.includes('triste') || val.includes('depress')) {
+                } else if (val.includes('triste') || val.includes('depress') || val.includes('melancon')) {
                     return {label: 'Tristezza', description: 'Emozione di tristezza rilevata', confidence: 0.75};
+                } else if (val.includes('arrabbia') || val.includes('furioso') || val.includes('inc@zzato')) {
+                    return {label: 'Rabbia', description: 'Emozione di rabbia rilevata', confidence: 0.80};
+                } else if (val.includes('paura') || val.includes('timore') || val.includes('spaventa')) {
+                    return {label: 'Paura', description: 'Emozione di paura rilevata', confidence: 0.72};
                 } else {
                     return {label: 'Neutrale', description: 'Emozione neutra', confidence: 0.60};
                 }
                 
+            case 'behavior':
+                if (val.includes('aggressiv') || val.includes('violent') || val.includes('ostile')) {
+                    return {label: 'Aggressivo', description: 'Comportamento aggressivo rilevato', confidence: 0.85};
+                } else if (val.includes('passiv') || val.includes('sottomess') || val.includes('timid')) {
+                    return {label: 'Passivo', description: 'Comportamento passivo rilevato', confidence: 0.78};
+                } else if (val.includes('collaborativ') || val.includes('cooperativ') || val.includes('squadra')) {
+                    return {label: 'Collaborativo', description: 'Comportamento collaborativo rilevato', confidence: 0.80};
+                } else if (val.includes('proattiv') || val.includes('iniziativ') || val.includes('leader')) {
+                    return {label: 'Proattivo', description: 'Comportamento proattivo rilevato', confidence: 0.75};
+                } else {
+                    return {label: 'Neutrale', description: 'Comportamento neutrale', confidence: 0.60};
+                }
+                
             case 'topic':
-                if (val.includes('tecnolog') || val.includes('software')) {
-                    return {label: 'Tecnologia', description: 'Argomento tecnologico', confidence: 0.80};
-                } else if (val.includes('business') || val.includes('lavoro')) {
-                    return {label: 'Business', description: 'Argomento business', confidence: 0.75};
+                if (val.includes('tecnolog') || val.includes('software') || val.includes('computer') || val.includes('digitale')) {
+                    return {label: 'Tecnologia', description: 'Argomento tecnologico identificato', confidence: 0.80};
+                } else if (val.includes('business') || val.includes('lavoro') || val.includes('aziend') || val.includes('commerc')) {
+                    return {label: 'Business', description: 'Argomento business identificato', confidence: 0.75};
+                } else if (val.includes('salute') || val.includes('medic') || val.includes('cura') || val.includes('benessere')) {
+                    return {label: 'Salute', description: 'Argomento salute identificato', confidence: 0.78};
+                } else if (val.includes('educazion') || val.includes('scuola') || val.includes('formazione') || val.includes('studio')) {
+                    return {label: 'Educazione', description: 'Argomento educazione identificato', confidence: 0.76};
                 } else {
                     return {label: 'Generale', description: 'Argomento generale', confidence: 0.50};
                 }
                 
+            case 'intent':
+                if (val.includes('voglio') || val.includes('desidero') || val.includes('richiedo') || val.includes('chied')) {
+                    return {label: 'Richiesta', description: 'Intento di richiesta rilevato', confidence: 0.85};
+                } else if (val.includes('reclam') || val.includes('lamento') || val.includes('protesta') || val.includes('sbagliat')) {
+                    return {label: 'Reclamo', description: 'Intento di reclamo rilevato', confidence: 0.80};
+                } else if (val.includes('grazie') || val.includes('compliment') || val.includes('bravo') || val.includes('apprezza')) {
+                    return {label: 'Complimento', description: 'Intento di complimento rilevato', confidence: 0.75};
+                } else if (val.includes('?') || val.includes('come') || val.includes('cosa') || val.includes('quando')) {
+                    return {label: 'Domanda', description: 'Intento di domanda rilevato', confidence: 0.78};
+                } else {
+                    return {label: 'Informazione', description: 'Intento informativo', confidence: 0.60};
+                }
+                
+            case 'custom':
+                // Per il template personalizzato, usa categorie base
+                const customCategories = document.getElementById('custom-categories-input').value.split(',').map(c => c.trim()).filter(c => c);
+                if (customCategories.length > 0) {
+                    // Seleziona una categoria casuale per il demo
+                    const randomCategory = customCategories[Math.floor(Math.random() * customCategories.length)];
+                    return {label: randomCategory, description: 'Categoria personalizzata applicata', confidence: 0.70};
+                }
+                return {label: 'Personalizzato', description: 'Etichetta personalizzata', confidence: 0.60};
+                
             default:
-                return {label: 'Classificato', description: 'Classificazione automatica', confidence: 0.70};
+                return {label: 'Classificato', description: 'Classificazione automatica generica', confidence: 0.70};
         }
     }
     
@@ -883,6 +1350,84 @@ document.addEventListener('DOMContentLoaded', function() {
             M.toast({html: `Template selezionato: ${templateType}`, classes: 'blue'});
         });
     });
+
+    function applyCellLabel(label, description = '') {
+        if (currentCells.length === 0 || currentCellIndex === -1) {
+            M.toast({html: 'Seleziona prima una cella', classes: 'orange'});
+            return;
+        }
+        
+        const cell = currentCells[currentCellIndex];
+        
+        // Salva nel backend
+        saveCellLabel(currentCellIndex, label, description, 1.0, 'manual');
+    }
+    
+    function removeCurrentCellLabel() {
+        if (currentCells.length === 0 || currentCellIndex === -1) {
+            M.toast({html: 'Seleziona prima una cella', classes: 'orange'});
+            return;
+        }
+        
+        const cell = currentCells[currentCellIndex];
+        
+        if (!cell.labeled) {
+            M.toast({html: 'Nessuna etichetta da rimuovere', classes: 'orange'});
+            return;
+        }
+        
+        // Chiedi conferma prima di rimuovere TUTTE le etichette dalla cella
+        if (confirm(`Sei sicuro di voler rimuovere tutte le etichette dalla riga ${cell.row + 1}?`)) {
+            removeCellLabelFromBackend(cell.row, currentColumn);
+        }
+    }
+    
+    function removeCellLabelFromBackend(rowIndex, columnName) {
+        const data = {
+            row_index: rowIndex,
+            column_name: columnName,
+            // Invia application_id nullo se vuoi cancellare tutte le etichette della cella
+            application_id: null
+        };
+        
+        fetch(`{{ url_for('ml.remove_cell_label', project_id=project.id, sheet_id=sheet.id) }}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                M.toast({html: result.message, classes: 'green'});
+                
+                // Aggiorna lo stato locale
+                const labelKey = `${rowIndex}_${columnName}`;
+                delete appliedLabels[labelKey];
+
+                const cellToUpdate = currentCells.find(c => c.row === rowIndex);
+                if (cellToUpdate) {
+                    cellToUpdate.labeled = false;
+                    cellToUpdate.labels = [];
+                }
+                
+                // Aggiorna l'interfaccia
+                displayAllCells();
+                updateCellStatistics();
+                updateProgress();
+                
+                const cell = currentCells[currentCellIndex];
+                if(cell.row === rowIndex) {
+                    updateCellInfoPanel(cell);
+                }
+            } else {
+                M.toast({html: 'Errore: ' + result.error, classes: 'red'});
+            }
+        })
+        .catch(error => {
+            console.error('Errore nella rimozione etichetta:', error);
+            M.toast({html: 'Errore di rete nella rimozione etichetta', classes: 'red'});
+        });
+    }
 });
 </script>
 {% endblock %}

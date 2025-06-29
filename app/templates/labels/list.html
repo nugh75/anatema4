@@ -96,7 +96,7 @@
                             <div class="row" style="margin-top: 20px; margin-bottom: 0;">
                                 <div class="col s6 center-align">
                                     <div class="chip" style="background-color: {{ label.color }}; color: white;">
-                                        {{ label.cell_labels.count() }} utilizzi
+                                        {{ label.usage_count }} utilizzi
                                     </div>
                                 </div>
                                 <div class="col s6 center-align">
@@ -138,7 +138,7 @@
                         <p>Sei sicuro di voler eliminare l'etichetta <strong>"{{ label.name }}"</strong>?</p>
                         <p class="red-text">
                             <i class="material-icons left">info</i>
-                            Questa azione eliminerà anche tutte le applicazioni di questa etichetta ({{ label.cell_labels.count() }} utilizzi).
+                            Questa azione eliminerà anche tutte le applicazioni di questa etichetta ({{ label.usage_count }} utilizzi).
                         </p>
                     </div>
                     <div class="modal-footer">
@@ -234,19 +234,19 @@
                             </div>
                             <div class="col s12 m3 center-align">
                                 <h4 class="green-text">
-                                    {{ labels.items | selectattr('cell_labels') | map(attribute='cell_labels') | map('count') | sum }}
+                                    {{ total_usages }}
                                 </h4>
                                 <p>Utilizzi Totali</p>
                             </div>
                             <div class="col s12 m3 center-align">
                                 <h4 class="orange-text">
-                                    {{ (labels.items | selectattr('cell_labels') | map(attribute='cell_labels') | map('count') | sum / labels.total) | round(1) if labels.total > 0 else 0 }}
+                                    {{ average_usages }}
                                 </h4>
                                 <p>Media Utilizzi</p>
                             </div>
                             <div class="col s12 m3 center-align">
                                 <h4 class="purple-text">
-                                    {{ labels.items | selectattr('categories') | list | length }}
+                                    {{ labels_with_categories }}
                                 </h4>
                                 <p>Con Categorie</p>
                             </div>

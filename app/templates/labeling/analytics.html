@@ -302,19 +302,19 @@
                     
                     <div class="row">
                         <div class="col s12 m6 l3">
-                            <a href="{{ url_for('labeling.export_analytics', format='csv') }}" 
+                            <a href="{{ url_for('labeling.export_analytics', project_id=project.id, format='csv') }}"
                                class="btn blue waves-effect waves-light">
                                 <i class="material-icons left">file_download</i>CSV
                             </a>
                         </div>
                         <div class="col s12 m6 l3">
-                            <a href="{{ url_for('labeling.export_analytics', format='excel') }}" 
+                            <a href="{{ url_for('labeling.export_analytics', project_id=project.id, format='excel') }}"
                                class="btn green waves-effect waves-light">
                                 <i class="material-icons left">file_download</i>Excel
                             </a>
                         </div>
                         <div class="col s12 m6 l3">
-                            <a href="{{ url_for('labeling.export_analytics', format='json') }}" 
+                            <a href="{{ url_for('labeling.export_analytics', project_id=project.id, format='json') }}"
                                class="btn orange waves-effect waves-light">
                                 <i class="material-icons left">file_download</i>JSON
                             </a>
@@ -336,7 +336,7 @@
 
 <script>
 // Chart data from backend
-const chartData = {{ chart_data|tojsonfilter|safe }};
+const chartData = {{ chart_data|tojson|safe if chart_data else '{}' }};
 
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize Material Design components
@@ -449,12 +449,12 @@ function updateAnalytics() {
     if (timeframe) params.append('timeframe', timeframe);
     if (type) params.append('type', type);
     
-    window.location.href = `{{ url_for('labeling.label_analytics') }}?${params.toString()}`;
+    window.location.href = `{{ url_for('labeling.label_analytics', project_id=project.id) }}?${params.toString()}`;
 }
 
 function generateReport() {
     // Trigger PDF report generation
-    window.open(`{{ url_for('labeling.generate_pdf_report') }}`, '_blank');
+    window.open(`{{ url_for('labeling.generate_pdf_report', project_id=project.id) }}`, '_blank');
 }
 </script>
 

@@ -468,7 +468,7 @@
 
 {% block extra_js %}
 <script>
-const providerTemplates = {{ provider_templates|tojsonfilter }};
+const providerTemplates = {{ provider_templates|tojson }};
 
 document.addEventListener('DOMContentLoaded', function() {
     // Inizializza elementi Materialize

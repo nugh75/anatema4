@@ -454,14 +454,14 @@
                         {% if log.old_values %}
                         <div class="diff-section">
                             <div class="diff-label">Valori Precedenti:</div>
-                            <pre class="diff-content diff-old">{{ log.old_values|tojsonfilter }}</pre>
+                            <pre class="diff-content diff-old">{{ log.old_values|tojson }}</pre>
                         </div>
                         {% endif %}
 
                         {% if log.new_values %}
                         <div class="diff-section">
                             <div class="diff-label">Nuovi Valori:</div>
-                            <pre class="diff-content diff-new">{{ log.new_values|tojsonfilter }}</pre>
+                            <pre class="diff-content diff-new">{{ log.new_values|tojson }}</pre>
                         </div>
                         {% endif %}
                     </div>

@@ -44,8 +44,7 @@ def create_app(config_name=None):
     from app.views.files import files_bp
     from app.views.labels import labels_bp
     from app.views.api import api_bp
-    from app.views.ml import ml_bp
-    from app.views.labeling import labeling_bp
+    from app.views.ml import ml_bp  # Keep original name for compatibility
     from app.views.admin import admin_bp
     
     app.register_blueprint(auth_bp, url_prefix='/auth')
@@ -54,8 +53,7 @@ def create_app(config_name=None):
     app.register_blueprint(files_bp, url_prefix='/files')
     app.register_blueprint(labels_bp, url_prefix='/labels')
     app.register_blueprint(api_bp, url_prefix='/api')
-    app.register_blueprint(ml_bp, url_prefix='/ml')
-    app.register_blueprint(labeling_bp, url_prefix='/labeling')
+    app.register_blueprint(ml_bp, url_prefix='/ml')  # Keep /ml URL prefix
     app.register_blueprint(admin_bp, url_prefix='/admin')
     
     # Add custom Jinja2 filters

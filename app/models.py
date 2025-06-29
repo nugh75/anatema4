@@ -447,7 +447,7 @@ class AutoLabel(db.Model):
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     ml_analysis_id = db.Column(UUID(as_uuid=True), db.ForeignKey('ml_analyses.id'), nullable=False)
     column_analysis_id = db.Column(UUID(as_uuid=True), db.ForeignKey('column_analyses.id'), nullable=True)
-    column_name = db.Column(db.String(255))  # Nome della colonna per etichettatura manuale
+    column_name = db.Column(db.String(1000))  # Nome della colonna per etichettatura manuale
     
     # Generated label information
     label_name = db.Column(db.String(200), nullable=False)
@@ -515,7 +515,7 @@ class AutoLabelApplication(db.Model):
     auto_label_id = db.Column(UUID(as_uuid=True), db.ForeignKey('auto_labels.id'), nullable=False)
     row_id = db.Column(UUID(as_uuid=True), db.ForeignKey('excel_rows.id'), nullable=True)  # Nullable per etichettatura manuale
     row_index = db.Column(db.Integer, nullable=False)  # Indice della riga
-    column_name = db.Column(db.String(255), nullable=False)  # Nome della colonna
+    column_name = db.Column(db.String(1000), nullable=False)  # Nome della colonna
     
     # Application details
     cell_value = db.Column(db.Text)

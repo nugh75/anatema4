@@ -8,7 +8,7 @@ Workflow a due fasi:
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user
 from app.database import db
-from app.models import Project, File, ExcelSheet, Label
+from app.models import Project, File, ExcelSheet, ExcelRow, Label
 from app.models_labeling import (
     LabelTemplate, LabelGeneration, LabelSuggestion, 
     LabelApplication, AILabelingSession, LabelAnalytics
@@ -1362,20 +1362,66 @@ def label_analytics(project_id):
     saved_analytics = LabelAnalytics.query.filter_by(project_id=project.id)\
         .order_by(LabelAnalytics.calculated_at.desc()).all()
     
+    # Prepara dati per i grafici
+    chart_data = {
+        'labelDistribution': {
+            'labels': [item['name'] for item in analytics_data.get('label_distribution', [])],
+            'values': [item['count'] for item in analytics_data.get('label_distribution', [])]
+        },
+        'timelineData': {
+            'labels': [item['date'] for item in analytics_data.get('timeline_data', [])],
+            'values': [item['count'] for item in analytics_data.get('timeline_data', [])]
+        },
+        'confidenceDistribution': [0, 0, 0, 0, 0],  # Default vuoto per 5 fasce
+        'manualApplications': analytics_data.get('manual_applications', 0),
+        'aiApplications': analytics_data.get('ai_applications', 0)
+    }
+    
+    # Calcola distribuzione confidenza se ci sono dati
+    if analytics_data.get('total_applications', 0) > 0:
+        applications_with_confidence = LabelApplication.query.filter_by(
+            project_id=project.id,
+            is_active=True
+        ).filter(LabelApplication.confidence_score.isnot(None)).all()
+        
+        confidence_counts = [0, 0, 0, 0, 0]  # 0-20%, 21-40%, 41-60%, 61-80%, 81-100%
+        for app in applications_with_confidence:
+            if app.confidence_score is not None:
+                conf = app.confidence_score * 100
+                if conf <= 20:
+                    confidence_counts[0] += 1
+                elif conf <= 40:
+                    confidence_counts[1] += 1
+                elif conf <= 60:
+                    confidence_counts[2] += 1
+                elif conf <= 80:
+                    confidence_counts[3] += 1
+                else:
+                    confidence_counts[4] += 1
+        chart_data['confidenceDistribution'] = confidence_counts
+    
+    # Lista progetti per filtri
+    projects = Project.query.filter_by(owner_id=current_user.id).all()
+    
     if request.is_json:
         return jsonify({
             'project': project.to_dict(),
             'analytics': analytics_data,
-            'saved_analytics': [a.to_dict() for a in saved_analytics]
+            'saved_analytics': [a.to_dict() for a in saved_analytics],
+            'chart_data': chart_data
         })
     
     return render_template('labeling/analytics.html',
                          project=project,
                          analytics=analytics_data,
-                         saved_analytics=saved_analytics)
+                         saved_analytics=saved_analytics,
+                         chart_data=chart_data,
+                         projects=projects)
 
 def _calculate_label_analytics(project) -> Dict[str, Any]:
     """Calcola analytics in tempo reale per le etichette"""
+    from app.models_labeling import LabelSuggestion
+    
     # Statistiche generali
     total_applications = LabelApplication.query.filter_by(
         project_id=project.id, 
@@ -1389,6 +1435,100 @@ def _calculate_label_analytics(project) -> Dict[str, Any]:
     ).count()
     
     ai_applications = total_applications - manual_applications
+    
+    # Calcola confidenza media
+    avg_confidence_result = db.session.query(
+        db.func.avg(LabelApplication.confidence_score)
+    ).filter(
+        LabelApplication.project_id == project.id,
+        LabelApplication.is_active == True,
+        LabelApplication.confidence_score.isnot(None)
+    ).first()
+    
+    avg_confidence = avg_confidence_result[0] if avg_confidence_result[0] is not None else 0.0
+    
+    # Numero totale di etichette
+    total_labels = Label.query.filter_by(project_id=project.id).count()
+    
+    # Top labels con confidenza media
+    top_labels_query = db.session.query(
+        Label.name,
+        Label.color,
+        db.func.count(LabelApplication.id).label('count'),
+        db.func.avg(LabelApplication.confidence_score).label('avg_confidence')
+    ).join(LabelApplication, Label.id == LabelApplication.label_id)\
+     .filter(Label.project_id == project.id, LabelApplication.is_active == True)\
+     .group_by(Label.id, Label.name, Label.color)\
+     .order_by(db.text('count DESC')).limit(10).all()
+    
+    top_labels = [
+        {
+            'label_name': name,
+            'color': color,
+            'count': count,
+            'avg_confidence': float(avg_conf) if avg_conf is not None else 0.0
+        }
+        for name, color, count, avg_conf in top_labels_query
+    ]
+    
+    # Statistiche dei suggerimenti (se esistono)
+    total_suggestions = db.session.query(LabelSuggestion)\
+        .join(LabelGeneration, LabelSuggestion.generation_id == LabelGeneration.id)\
+        .filter(LabelGeneration.project_id == project.id).count()
+        
+    approved_suggestions = db.session.query(LabelSuggestion)\
+        .join(LabelGeneration, LabelSuggestion.generation_id == LabelGeneration.id)\
+        .filter(LabelGeneration.project_id == project.id, LabelSuggestion.status == 'approved').count()
+        
+    approval_rate = (approved_suggestions / total_suggestions) if total_suggestions > 0 else 0.0
+    
+    # Calcoli di precisione AI (basato sui suggerimenti approvati)
+    ai_precision = approval_rate  # Semplificazione
+    
+    # Punteggio di efficienza (basato sul rapporto AI/manuale)
+    efficiency_score = (ai_applications / total_applications) if total_applications > 0 else 0.0
+    
+    # Completezza (percentuale di celle etichettate)
+    total_cells = db.session.query(db.func.count()).select_from(ExcelRow)\
+        .join(ExcelSheet).filter(ExcelSheet.file_id.in_(
+            db.session.query(File.id).filter(File.project_id == project.id)
+        )).scalar()
+    
+    completeness = (total_applications / total_cells) if total_cells > 0 else 0.0
+    
+    # Attività recenti per timeline con formato corretto per il template
+    recent_activities_query = db.session.query(
+        LabelApplication.applied_at,
+        Label.name.label('label_name'),
+        LabelApplication.application_type,
+        LabelApplication.confidence_score
+    ).join(Label, LabelApplication.label_id == Label.id)\
+     .filter(LabelApplication.project_id == project.id, LabelApplication.is_active == True)\
+     .order_by(LabelApplication.applied_at.desc()).limit(10).all()
+    
+    recent_activities = []
+    for activity in recent_activities_query:
+        activity_type = 'application'
+        description = f'Etichetta "{activity.label_name}" applicata'
+        if activity.application_type == 'ai_batch':
+            description = f'Etichetta "{activity.label_name}" applicata automaticamente dall\'AI'
+        
+        recent_activities.append({
+            'type': activity_type,
+            'description': description,
+            'project_name': project.name,
+            'timestamp': activity.applied_at,
+            'confidence': float(activity.confidence_score) if activity.confidence_score is not None else 0.0
+        })
+    
+    # Statistiche di progetto nel formato corretto per il template
+    project_stats = [
+        {
+            'project_name': project.name,
+            'unique_labels': total_labels,
+            'total_applications': total_applications
+        }
+    ]
     
     # Distribuzione per etichetta
     label_distribution = db.session.query(
@@ -1430,6 +1570,17 @@ def _calculate_label_analytics(project) -> Dict[str, Any]:
         'manual_applications': manual_applications,
         'ai_applications': ai_applications,
         'ai_percentage': round((ai_applications / total_applications * 100), 2) if total_applications > 0 else 0,
+        'avg_confidence': avg_confidence,
+        'total_labels': total_labels,
+        'top_labels': top_labels,
+        'project_stats': project_stats,
+        'approval_rate': approval_rate,
+        'approved_suggestions': approved_suggestions,
+        'total_suggestions': total_suggestions,
+        'ai_precision': ai_precision,
+        'efficiency_score': efficiency_score,
+        'completeness': completeness,
+        'recent_activities': recent_activities,
         'label_distribution': [
             {'name': name, 'color': color, 'count': count} 
             for name, color, count in label_distribution
@@ -1447,6 +1598,167 @@ def _calculate_label_analytics(project) -> Dict[str, Any]:
             for date, count in timeline_data
         ]
     }
+
+# ================================
+# EXPORT ANALYTICS
+# ================================
+
+@labeling_bp.route('/projects/<uuid:project_id>/analytics/export/<format>')
+@login_required
+def export_analytics(project_id, format):
+    """Esporta i dati analitici in diversi formati"""
+    project = Project.query.filter_by(id=project_id, owner_id=current_user.id).first_or_404()
+    
+    # Calcola statistiche
+    analytics_data = _calculate_label_analytics(project)
+    
+    if format.lower() == 'csv':
+        return _export_analytics_csv(project, analytics_data)
+    elif format.lower() == 'excel':
+        return _export_analytics_excel(project, analytics_data)
+    elif format.lower() == 'json':
+        return _export_analytics_json(project, analytics_data)
+    else:
+        flash('Formato di export non supportato', 'error')
+        return redirect(url_for('labeling.label_analytics', project_id=project_id))
+
+def _export_analytics_csv(project, analytics_data):
+    """Esporta analytics in formato CSV"""
+    import csv
+    import io
+    from flask import make_response
+    
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # Header del file
+    writer.writerow(['Progetto', project.name])
+    writer.writerow(['Data Export', datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')])
+    writer.writerow([])
+    
+    # Statistiche generali
+    writer.writerow(['STATISTICHE GENERALI'])
+    writer.writerow(['Totale Applicazioni', analytics_data['total_applications']])
+    writer.writerow(['Applicazioni Manuali', analytics_data['manual_applications']])
+    writer.writerow(['Applicazioni AI', analytics_data['ai_applications']])
+    writer.writerow(['Percentuale AI', f"{analytics_data['ai_percentage']}%"])
+    writer.writerow(['Confidenza Media', f"{analytics_data['avg_confidence']:.2f}"])
+    writer.writerow(['Totale Etichette', analytics_data['total_labels']])
+    writer.writerow([])
+    
+    # Top etichette
+    writer.writerow(['TOP ETICHETTE'])
+    writer.writerow(['Nome', 'Utilizzi', 'Confidenza Media'])
+    for label in analytics_data['top_labels']:
+        writer.writerow([
+            label['label_name'],
+            label['count'],
+            f"{label['avg_confidence']:.2f}"
+        ])
+    writer.writerow([])
+    
+    # Distribuzione per colonna
+    writer.writerow(['DISTRIBUZIONE PER COLONNA'])
+    writer.writerow(['Colonna', 'Utilizzi'])
+    for col in analytics_data['column_distribution']:
+        writer.writerow([col['name'], col['count']])
+    
+    output.seek(0)
+    
+    response = make_response(output.getvalue())
+    response.headers['Content-Type'] = 'text/csv'
+    response.headers['Content-Disposition'] = f'attachment; filename=analytics_{project.name}_{datetime.utcnow().strftime("%Y%m%d_%H%M%S")}.csv'
+    
+    return response
+
+def _export_analytics_excel(project, analytics_data):
+    """Esporta analytics in formato Excel"""
+    import io
+    from flask import make_response
+    
+    output = io.BytesIO()
+    
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        # Statistiche generali
+        general_stats = pd.DataFrame([
+            ['Totale Applicazioni', analytics_data['total_applications']],
+            ['Applicazioni Manuali', analytics_data['manual_applications']],
+            ['Applicazioni AI', analytics_data['ai_applications']],
+            ['Percentuale AI', f"{analytics_data['ai_percentage']}%"],
+            ['Confidenza Media', analytics_data['avg_confidence']],
+            ['Totale Etichette', analytics_data['total_labels']],
+        ], columns=['Metrica', 'Valore'])
+        general_stats.to_excel(writer, sheet_name='Statistiche Generali', index=False)
+        
+        # Top etichette
+        if analytics_data['top_labels']:
+            top_labels_df = pd.DataFrame(analytics_data['top_labels'])
+            top_labels_df.to_excel(writer, sheet_name='Top Etichette', index=False)
+        
+        # Distribuzione per etichetta
+        if analytics_data['label_distribution']:
+            label_dist_df = pd.DataFrame(analytics_data['label_distribution'])
+            label_dist_df.to_excel(writer, sheet_name='Distribuzione Etichette', index=False)
+        
+        # Distribuzione per colonna
+        if analytics_data['column_distribution']:
+            col_dist_df = pd.DataFrame(analytics_data['column_distribution'])
+            col_dist_df.to_excel(writer, sheet_name='Distribuzione Colonne', index=False)
+        
+        # Timeline
+        if analytics_data['timeline_data']:
+            timeline_df = pd.DataFrame(analytics_data['timeline_data'])
+            timeline_df.to_excel(writer, sheet_name='Timeline', index=False)
+        
+        # Attività recenti
+        if analytics_data['recent_activities']:
+            activities_df = pd.DataFrame(analytics_data['recent_activities'])
+            activities_df.to_excel(writer, sheet_name='Attività Recenti', index=False)
+    
+    output.seek(0)
+    
+    response = make_response(output.getvalue())
+    response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    response.headers['Content-Disposition'] = f'attachment; filename=analytics_{project.name}_{datetime.utcnow().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    
+    return response
+
+def _export_analytics_json(project, analytics_data):
+    """Esporta analytics in formato JSON"""
+    from flask import make_response
+    import json
+    
+    export_data = {
+        'project': {
+            'id': str(project.id),
+            'name': project.name,
+            'export_date': datetime.utcnow().isoformat()
+        },
+        'analytics': analytics_data
+    }
+    
+    response = make_response(json.dumps(export_data, indent=2, ensure_ascii=False))
+    response.headers['Content-Type'] = 'application/json'
+    response.headers['Content-Disposition'] = f'attachment; filename=analytics_{project.name}_{datetime.utcnow().strftime("%Y%m%d_%H%M%S")}.json'
+    
+    return response
+
+@labeling_bp.route('/projects/<uuid:project_id>/analytics/pdf-report')
+@login_required
+def generate_pdf_report(project_id):
+    """Genera report PDF delle analisi"""
+    project = Project.query.filter_by(id=project_id, owner_id=current_user.id).first_or_404()
+    
+    try:
+        # Per ora, genera un CSV come fallback
+        # TODO: Implementare generazione PDF con reportlab o weasyprint
+        analytics_data = _calculate_label_analytics(project)
+        return _export_analytics_csv(project, analytics_data)
+        
+    except Exception as e:
+        logger.error(f"Errore nella generazione report PDF: {str(e)}")
+        flash(f'Errore nella generazione report: {str(e)}', 'error')
+        return redirect(url_for('labeling.label_analytics', project_id=project_id))
 
 # ================================
 # API ENDPOINTS
@@ -1737,3 +2049,245 @@ def apply_labels_simple():
     return render_template('labeling/select_project_sheet.html',
                          projects=projects,
                          sheets=sheets)
+
+# ================================
+# INTEGRAZIONE CON SISTEMA ML
+# ================================
+
+def create_template_from_ml_column(project_id, sheet_id, column_name, sample_data=None, analysis_type=None):
+    """
+    Crea un template di etichettatura basato su una colonna ML e avvia la generazione
+    Chiamata dal sistema ML per integrare i due workflow
+    """
+    try:
+        from app.models import Project, ExcelSheet, File
+        
+        # Verifica parametri
+        project = Project.query.filter_by(id=project_id).first()
+        if not project:
+            return {'success': False, 'error': 'Progetto non trovato'}
+            
+        sheet = ExcelSheet.query.join(File).filter(
+            ExcelSheet.id == sheet_id,
+            File.project_id == project.id
+        ).first()
+        if not sheet:
+            return {'success': False, 'error': 'Foglio non trovato'}
+        
+        # Carica dati colonna se non forniti
+        if not sample_data:
+            try:
+                import pandas as pd
+                file_path = sheet.file.get_file_path()
+                df = pd.read_excel(file_path, sheet_name=sheet.name)
+                
+                if column_name not in df.columns:
+                    return {'success': False, 'error': f'Colonna "{column_name}" non trovata'}
+                
+                # Campiona fino a 15 valori non vuoti
+                sample_data = df[column_name].dropna().head(15).tolist()
+            except Exception as e:
+                logger.error(f"Errore nel caricamento dati colonna: {str(e)}")
+                return {'success': False, 'error': f'Errore nel caricamento dati: {str(e)}'}
+        
+        # Determina tipo di analisi dalla colonna
+        if not analysis_type:
+            analysis_type = _detect_column_analysis_type(column_name, sample_data)
+        
+        # Seleziona template predefinito appropriato
+        template_config = _get_ml_integration_template(analysis_type, column_name)
+        
+        # Crea template personalizzato per questa colonna
+        template_name = f"ML-{analysis_type.title()}-{column_name}".replace('_', ' ')[:100]
+        
+        # Verifica se esiste già un template simile
+        existing_template = LabelTemplate.query.filter_by(
+            project_id=project.id,
+            name=template_name
+        ).first()
+        
+        if existing_template:
+            # Usa template esistente ma aggiorna timestamp
+            template = existing_template
+            template.updated_at = datetime.utcnow()
+        else:
+            # Crea nuovo template
+            template = LabelTemplate(
+                project_id=project.id,
+                created_by=project.owner_id,  # Usa l'owner del progetto
+                name=template_name,
+                description=template_config['description'].format(column_name=column_name),
+                category=template_config['category'],
+                system_prompt=template_config['system_prompt'],
+                user_prompt_template=template_config['user_prompt_template'],
+                preferred_model='anthropic/claude-3-haiku',  # Modello veloce per ML
+                temperature=0.3,  # Più deterministico per consistenza
+                max_tokens=800,
+                expected_labels_count=template_config['expected_labels_count'],
+                output_format='json'
+            )
+            
+            db.session.add(template)
+            db.session.flush()
+        
+        # Crea sessione di generazione automatica
+        generation = LabelGeneration(
+            project_id=project.id,
+            sheet_id=sheet.id,
+            template_id=template.id,
+            created_by=project.owner_id,
+            column_name=column_name,
+            sample_data=sample_data[:10],  # Limita per performance
+            status='pending'
+        )
+        
+        db.session.add(generation)
+        db.session.flush()
+        
+        # Genera etichette immediatamente
+        logger.info(f"🚀 Avvio generazione ML per colonna '{column_name}' con template '{template.name}'")
+        success = _generate_labels_with_ai(generation, template, sample_data[:10], column_name)
+        
+        if success:
+            db.session.commit()
+            
+            # Conta suggerimenti creati
+            suggestions_count = LabelSuggestion.query.filter_by(
+                generation_id=generation.id
+            ).count()
+            
+            return {
+                'success': True,
+                'message': f'Template creato e {suggestions_count} etichette generate per colonna "{column_name}"',
+                'template_id': str(template.id),
+                'generation_id': str(generation.id),
+                'suggestions_count': suggestions_count,
+                'template_name': template.name,
+                'analysis_type': analysis_type,
+                'review_url': f'/labeling/projects/{project.id}/generations/{generation.id}/review'
+            }
+        else:
+            db.session.rollback()
+            error_msg = generation.error_message or 'Errore nella generazione AI'
+            return {
+                'success': False,
+                'error': f'Template creato ma generazione fallita: {error_msg}'
+            }
+            
+    except Exception as e:
+        logger.error(f"❌ Errore critico in create_template_from_ml_column: {str(e)}")
+        db.session.rollback()
+        return {
+            'success': False,
+            'error': f'Errore interno: {str(e)}'
+        }
+
+def _detect_column_analysis_type(column_name, sample_data):
+    """Rileva automaticamente il tipo di analisi appropriato per una colonna"""
+    column_lower = column_name.lower()
+    
+    # Analisi basata sul nome della colonna
+    if any(keyword in column_lower for keyword in ['sentiment', 'opinione', 'giudizio', 'valutazione']):
+        return 'sentiment'
+    elif any(keyword in column_lower for keyword in ['emozione', 'emotion', 'feeling', 'umore']):
+        return 'emotion'
+    elif any(keyword in column_lower for keyword in ['tono', 'tone', 'stile', 'style']):
+        return 'tone'
+    elif any(keyword in column_lower for keyword in ['priorità', 'priority', 'urgenza', 'urgent']):
+        return 'priority'
+    elif any(keyword in column_lower for keyword in ['qualità', 'quality', 'rating', 'voto']):
+        return 'quality'
+    elif any(keyword in column_lower for keyword in ['argomento', 'topic', 'tema', 'subject']):
+        return 'topic'
+    elif any(keyword in column_lower for keyword in ['comportamento', 'behavior', 'azione', 'action']):
+        return 'behavior'
+    elif any(keyword in column_lower for keyword in ['intenzione', 'intent', 'obiettivo', 'goal']):
+        return 'intent'
+    elif any(keyword in column_lower for keyword in ['competenza', 'expertise', 'skill', 'livello']):
+        return 'expertise'
+    
+    # Analisi basata sul contenuto (primi 5 campioni)
+    sample_text = ' '.join([str(item)[:50] for item in sample_data[:5]]).lower()
+    
+    if any(keyword in sample_text for keyword in ['positivo', 'negativo', 'bello', 'brutto', 'buono', 'cattivo']):
+        return 'sentiment'
+    elif any(keyword in sample_text for keyword in ['felice', 'triste', 'arrabbiato', 'paura', 'gioia']):
+        return 'emotion'
+    elif any(keyword in sample_text for keyword in ['urgente', 'importante', 'critico', 'bassa', 'alta']):
+        return 'priority'
+    elif len(sample_text) > 100:  # Testi lunghi -> probabilmente topic analysis
+        return 'topic'
+    
+    # Default: analisi sentiment (più generale)
+    return 'sentiment'
+
+def _get_ml_integration_template(analysis_type, column_name):
+    """Restituisce configurazione template per integrazione ML"""
+    templates_map = {
+        'sentiment': {
+            'category': 'sentiment',
+            'description': 'Template ML automatico per analisi sentiment della colonna "{column_name}"',
+            'system_prompt': 'Sei un esperto analista di sentiment integrato con sistema ML. Analizza il sentiment del testo in modo coerente e accurato.',
+            'user_prompt_template': 'Analizza i dati della colonna "{column_name}" e genera etichette per sentiment:\n\n{sample_data}\n\nGenera 3-4 etichette precise per sentiment come: Positivo, Negativo, Neutro, Misto.\nRispondi in formato JSON con: name, description, category, color.',
+            'expected_labels_count': 4
+        },
+        'emotion': {
+            'category': 'emotion',
+            'description': 'Template ML automatico per analisi emozioni della colonna "{column_name}"',
+            'system_prompt': 'Sei un esperto psicologo per analisi emozioni integrato con sistema ML. Identifica emozioni in modo preciso.',
+            'user_prompt_template': 'Analizza i dati della colonna "{column_name}" e identifica le emozioni principali:\n\n{sample_data}\n\nGenera 5-6 etichette per emozioni come: Gioia, Tristezza, Rabbia, Paura, Sorpresa, Disgusto.\nRispondi in formato JSON con: name, description, category, color.',
+            'expected_labels_count': 6
+        },
+        'tone': {
+            'category': 'tone',
+            'description': 'Template ML automatico per analisi tono della colonna "{column_name}"',
+            'system_prompt': 'Sei un esperto di comunicazione integrato con sistema ML. Analizza il tono e stile di comunicazione.',
+            'user_prompt_template': 'Analizza i dati della colonna "{column_name}" e identifica il tono:\n\n{sample_data}\n\nGenera etichette per toni come: Formale, Informale, Professionale, Colloquiale, Ironico, Serio.\nRispondi in formato JSON con: name, description, category, color.',
+            'expected_labels_count': 6
+        },
+        'priority': {
+            'category': 'priority',
+            'description': 'Template ML automatico per analisi priorità della colonna "{column_name}"',
+            'system_prompt': 'Sei un esperto di gestione priorità integrato con sistema ML. Classifica urgenza e importanza.',
+            'user_prompt_template': 'Analizza i dati della colonna "{column_name}" e classifica per priorità:\n\n{sample_data}\n\nGenera etichette come: Urgente, Alta Priorità, Media Priorità, Bassa Priorità, Non Urgente.\nRispondi in formato JSON con: name, description, category, color.',
+            'expected_labels_count': 5
+        },
+        'quality': {
+            'category': 'quality',
+            'description': 'Template ML automatico per analisi qualità della colonna "{column_name}"',
+            'system_prompt': 'Sei un esperto di valutazione qualità integrato con sistema ML. Valuta qualità e utilità del contenuto.',
+            'user_prompt_template': 'Analizza i dati della colonna "{column_name}" e valuta la qualità:\n\n{sample_data}\n\nGenera etichette come: Eccellente, Molto Buona, Buona, Sufficiente, Insufficiente.\nRispondi in formato JSON con: name, description, category, color.',
+            'expected_labels_count': 5
+        },
+        'topic': {
+            'category': 'topic',
+            'description': 'Template ML automatico per analisi tematiche della colonna "{column_name}"',
+            'system_prompt': 'Sei un esperto analista di contenuti integrato con sistema ML. Identifica temi e argomenti principali.',
+            'user_prompt_template': 'Analizza i dati della colonna "{column_name}" e identifica i temi principali:\n\n{sample_data}\n\nGenera etichette per i temi più ricorrenti nel contenuto.\nRispondi in formato JSON con: name, description, category, color.',
+            'expected_labels_count': 8
+        },
+        'behavior': {
+            'category': 'behavior',
+            'description': 'Template ML automatico per analisi comportamentale della colonna "{column_name}"',
+            'system_prompt': 'Sei un esperto analista comportamentale integrato con sistema ML. Classifica comportamenti e azioni.',
+            'user_prompt_template': 'Analizza i dati della colonna "{column_name}" e classifica i comportamenti:\n\n{sample_data}\n\nGenera etichette per comportamenti come: Collaborativo, Competitivo, Passivo, Assertivo, Aggressivo.\nRispondi in formato JSON con: name, description, category, color.',
+            'expected_labels_count': 5
+        },
+        'intent': {
+            'category': 'intent',
+            'description': 'Template ML automatico per analisi intenzioni della colonna "{column_name}"',
+            'system_prompt': 'Sei un esperto di user experience integrato con sistema ML. Identifica intenzioni e obiettivi.',
+            'user_prompt_template': 'Analizza i dati della colonna "{column_name}" e identifica le intenzioni:\n\n{sample_data}\n\nGenera etichette per intenzioni come: Richiesta Info, Reclamo, Complimento, Suggerimento, Richiesta Supporto.\nRispondi in formato JSON con: name, description, category, color.',
+            'expected_labels_count': 6
+        },
+        'expertise': {
+            'category': 'expertise',
+            'description': 'Template ML automatico per analisi expertise della colonna "{column_name}"',
+            'system_prompt': 'Sei un esperto formatore integrato con sistema ML. Valuta livelli di competenza tecnica.',
+            'user_prompt_template': 'Analizza i dati della colonna "{column_name}" e valuta il livello di expertise:\n\n{sample_data}\n\nGenera etichette come: Principiante, Intermedio, Avanzato, Esperto, Specialista.\nRispondi in formato JSON con: name, description, category, color.',
+            'expected_labels_count': 5
+        }
+    }
+    
+    # Restituisci template specifico o default sentiment
+    return templates_map.get(analysis_type, templates_map['sentiment'])

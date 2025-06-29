@@ -1,0 +1,320 @@
+{% extends "base.html" %}
+
+{% block title %}Etichettatura Umano/Macchina - {{ project.name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col s12">
+            <nav>
+                <div class="nav-wrapper">
+                    <div class="col s12">
+                        <a href="{{ url_for('main.dashboard') }}" class="breadcrumb">Dashboard</a>
+                        <a href="{{ url_for('projects.view_project', project_id=project.id) }}" class="breadcrumb">{{ project.name }}</a>
+                        <span class="breadcrumb">Etichettatura Umano/Macchina</span>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Header Principal -->
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">
+                        <i class="material-icons left">label</i>
+                        Etichettatura Umano/Macchina
+                    </span>
+                    <p>Sistema integrato per l'etichettatura manuale e automatica dei dati. Combina la precisione umana con l'efficienza dell'intelligenza artificiale per processare grandi volumi di dati.</p>
+                    
+                    <div class="row" style="margin-top: 30px;">
+                        <div class="col s12 m6">
+                            <div class="card-panel light-blue lighten-5">
+                                <h6><i class="material-icons left">person</i>Etichettatura Umana</h6>
+                                <p>Controllo completo e precisione massima per dati complessi o sensibili.</p>
+                            </div>
+                        </div>
+                        <div class="col s12 m6">
+                            <div class="card-panel green lighten-5">
+                                <h6><i class="material-icons left">smart_toy</i>Assistenza AI</h6>
+                                <p>Accelera il processo con suggerimenti intelligenti e etichettatura automatica.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistiche Progetto -->
+    {% if files_data %}
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">
+                        <i class="material-icons left">assessment</i>
+                        Statistiche Progetto
+                    </span>
+                    
+                    <div class="row">
+                        <div class="col s12 m3">
+                            <div class="card-panel center">
+                                <h4 class="blue-text">{{ files_data|length }}</h4>
+                                <p>File Caricati</p>
+                            </div>
+                        </div>
+                        <div class="col s12 m3">
+                            <div class="card-panel center">
+                                <h4 class="green-text">{{ total_sheets }}</h4>
+                                <p>Fogli Excel</p>
+                            </div>
+                        </div>
+                        <div class="col s12 m3">
+                            <div class="card-panel center">
+                                <h4 class="orange-text">{{ total_labels or 0 }}</h4>
+                                <p>Etichette Applicate</p>
+                            </div>
+                        </div>
+                        <div class="col s12 m3">
+                            <div class="card-panel center">
+                                <h4 class="purple-text">{{ project_labels|length }}</h4>
+                                <p>Tipi di Etichette</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- View Principali -->
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">
+                        <i class="material-icons left">view_module</i>
+                        Modalità di Etichettatura
+                    </span>
+                    <p>Scegli la modalità più adatta al tuo tipo di analisi:</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- View Colonne -->
+        <div class="col s12 l6">
+            <div class="card large">
+                <div class="card-image">
+                    <div style="background: linear-gradient(135deg, #2196f3, #21cbf3); height: 200px; display: flex; align-items: center; justify-content: center;">
+                        <i class="material-icons white-text" style="font-size: 72px;">view_column</i>
+                    </div>
+                    <span class="card-title white-text" style="background: rgba(0,0,0,0.5); padding: 10px;">Etichettatura per Colonne</span>
+                </div>
+                <div class="card-content">
+                    <p><strong>Ideale per:</strong> Analisi tematiche dove tutte le celle della colonna riguardano lo stesso argomento.</p>
+                    
+                    <div class="features-list" style="margin: 15px 0;">
+                        <p><i class="material-icons tiny green-text">check_circle</i> Etichettatura multipla per cella</p>
+                        <p><i class="material-icons tiny green-text">check_circle</i> Selezione di più celle contemporaneamente</p>
+                        <p><i class="material-icons tiny green-text">check_circle</i> Etichettatura AI batch</p>
+                        <p><i class="material-icons tiny green-text">check_circle</i> Template AI predefiniti</p>
+                    </div>
+                    
+                    <p><strong>Esempi di utilizzo:</strong><br>
+                    • Analisi sentiment di recensioni<br>
+                    • Classificazione categorie prodotti<br>
+                    • Tagging di contenuti</p>
+                </div>
+                <div class="card-action">
+                    {% if files_data %}
+                    <div class="input-field">
+                        <select id="column-file-selector">
+                            <option value="" disabled selected>Seleziona un file</option>
+                            {% for file in files_data %}
+                                {% for sheet in file.sheets %}
+                                <option value="{{ file.id }}_{{ sheet.id }}">{{ file.filename }} - {{ sheet.name }}</option>
+                                {% endfor %}
+                            {% endfor %}
+                        </select>
+                        <label>File e Foglio per Etichettatura Colonne</label>
+                    </div>
+                    <a href="#" class="btn waves-effect waves-light blue disabled" id="start-column-labeling">
+                        <i class="material-icons left">view_column</i>
+                        Inizia Etichettatura Colonne
+                    </a>
+                    {% else %}
+                    <p class="grey-text">Carica prima dei file Excel per iniziare l'etichettatura</p>
+                    <a href="{{ url_for('files.upload_file', project_id=project.id) }}" class="btn waves-effect waves-light grey">
+                        <i class="material-icons left">cloud_upload</i>
+                        Carica File
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- View Righe -->
+        <div class="col s12 l6">
+            <div class="card large">
+                <div class="card-image">
+                    <div style="background: linear-gradient(135deg, #4caf50, #8bc34a); height: 200px; display: flex; align-items: center; justify-content: center;">
+                        <i class="material-icons white-text" style="font-size: 72px;">view_list</i>
+                    </div>
+                    <span class="card-title white-text" style="background: rgba(0,0,0,0.5); padding: 10px;">Etichettatura per Righe</span>
+                </div>
+                <div class="card-content">
+                    <p><strong>Ideale per:</strong> Analisi contestuali dove serve vedere tutte le informazioni di una riga per etichettare correttamente.</p>
+                    
+                    <div class="features-list" style="margin: 15px 0;">
+                        <p><i class="material-icons tiny green-text">check_circle</i> Visualizzazione contesto completo</p>
+                        <p><i class="material-icons tiny green-text">check_circle</i> Etichettatura multipla per cella</p>
+                        <p><i class="material-icons tiny green-text">check_circle</i> Focus su singola cella</p>
+                        <p><i class="material-icons tiny green-text">check_circle</i> Suggerimenti AI contestuali</p>
+                    </div>
+                    
+                    <p><strong>Esempi di utilizzo:</strong><br>
+                    • Classificazione lead commerciali<br>
+                    • Analisi feedback clienti<br>
+                    • Categorizzazione record complessi</p>
+                </div>
+                <div class="card-action">
+                    {% if files_data %}
+                    <div class="input-field">
+                        <select id="row-file-selector">
+                            <option value="" disabled selected>Seleziona un file</option>
+                            {% for file in files_data %}
+                                {% for sheet in file.sheets %}
+                                <option value="{{ file.id }}_{{ sheet.id }}">{{ file.filename }} - {{ sheet.name }}</option>
+                                {% endfor %}
+                            {% endfor %}
+                        </select>
+                        <label>File e Foglio per Etichettatura Righe</label>
+                    </div>
+                    <a href="#" class="btn waves-effect waves-light green disabled" id="start-row-labeling">
+                        <i class="material-icons left">view_list</i>
+                        Inizia Etichettatura Righe
+                    </a>
+                    {% else %}
+                    <p class="grey-text">Carica prima dei file Excel per iniziare l'etichettatura</p>
+                    <a href="{{ url_for('files.upload_file', project_id=project.id) }}" class="btn waves-effect waves-light grey">
+                        <i class="material-icons left">cloud_upload</i>
+                        Carica File
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">
+                        <i class="material-icons left">build</i>
+                        Azioni Rapide
+                    </span>
+                    
+                    <div class="row">
+                        <div class="col s12 m4">
+                            <a href="{{ url_for('labels.list_labels', project_id=project.id) }}" class="btn-large waves-effect waves-light orange btn-block">
+                                <i class="material-icons left">label</i>
+                                Gestisci Etichette
+                            </a>
+                        </div>
+                        <div class="col s12 m4">
+                            <a href="#" class="btn-large waves-effect waves-light purple btn-block" id="export-all-labels">
+                                <i class="material-icons left">file_download</i>
+                                Esporta Etichette
+                            </a>
+                        </div>
+                        <div class="col s12 m4">
+                            <a href="{{ url_for('projects.view_project', project_id=project.id) }}" class="btn-large waves-effect waves-light grey btn-block">
+                                <i class="material-icons left">arrow_back</i>
+                                Torna al Progetto
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.btn-block {
+    width: 100%;
+    margin-bottom: 10px;
+}
+
+.features-list p {
+    margin: 5px 0;
+    display: flex;
+    align-items: center;
+}
+
+.features-list .material-icons {
+    margin-right: 8px;
+}
+
+.card.large {
+    min-height: 600px;
+}
+
+.card.large .card-content {
+    flex: 1;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Inizializza selettori
+    M.FormSelect.init(document.querySelectorAll('select'));
+
+    // Gestione selezione file per colonne
+    document.getElementById('column-file-selector').addEventListener('change', function() {
+        const selection = this.value;
+        const btn = document.getElementById('start-column-labeling');
+        
+        if (selection) {
+            const [fileId, sheetId] = selection.split('_');
+            btn.classList.remove('disabled');
+            btn.href = `/ml/projects/{{ project.id }}/sheets/${sheetId}/advanced-column-view`;
+        } else {
+            btn.classList.add('disabled');
+            btn.href = '#';
+        }
+    });
+
+    // Gestione selezione file per righe
+    document.getElementById('row-file-selector').addEventListener('change', function() {
+        const selection = this.value;
+        const btn = document.getElementById('start-row-labeling');
+        
+        if (selection) {
+            const [fileId, sheetId] = selection.split('_');
+            btn.classList.remove('disabled');
+            btn.href = `/ml/projects/{{ project.id }}/sheets/${sheetId}/advanced-row-view`;
+        } else {
+            btn.classList.add('disabled');
+            btn.href = '#';
+        }
+    });
+
+    // Export all labels
+    document.getElementById('export-all-labels').addEventListener('click', function(e) {
+        e.preventDefault();
+        // TODO: Implementare export globale
+        M.toast({html: 'Funzionalità in sviluppo', classes: 'orange'});
+    });
+});
+</script>
+
+{% endblock %}

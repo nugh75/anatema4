@@ -18,6 +18,15 @@ def list_labels(project_id):
         .order_by(Label.name)\
         .paginate(page=page, per_page=per_page, error_out=False)
     
+    # Calcola le statistiche per il template
+    total_usages = sum(label.cell_labels.count() for label in labels.items)
+    average_usages = round(total_usages / labels.total, 1) if labels.total > 0 else 0
+    labels_with_categories = sum(1 for label in labels.items if label.categories)
+    
+    # Aggiungi le statistiche agli oggetti label per l'uso nel template
+    for label in labels.items:
+        label.usage_count = label.cell_labels.count()
+    
     if request.is_json:
         return jsonify({
             'project': project.to_dict(),
@@ -29,10 +38,20 @@ def list_labels(project_id):
                 'total': labels.total,
                 'has_next': labels.has_next,
                 'has_prev': labels.has_prev
+            },
+            'statistics': {
+                'total_usages': total_usages,
+                'average_usages': average_usages,
+                'labels_with_categories': labels_with_categories
             }
         })
     
-    return render_template('labels/list.html', project=project, labels=labels)
+    return render_template('labels/list.html', 
+                         project=project, 
+                         labels=labels,
+                         total_usages=total_usages,
+                         average_usages=average_usages,
+                         labels_with_categories=labels_with_categories)
 
 @labels_bp.route('/<uuid:project_id>/create', methods=['GET', 'POST'])
 @login_required

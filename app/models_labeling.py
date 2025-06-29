@@ -77,7 +77,7 @@ class LabelGeneration(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Generation details
-    column_name = db.Column(db.String(255), nullable=False)
+    column_name = db.Column(db.String(1000), nullable=False)
     sample_data = db.Column(JSON)  # Campione di dati analizzati
     
     # AI Response
@@ -194,7 +194,7 @@ class LabelApplication(db.Model):
     
     # Cell location
     row_index = db.Column(db.Integer, nullable=False)
-    column_name = db.Column(db.String(255), nullable=False)
+    column_name = db.Column(db.String(1000), nullable=False)
     cell_value = db.Column(db.Text)
     
     # Application type and confidence

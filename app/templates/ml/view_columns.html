@@ -178,15 +178,15 @@
                 </div>
                 
                 <div class="card-action">
-                    <a href="#" class="btn-small waves-effect waves-light blue analyze-column-btn" 
+                    <a href="#" class="btn-small waves-effect waves-light blue analyze-column-btn"
                        data-column="{{ col_name }}">
                         <i class="material-icons left">analytics</i>
-                        Analizza
+                        Analizza AI
                     </a>
-                    <a href="#" class="btn-small waves-effect waves-light green label-column-btn" 
+                    <a href="#" class="btn-small waves-effect waves-light green label-column-btn"
                        data-column="{{ col_name }}">
                         <i class="material-icons left">label</i>
-                        Etichetta
+                        Etichetta Strutturata
                     </a>
                 </div>
             </div>
@@ -231,69 +231,202 @@ document.addEventListener('DOMContentLoaded', function() {
     // Inizializza modal
     M.Modal.init(document.querySelectorAll('.modal'));
     
-    // Gestisci etichettatura colonna
+    // Gestisci etichettatura colonna integrata
     document.querySelectorAll('.label-column-btn').forEach(btn => {
         btn.addEventListener('click', function(e) {
             e.preventDefault();
             const columnName = this.dataset.column;
             
-            document.getElementById('column-name').value = columnName;
-            M.updateTextFields();
+            // Mostra loading
+            const originalText = this.innerHTML;
+            this.innerHTML = '<i class="material-icons left">hourglass_empty</i>Creando...';
+            this.classList.add('disabled');
             
-            const modal = M.Modal.getInstance(document.getElementById('label-column-modal'));
-            modal.open();
+            M.toast({html: `Creazione template etichettatura per "${columnName}"...`, classes: 'blue'});
+            
+            // Chiama il nuovo endpoint di integrazione
+            fetch('{{ url_for("ml.integrate_column_labeling", project_id=project.id, sheet_id=sheet.id) }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    column_name: columnName,
+                    action_type: 'label'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                this.innerHTML = originalText;
+                this.classList.remove('disabled');
+                
+                if (data.message) {
+                    M.toast({html: data.message, classes: 'green'});
+                    
+                    // Reindirizza al sistema di etichettatura se fornito
+                    if (data.redirect_url) {
+                        setTimeout(() => {
+                            window.location.href = data.redirect_url;
+                        }, 1500);
+                    }
+                } else {
+                    M.toast({html: data.error || 'Errore nell\'integrazione etichettatura', classes: 'red'});
+                }
+            })
+            .catch(error => {
+                this.innerHTML = originalText;
+                this.classList.remove('disabled');
+                M.toast({html: 'Errore di rete: ' + error.message, classes: 'red'});
+            });
         });
     });
     
-    // Salva etichetta
-    document.getElementById('save-label-btn').addEventListener('click', function() {
-        const form = document.getElementById('label-column-form');
-        const formData = new FormData(form);
-        
-        const data = {
-            column_name: document.getElementById('column-name').value,
-            label_name: document.getElementById('label-name').value,
-            label_description: document.getElementById('label-description').value
-        };
-        
-        fetch('{{ url_for("ml.label_cell_manually", project_id=project.id, sheet_id=sheet.id) }}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(data)
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.message) {
-                M.toast({html: data.message, classes: 'green'});
-                const modal = M.Modal.getInstance(document.getElementById('label-column-modal'));
-                modal.close();
-                location.reload();
-            } else {
-                M.toast({html: data.error || 'Errore nell\'etichettatura', classes: 'red'});
-            }
-        })
-        .catch(error => {
-            M.toast({html: 'Errore di rete: ' + error.message, classes: 'red'});
-        });
-    });
-    
-    // Gestisci analisi colonna
+    // Gestisci analisi AI avanzata colonna
     document.querySelectorAll('.analyze-column-btn').forEach(btn => {
         btn.addEventListener('click', function(e) {
             e.preventDefault();
             const columnName = this.dataset.column;
             
-            M.toast({html: `Analisi della colonna "${columnName}" in corso...`, classes: 'blue'});
+            // Mostra loading
+            const originalText = this.innerHTML;
+            this.innerHTML = '<i class="material-icons left">psychology</i>Analizzando...';
+            this.classList.add('disabled');
             
-            // Qui potresti implementare l'analisi specifica della colonna
-            // Per ora mostra solo un messaggio
-            setTimeout(() => {
-                M.toast({html: `Analisi della colonna "${columnName}" completata!`, classes: 'green'});
-            }, 2000);
+            M.toast({html: `Analisi AI avanzata della colonna "${columnName}" in corso...`, classes: 'blue'});
+            
+            // Chiama il nuovo endpoint di analisi AI
+            fetch('{{ url_for("ml.analyze_column_ai", project_id=project.id, sheet_id=sheet.id) }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    column_name: columnName
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                this.innerHTML = originalText;
+                this.classList.remove('disabled');
+                
+                if (data.message && data.analysis) {
+                    M.toast({html: data.message, classes: 'green'});
+                    
+                    // Mostra i risultati dell'analisi AI in un modal
+                    showAnalysisModal(columnName, data.analysis);
+                } else {
+                    M.toast({html: data.error || 'Errore nell\'analisi AI', classes: 'red'});
+                }
+            })
+            .catch(error => {
+                this.innerHTML = originalText;
+                this.classList.remove('disabled');
+                M.toast({html: 'Errore di rete: ' + error.message, classes: 'red'});
+            });
         });
     });
+    
+    // Funzione per mostrare i risultati dell'analisi AI
+    function showAnalysisModal(columnName, analysis) {
+        // Crea modal dinamico per i risultati
+        const modalHtml = `
+            <div id="analysis-results-modal" class="modal modal-fixed-footer">
+                <div class="modal-content">
+                    <h4>Analisi AI - ${columnName}</h4>
+                    <div class="row">
+                        <div class="col s12 m6">
+                            <div class="card">
+                                <div class="card-content">
+                                    <span class="card-title">Statistiche</span>
+                                    <p><strong>Valori totali:</strong> ${analysis.total_values}</p>
+                                    <p><strong>Valori unici:</strong> ${analysis.unique_values}</p>
+                                    <p><strong>Valori nulli:</strong> ${analysis.null_count}</p>
+                                    <p><strong>Tipo dati:</strong> ${analysis.data_type}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col s12 m6">
+                            <div class="card">
+                                <div class="card-content">
+                                    <span class="card-title">Suggerimenti AI</span>
+                                    <p>${analysis.ai_suggestions}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col s12">
+                            <div class="card">
+                                <div class="card-content">
+                                    <span class="card-title">Esempi di Valori</span>
+                                    <div class="collection">
+                                        ${analysis.sample_values.map(val => `<div class="collection-item">${val}</div>`).join('')}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <a href="#!" class="modal-close waves-effect waves-green btn-flat">Chiudi</a>
+                    <a href="#!" class="waves-effect waves-green btn" onclick="createLabelTemplate('${columnName}')">
+                        Crea Template Etichette
+                    </a>
+                </div>
+            </div>
+        `;
+        
+        // Rimuovi modal esistente se presente
+        const existingModal = document.getElementById('analysis-results-modal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        // Aggiungi nuovo modal
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        
+        // Inizializza e apri modal
+        const modal = M.Modal.init(document.getElementById('analysis-results-modal'));
+        modal.open();
+    }
+    
+    // Funzione per creare template di etichettatura dal modal di analisi
+    function createLabelTemplate(columnName) {
+        M.toast({html: `Creazione template per "${columnName}"...`, classes: 'blue'});
+        
+        fetch('{{ url_for("ml.integrate_column_labeling", project_id=project.id, sheet_id=sheet.id) }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                column_name: columnName,
+                action_type: 'label'
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.message) {
+                M.toast({html: data.message, classes: 'green'});
+                
+                // Chiudi modal di analisi
+                const modal = M.Modal.getInstance(document.getElementById('analysis-results-modal'));
+                modal.close();
+                
+                // Reindirizza al sistema di etichettatura
+                if (data.redirect_url) {
+                    setTimeout(() => {
+                        window.location.href = data.redirect_url;
+                    }, 1500);
+                }
+            } else {
+                M.toast({html: data.error || 'Errore nella creazione template', classes: 'red'});
+            }
+        })
+        .catch(error => {
+            M.toast({html: 'Errore di rete: ' + error.message, classes: 'red'});
+        });
+    }
 });
 </script>
 

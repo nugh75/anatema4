@@ -72,10 +72,10 @@ def login():
                         action='user_login',
                         resource_type='auth',
                         resource_id=str(user.id),
-                        details={'username': user.username, 'success': True},
+                        new_values={'username': user.username, 'success': True},
                         ip_address=request.remote_addr,
                         user_agent=request.user_agent.string,
-                        created_at=datetime.utcnow()
+                        timestamp=datetime.utcnow()
                     )
                     db.session.add(log_entry)
                     db.session.commit()
@@ -107,10 +107,10 @@ def login():
                         action='user_login_failed',
                         resource_type='auth',
                         resource_id=str(user.id),
-                        details={'username': user.username, 'reason': 'invalid_password'},
+                        new_values={'username': user.username, 'reason': 'invalid_password'},
                         ip_address=request.remote_addr,
                         user_agent=request.user_agent.string,
-                        created_at=datetime.utcnow()
+                        timestamp=datetime.utcnow()
                     )
                     db.session.add(log_entry)
                     db.session.commit()
@@ -133,10 +133,10 @@ def login():
                 log_entry = AuditLog(
                     action='user_login_failed',
                     resource_type='auth',
-                    details={'username': username, 'reason': 'user_not_found'},
+                    new_values={'username': username, 'reason': 'user_not_found'},
                     ip_address=request.remote_addr,
                     user_agent=request.user_agent.string,
-                    created_at=datetime.utcnow()
+                    timestamp=datetime.utcnow()
                 )
                 db.session.add(log_entry)
                 db.session.commit()
@@ -222,14 +222,14 @@ def register():
                 action='user_registered',
                 resource_type='user',
                 resource_id=str(user.id),
-                details={
+                new_values={
                     'username': user.username,
                     'email': user.email,
                     'registration_method': 'web_form' if not request.is_json else 'api'
                 },
                 ip_address=request.remote_addr,
                 user_agent=request.user_agent.string,
-                created_at=datetime.utcnow()
+                timestamp=datetime.utcnow()
             )
             db.session.add(log_entry)
         except ImportError:
@@ -336,10 +336,10 @@ def update_profile():
                 action='profile_updated',
                 resource_type='user',
                 resource_id=str(current_user.id),
-                details={'updated_fields': updated_fields},
+                new_values={'updated_fields': updated_fields},
                 ip_address=request.remote_addr,
                 user_agent=request.user_agent.string,
-                created_at=datetime.utcnow()
+                timestamp=datetime.utcnow()
             )
             db.session.add(log_entry)
         except ImportError:

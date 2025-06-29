@@ -37,10 +37,7 @@
                     <li><a href="{{ url_for('projects.list_projects') }}">
                         <i class="material-icons left">folder</i>Progetti
                     </a></li>
-                    <li><a href="{{ url_for('labeling.dashboard') }}">
-                        <i class="material-icons left">label</i>Etichettatura
-                    </a></li>
-                    {% if current_user.is_admin or (current_user.role_assignments and current_user.role_assignments|selectattr('role.name', 'equalto', 'admin')|list) %}
+                    {% if current_user.is_admin() %}
                     <li><a href="{{ url_for('admin.dashboard') }}">
                         <i class="material-icons left">admin_panel_settings</i>Amministrazione
                     </a></li>
@@ -95,10 +92,7 @@
             <li><a href="{{ url_for('projects.list_projects') }}">
                 <i class="material-icons">folder</i>Progetti
             </a></li>
-            <li><a href="{{ url_for('labeling.dashboard') }}">
-                <i class="material-icons">label</i>Etichettatura
-            </a></li>
-            {% if current_user.is_admin or (current_user.role_assignments and current_user.role_assignments|selectattr('role.name', 'equalto', 'admin')|list) %}
+            {% if current_user.is_admin() %}
             <li><a href="{{ url_for('admin.dashboard') }}">
                 <i class="material-icons">admin_panel_settings</i>Amministrazione
             </a></li>

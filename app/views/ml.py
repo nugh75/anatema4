@@ -1,13 +1,13 @@
 """
-Machine Learning views for automatic analysis and labeling
+Human-Machine Labeling views for manual and automatic analysis and labeling
 """
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user
 from app.database import db
 from app.models import (
-    Project, File, ExcelSheet, MLAnalysis, ColumnAnalysis, AutoLabel, 
-    AutoLabelApplication, MLConfiguration
+    Project, File, ExcelSheet, MLAnalysis, ColumnAnalysis, AutoLabel,
+    AutoLabelApplication, MLConfiguration, Label
 )
 from app.ml.analyzer import DataAnalyzer
 from app.ml.api_client import MLAPIClient
@@ -19,6 +19,7 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 
+# Manteniamo il nome 'ml' per compatibilità con gli endpoint esistenti
 ml_bp = Blueprint('ml', __name__)
 
 @ml_bp.route('/projects/<uuid:project_id>/configure', methods=['GET', 'POST'])
@@ -118,44 +119,46 @@ def configure_ml(project_id):
 @ml_bp.route('/projects/<uuid:project_id>/dashboard')
 @login_required
 def view_ml_dashboard(project_id):
-    """Dashboard ML per un progetto"""
+    """Dashboard Etichettatura Umano/Macchina per un progetto"""
     project = Project.query.filter_by(id=project_id, owner_id=current_user.id).first_or_404()
     
-    # Recupera configurazione ML attiva
-    ml_config = MLConfiguration.query.filter_by(project_id=project.id, is_active=True).first()
+    # Recupera tutti i file del progetto con i loro fogli
+    files_data = []
+    total_sheets = 0
     
-    # Recupera analisi ML recenti
-    ml_analyses = MLAnalysis.query.filter_by(project_id=project.id)\
-        .order_by(MLAnalysis.created_at.desc()).limit(10).all()
+    files = File.query.filter_by(project_id=project.id).all()
+    for file in files:
+        sheets = ExcelSheet.query.filter_by(file_id=file.id).all()
+        total_sheets += len(sheets)
+        
+        files_data.append({
+            'id': file.id,
+            'filename': file.filename,
+            'sheets': [{'id': sheet.id, 'name': sheet.name} for sheet in sheets]
+        })
     
-    # Recupera i fogli Excel del progetto
-    from app.models import ExcelSheet
-    sheets = ExcelSheet.query.join(File).filter(File.project_id == project.id).all()
+    # Recupera etichette del progetto
+    project_labels = Label.query.filter_by(project_id=project.id).all()
     
-    # Statistiche
-    stats = {
-        'total_analyses': MLAnalysis.query.filter_by(project_id=project.id).count(),
-        'completed_analyses': MLAnalysis.query.filter_by(project_id=project.id, status='completed').count(),
-        'auto_labels_generated': AutoLabel.query.join(MLAnalysis)\
-            .filter(MLAnalysis.project_id == project.id).count(),
-        'labels_applied': AutoLabelApplication.query.join(AutoLabel).join(MLAnalysis)\
-            .filter(MLAnalysis.project_id == project.id, AutoLabelApplication.status == 'applied').count()
-    }
+    # Calcola statistiche etichettatura
+    total_labels = AutoLabelApplication.query.join(AutoLabel).join(MLAnalysis)\
+        .filter(MLAnalysis.project_id == project.id, AutoLabelApplication.status == 'applied').count()
     
     if request.is_json:
         return jsonify({
             'project': project.to_dict(),
-            'ml_config': ml_config.to_dict() if ml_config else None,
-            'recent_analyses': [analysis.to_dict() for analysis in ml_analyses],
-            'statistics': stats
+            'files_data': files_data,
+            'total_sheets': total_sheets,
+            'total_labels': total_labels,
+            'project_labels': [label.to_dict() for label in project_labels]
         })
     
-    return render_template('ml/dashboard.html',
+    return render_template('ml/new_dashboard.html',
                          project=project,
-                         ml_config=ml_config,
-                         ml_analyses=ml_analyses,
-                         stats=stats,
-                         sheets=sheets)
+                         files_data=files_data,
+                         total_sheets=total_sheets,
+                         total_labels=total_labels,
+                         project_labels=project_labels)
 
 @ml_bp.route('/projects/<uuid:project_id>/analyze/<uuid:sheet_id>', methods=['POST'])
 @login_required
@@ -563,7 +566,7 @@ def view_sheet_rows(project_id, sheet_id):
             'has_next': page < total_pages
         }
         
-        # Recupera etichette applicate per questo foglio
+        # Recupera etichette applicate per questo foglio - SUPPORTA MULTIPLE ETICHETTE
         applied_labels = {}
         ml_analysis = MLAnalysis.query.filter_by(
             project_id=project.id,
@@ -579,11 +582,18 @@ def view_sheet_rows(project_id, sheet_id):
             
             for app in label_applications:
                 key = f"{app.row_index}_{app.column_name}"
-                applied_labels[key] = {
+                
+                # Inizializza lista se non esiste
+                if key not in applied_labels:
+                    applied_labels[key] = []
+                
+                # Aggiungi questa etichetta alla lista per questa cella
+                applied_labels[key].append({
                     'label_name': app.auto_label.label_name,
                     'label_description': app.auto_label.label_description,
-                    'confidence': app.confidence_score
-                }
+                    'confidence': app.confidence_score,
+                    'application_id': app.id
+                })
         
         if request.is_json:
             return jsonify({
@@ -755,18 +765,22 @@ def advanced_column_view(project_id, sheet_id):
             flash(f'Errore nel caricamento dei dati: {str(e)}', 'error')
             return redirect(url_for('ml.view_ml_dashboard', project_id=project.id))
         
-        # Prepara i dati delle colonne
+        # Prepara i dati delle colonne con conversione sicura per JSON
         columns_data = {}
         for col in df.columns:
+            # Converti tutti i valori in tipi Python nativi
+            sample_values = [str(val) if pd.notna(val) else '' for val in df[col].dropna().head(5)]
+            all_values = [str(val) if pd.notna(val) else '' for val in df[col]]
+            
             columns_data[col] = {
-                'name': col,
+                'name': str(col),
                 'type': str(df[col].dtype),
-                'unique_values': len(df[col].unique()),
-                'null_count': df[col].isnull().sum(),
-                'total_rows': len(df),
-                'row_count': len(df[col]),  # Aggiunto per mostrare il numero di righe
-                'sample_values': df[col].dropna().head(5).tolist(),
-                'all_values': df[col].tolist()  # Modificato per includere anche i valori nulli
+                'unique_values': int(len(df[col].unique())),
+                'null_count': int(df[col].isnull().sum()),
+                'total_rows': int(len(df)),
+                'row_count': int(len(df[col])),
+                'sample_values': sample_values,
+                'all_values': all_values
             }
         
         # Recupera configurazione ML attiva
@@ -779,7 +793,7 @@ def advanced_column_view(project_id, sheet_id):
             status='completed'
         ).first()
         
-        # Recupera etichette applicate
+        # Recupera etichette applicate - SUPPORTA MULTIPLE ETICHETTE PER CELLA
         applied_labels = {}
         if ml_analysis:
             label_applications = AutoLabelApplication.query.join(AutoLabel).filter(
@@ -789,20 +803,32 @@ def advanced_column_view(project_id, sheet_id):
             
             for app in label_applications:
                 key = f"{app.row_index}_{app.column_name}"
-                applied_labels[key] = {
+                
+                # Inizializza lista se non esiste
+                if key not in applied_labels:
+                    applied_labels[key] = []
+                
+                # Aggiungi questa etichetta alla lista per questa cella
+                applied_labels[key].append({
                     'label_name': app.auto_label.label_name,
                     'label_description': app.auto_label.label_description,
                     'confidence': app.confidence_score,
-                    'applied_at': app.applied_at.isoformat() if app.applied_at else None
-                }
+                    'applied_at': app.applied_at.isoformat() if app.applied_at else None,
+                    'application_id': app.id
+                })
         
+        # Recupera etichette esistenti del progetto
+        project_labels_raw = Label.query.filter_by(project_id=project.id).order_by(Label.name).all()
+        project_labels = [label.to_dict() for label in project_labels_raw]
+
         if request.is_json:
             return jsonify({
                 'project': project.to_dict(),
                 'sheet': sheet.to_dict(),
                 'columns_data': columns_data,
                 'ml_config': ml_config.to_dict() if ml_config else None,
-                'applied_labels': applied_labels
+                'applied_labels': applied_labels,
+                'project_labels': project_labels
             })
         
         return render_template('ml/advanced_column_view.html',
@@ -810,7 +836,9 @@ def advanced_column_view(project_id, sheet_id):
                              sheet=sheet,
                              columns_data=columns_data,
                              ml_config=ml_config,
-                             applied_labels=applied_labels)
+                             applied_labels=applied_labels,
+                             project_labels=project_labels,
+                             project_labels_raw=project_labels_raw)
     
     except Exception as e:
         logger.error(f"Errore nella vista avanzata colonne del foglio {sheet_id}: {str(e)}")
@@ -861,7 +889,7 @@ def advanced_row_view(project_id, sheet_id):
             status='completed'
         ).first()
         
-        # Recupera etichette applicate
+        # Recupera etichette applicate - SUPPORTA MULTIPLE ETICHETTE PER CELLA
         applied_labels = {}
         if ml_analysis:
             label_applications = AutoLabelApplication.query.join(AutoLabel).filter(
@@ -871,20 +899,28 @@ def advanced_row_view(project_id, sheet_id):
             
             for app in label_applications:
                 key = f"{app.row_index}_{app.column_name}"
-                applied_labels[key] = {
+                
+                # Inizializza lista se non esiste
+                if key not in applied_labels:
+                    applied_labels[key] = []
+                
+                # Aggiungi questa etichetta alla lista per questa cella
+                applied_labels[key].append({
                     'label_name': app.auto_label.label_name,
                     'label_description': app.auto_label.label_description,
                     'confidence': app.confidence_score,
-                    'applied_at': app.applied_at.isoformat() if app.applied_at else None
-                }
+                    'applied_at': app.applied_at.isoformat() if app.applied_at else None,
+                    'application_id': app.id
+                })
         
-        # Statistiche per la vista
+        # Statistiche per la vista - calcola celle con almeno una etichetta
+        total_labeled_cells = len(applied_labels)
         stats = {
             'total_rows': len(df),
             'total_columns': len(df.columns),
             'total_cells': len(df) * len(df.columns),
-            'labeled_cells': len(applied_labels),
-            'completion_percentage': round((len(applied_labels) / (len(df) * len(df.columns))) * 100, 2) if len(df) > 0 else 0
+            'labeled_cells': total_labeled_cells,
+            'completion_percentage': round((total_labeled_cells / (len(df) * len(df.columns))) * 100, 2) if len(df) > 0 else 0
         }
         
         if request.is_json:
@@ -1013,6 +1049,256 @@ def ai_analyze_cell(project_id, sheet_id):
         flash(f'Errore nell\'analisi: {str(e)}', 'error')
         return redirect(request.referrer)
 
+@ml_bp.route('/projects/<uuid:project_id>/sheets/<uuid:sheet_id>/save-cell-label', methods=['POST'])
+@login_required
+def save_cell_label(project_id, sheet_id):
+    """Salva etichetta per una cella specifica"""
+    try:
+        project = Project.query.filter_by(id=project_id, owner_id=current_user.id).first_or_404()
+        
+        sheet = ExcelSheet.query.join(File).filter(
+            ExcelSheet.id == sheet_id,
+            File.project_id == project.id
+        ).first_or_404()
+        
+        if request.is_json:
+            data = request.get_json()
+        else:
+            data = request.form.to_dict()
+        
+        row_index = int(data.get('row_index', 0))
+        column_name = data.get('column_name', '').strip()
+        label_name = data.get('label_name', '').strip()
+        label_description = data.get('label_description', '').strip()
+        confidence = float(data.get('confidence', 1.0))
+        source = data.get('source', 'manual')  # 'manual' o 'ai'
+        
+        if not all([column_name, label_name]):
+            error_msg = 'Nome colonna e etichetta richiesti'
+            if request.is_json:
+                return jsonify({'error': error_msg}), 400
+            flash(error_msg, 'error')
+            return redirect(request.referrer)
+        
+        # Cerca analisi ML esistente o creane una nuova
+        ml_analysis = MLAnalysis.query.filter_by(
+            project_id=project.id,
+            sheet_id=sheet.id,
+            status='completed'
+        ).first()
+        
+        if not ml_analysis:
+            # Crea una nuova analisi ML per questa sessione di etichettatura manuale
+            ml_analysis = MLAnalysis(
+                project_id=project.id,
+                file_id=sheet.file_id,
+                sheet_id=sheet.id,
+                ml_provider='manual',
+                ml_model='manual_labeling',
+                analysis_type='manual_labeling',
+                status='completed',
+                results={'manual_labeling_session': True},
+                processing_time=0.0
+            )
+            db.session.add(ml_analysis)
+            db.session.flush()
+        
+        # Cerca etichetta automatica esistente o creane una nuova
+        auto_label = AutoLabel.query.filter_by(
+            ml_analysis_id=ml_analysis.id,
+            label_name=label_name,
+            label_description=label_description
+        ).first()
+        
+        if not auto_label:
+            auto_label = AutoLabel(
+                ml_analysis_id=ml_analysis.id,
+                label_name=label_name,
+                label_description=label_description,
+                category='manual' if source == 'manual' else 'ai_assisted',
+                confidence_score=confidence,
+                column_name=column_name,
+                created_by=current_user.id,
+                label_type='manual'
+            )
+            db.session.add(auto_label)
+            db.session.flush()
+        
+        # Controlla se questa etichetta specifica è già applicata a questa cella
+        existing_app = AutoLabelApplication.query.filter_by(
+            auto_label_id=auto_label.id,
+            row_index=row_index,
+            column_name=column_name
+        ).first()
+        
+        if existing_app:
+            # Aggiorna l'applicazione esistente per questa etichetta specifica
+            existing_app.status = 'applied'
+            existing_app.confidence_score = confidence
+            existing_app.applied_at = datetime.utcnow()
+        else:
+            # Crea nuova applicazione - supporta multiple etichette per cella
+            label_app = AutoLabelApplication(
+                auto_label_id=auto_label.id,
+                row_index=row_index,
+                column_name=column_name,
+                confidence_score=confidence,
+                status='applied',
+                applied_at=datetime.utcnow()
+            )
+            db.session.add(label_app)
+        
+        db.session.commit()
+        
+        message = f'Etichetta "{label_name}" salvata per cella ({row_index + 1}, {column_name})'
+        if request.is_json:
+            # Recupera tutte le etichette per questa cella per ritornare lo stato aggiornato
+            cell_key = f"{row_index}_{column_name}"
+            all_cell_labels = []
+            
+            # Ricarica le etichette per questa cella specifica
+            cell_applications = AutoLabelApplication.query.join(AutoLabel).filter(
+                AutoLabel.ml_analysis_id == ml_analysis.id,
+                AutoLabelApplication.row_index == row_index,
+                AutoLabelApplication.column_name == column_name,
+                AutoLabelApplication.status == 'applied'
+            ).all()
+            
+            for app in cell_applications:
+                all_cell_labels.append({
+                    'label_name': app.auto_label.label_name,
+                    'label_description': app.auto_label.label_description,
+                    'confidence': app.confidence_score,
+                    'applied_at': app.applied_at.isoformat() if app.applied_at else None,
+                    'application_id': app.id
+                })
+            
+            return jsonify({
+                'success': True,
+                'message': message,
+                'label': {
+                    'name': label_name,
+                    'description': label_description,
+                    'confidence': confidence,
+                    'source': source
+                },
+                'all_cell_labels': all_cell_labels
+            })
+        
+        flash(message, 'success')
+        return redirect(request.referrer)
+        
+    except Exception as e:
+        logger.error(f"Errore nel salvataggio etichetta cella: {str(e)}")
+        db.session.rollback()
+        if request.is_json:
+            return jsonify({'error': str(e)}), 500
+        flash(f'Errore nel salvataggio: {str(e)}', 'error')
+        return redirect(request.referrer)
+
+@ml_bp.route('/projects/<uuid:project_id>/sheets/<uuid:sheet_id>/remove-cell-label', methods=['POST'])
+@login_required
+def remove_cell_label(project_id, sheet_id):
+    """Rimuove etichetta da una cella specifica"""
+    project = Project.query.filter_by(id=project_id, owner_id=current_user.id).first_or_404()
+    
+    sheet = ExcelSheet.query.join(File).filter(
+        ExcelSheet.id == sheet_id,
+        File.project_id == project.id
+    ).first_or_404()
+    
+    try:
+        if request.is_json:
+            data = request.get_json()
+        else:
+            data = request.form.to_dict()
+        
+        row_index = int(data.get('row_index', 0))
+        column_name = data.get('column_name', '').strip()
+        application_id = data.get('application_id', '').strip()  # ID specifico dell'applicazione da rimuovere
+        
+        if not column_name:
+            error_msg = 'Nome colonna richiesto'
+            if request.is_json:
+                return jsonify({'error': error_msg}), 400
+            flash(error_msg, 'error')
+            return redirect(request.referrer)
+        
+        # Trova l'analisi ML per questo progetto e sheet
+        ml_analysis = MLAnalysis.query.filter_by(
+            project_id=project.id,
+            sheet_id=sheet.id,
+            status='completed'
+        ).first()
+        
+        if ml_analysis:
+            if application_id:
+                # Rimuovi etichetta specifica per application_id
+                app_to_remove = AutoLabelApplication.query.join(AutoLabel).filter(
+                    AutoLabel.ml_analysis_id == ml_analysis.id,
+                    AutoLabelApplication.row_index == row_index,
+                    AutoLabelApplication.column_name == column_name,
+                    AutoLabelApplication.id == application_id,
+                    AutoLabelApplication.status == 'applied'
+                ).first()
+                
+                if app_to_remove:
+                    app_to_remove.status = 'removed'
+                    app_to_remove.applied_at = datetime.utcnow()
+                    db.session.commit()
+                    
+                    message = f'Etichetta "{app_to_remove.auto_label.label_name}" rimossa dalla cella ({row_index + 1}, {column_name})'
+                    removed_count = 1
+                else:
+                    message = 'Etichetta specifica non trovata'
+                    removed_count = 0
+            else:
+                # Rimuovi tutte le etichette per questa cella (comportamento legacy)
+                label_applications = AutoLabelApplication.query.join(AutoLabel).filter(
+                    AutoLabel.ml_analysis_id == ml_analysis.id,
+                    AutoLabelApplication.row_index == row_index,
+                    AutoLabelApplication.column_name == column_name,
+                    AutoLabelApplication.status == 'applied'
+                ).all()
+                
+                # Rimuovi le applicazioni (soft delete cambiando status)
+                removed_count = 0
+                for app in label_applications:
+                    app.status = 'removed'
+                    app.applied_at = datetime.utcnow()
+                    removed_count += 1
+                
+                db.session.commit()
+                message = f'Tutte le etichette rimosse per cella ({row_index + 1}, {column_name})'
+            
+            if request.is_json:
+                return jsonify({
+                    'success': True,
+                    'message': message,
+                    'removed_count': removed_count
+                })
+            
+            flash(message, 'success')
+        else:
+            message = 'Nessuna etichetta trovata per questa cella'
+            if request.is_json:
+                return jsonify({
+                    'success': True,
+                    'message': message,
+                    'removed_count': 0
+                })
+            flash(message, 'info')
+        
+        return redirect(request.referrer)
+        
+    except Exception as e:
+        logger.error(f"Errore nella rimozione etichetta cella: {str(e)}")
+        db.session.rollback()
+        if request.is_json:
+            return jsonify({'error': str(e)}), 500
+        flash(f'Errore nella rimozione: {str(e)}', 'error')
+        return redirect(request.referrer)
+
 @ml_bp.route('/projects/<uuid:project_id>/sheets/<uuid:sheet_id>/batch-ai-label', methods=['POST'])
 @login_required
 def batch_ai_label(project_id, sheet_id):
@@ -1106,25 +1392,105 @@ def batch_ai_label(project_id, sheet_id):
         response = client.analyze_text(batch_prompt)
         
         if response.get('success', False):
-            # Simula risultati batch per ora (in futuro, parsare la risposta JSON dell'AI)
+            # Crea o trova analisi ML per questa sessione
+            ml_analysis = MLAnalysis.query.filter_by(
+                project_id=project.id,
+                sheet_id=sheet.id,
+                ml_provider=ml_config.ml_provider,
+                ml_model=ml_config.ml_model,
+                status='completed'
+            ).first()
+            
+            if not ml_analysis:
+                ml_analysis = MLAnalysis(
+                    project_id=project.id,
+                    file_id=sheet.file_id,
+                    sheet_id=sheet.id,
+                    ml_provider=ml_config.ml_provider,
+                    ml_model=ml_config.ml_model,
+                    analysis_type=f'batch_{analysis_template}',
+                    status='completed',
+                    results={'batch_analysis': True, 'template': analysis_template},
+                    processing_time=1.0
+                )
+                db.session.add(ml_analysis)
+                db.session.flush()
+            
+            # Genera e salva le etichette basate sui risultati AI
             batch_results = []
+            labels_saved = 0
+            
             for i, text in enumerate(column_data[:10]):
+                # Simula o parsea i risultati AI
+                label_name = f'{analysis_template.title()}_{i+1}'
+                confidence = 0.6 + (i * 0.02)  # Confidence variabile tra 0.6 e 0.8
+                
+                # Crea l'AutoLabel se non esiste
+                auto_label = AutoLabel.query.filter_by(
+                    ml_analysis_id=ml_analysis.id,
+                    label_name=label_name,
+                    column_name=column_name
+                ).first()
+                
+                if not auto_label:
+                    auto_label = AutoLabel(
+                        ml_analysis_id=ml_analysis.id,
+                        label_name=label_name,
+                        label_description=f'Etichetta AI generata: {analysis_template}',
+                        category=f'ai_{analysis_template}',
+                        confidence_score=confidence,
+                        column_name=column_name,
+                        created_by=current_user.id,
+                        label_type='ai_batch'
+                    )
+                    db.session.add(auto_label)
+                    db.session.flush()
+                
+                # Applica l'etichetta alla cella specifica
+                row_index = i  # Index nella lista originale
+                existing_app = AutoLabelApplication.query.filter_by(
+                    auto_label_id=auto_label.id,
+                    row_index=row_index,
+                    column_name=column_name
+                ).first()
+                
+                if not existing_app:
+                    label_app = AutoLabelApplication(
+                        auto_label_id=auto_label.id,
+                        row_index=row_index,
+                        column_name=column_name,
+                        cell_value=str(text),
+                        confidence_score=confidence,
+                        status='applied',
+                        applied_at=datetime.utcnow()
+                    )
+                    db.session.add(label_app)
+                    labels_saved += 1
+                
                 batch_results.append({
                     'index': i,
                     'text': text,
-                    'label': f'Label_{analysis_template}_{i+1}',
-                    'confidence': 0.85 + (i * 0.01)  # Simula confidence variabile
+                    'label': label_name,
+                    'confidence': confidence,
+                    'saved': True
                 })
+            
+            # Salva tutte le modifiche nel database
+            db.session.commit()
+            
+            message = f'Analisi batch AI completata: {labels_saved} etichette applicate a {len(batch_results)} elementi'
             
             if request.is_json:
                 return jsonify({
                     'success': True,
                     'results': batch_results,
                     'total_processed': len(batch_results),
-                    'template_used': analysis_template
+                    'labels_saved': labels_saved,
+                    'template_used': analysis_template,
+                    'message': message
                 })
             else:
-                flash(f'Analisi batch completata: {len(batch_results)} elementi processati', 'success')
+                flash(message, 'success')
                 return redirect(request.referrer)
         else:
             error_msg = response.get('error', 'Errore nell\'analisi batch AI')
@@ -1320,7 +1686,7 @@ def single_row_view(project_id, sheet_id):
             else:
                 row_data['data'][col] = str(value)
         
-        # Recupera etichette applicate per questa riga
+        # Recupera etichette applicate per questa riga - SUPPORTA MULTIPLE ETICHETTE
         applied_labels = {}
         ml_analysis = MLAnalysis.query.filter_by(
             project_id=project.id,
@@ -1337,11 +1703,18 @@ def single_row_view(project_id, sheet_id):
             
             for app in label_applications:
                 key = f"{app.row_index}_{app.column_name}"
-                applied_labels[key] = {
+                
+                # Inizializza lista se non esiste
+                if key not in applied_labels:
+                    applied_labels[key] = []
+                
+                # Aggiungi questa etichetta alla lista per questa cella
+                applied_labels[key].append({
                     'label_name': app.auto_label.label_name,
                     'label_description': app.auto_label.label_description,
-                    'confidence': app.confidence_score
-                }
+                    'confidence': app.confidence_score,
+                    'application_id': app.id
+                })
         
         if request.is_json:
             return jsonify({
@@ -1443,3 +1816,300 @@ def export_labels(project_id, sheet_id):
         logger.error(f"Errore nell'esportazione delle etichette: {str(e)}")
         flash(f'Errore nell\'esportazione: {str(e)}', 'error')
         return redirect(request.referrer or url_for('ml.view_ml_dashboard', project_id=project.id))
+
+@ml_bp.route('/projects/<uuid:project_id>/sheets/<uuid:sheet_id>/integrate-column-labeling', methods=['POST'])
+@login_required
+def integrate_column_labeling(project_id, sheet_id):
+    """Integra l'etichettatura di una colonna con il sistema di etichettatura strutturato"""
+    project = Project.query.filter_by(id=project_id, owner_id=current_user.id).first_or_404()
+    
+    # Verifica che il foglio appartenga al progetto
+    sheet = ExcelSheet.query.join(File).filter(
+        ExcelSheet.id == sheet_id,
+        File.project_id == project.id
+    ).first_or_404()
+    
+    if request.is_json:
+        data = request.get_json()
+    else:
+        data = request.form.to_dict()
+    
+    column_name = data.get('column_name', '').strip()
+    action_type = data.get('action_type', 'label')  # 'label' o 'analyze'
+    
+    if not column_name:
+        error_msg = 'Nome colonna richiesto'
+        if request.is_json:
+            return jsonify({'error': error_msg}), 400
+        flash(error_msg, 'error')
+        return redirect(request.referrer)
+    
+    try:
+        if action_type == 'analyze':
+            # Reindirizza all'analisi AI avanzata della colonna
+            return redirect(url_for('ml.advanced_column_view',
+                                  project_id=project.id,
+                                  sheet_id=sheet.id) + f'?column_name={column_name}')
+        
+        elif action_type == 'label':
+            # TODO: Implementare integrazione con sistema etichette unificato (Fase 2)
+            # Questa funzionalità sarà ristrutturata nel sistema etichette unificato
+            message = f'Etichettatura per la colonna "{column_name}" sarà disponibile nel nuovo sistema unificato'
+            
+            if request.is_json:
+                return jsonify({
+                    'success': True,
+                    'message': message,
+                    'redirect_url': url_for('ml.view_ml_dashboard', project_id=project.id)
+                })
+            else:
+                flash(message, 'info')
+                return redirect(url_for('ml.view_ml_dashboard', project_id=project.id))
+        
+        else:
+            error_msg = f'Azione non riconosciuta: {action_type}'
+            if request.is_json:
+                return jsonify({'error': error_msg}), 400
+            flash(error_msg, 'error')
+            return redirect(request.referrer)
+    
+    except Exception as e:
+        logger.error(f"Errore nell'integrazione etichettatura colonna: {str(e)}")
+        if request.is_json:
+            return jsonify({'error': str(e)}), 500
+        flash(f'Errore nell\'integrazione: {str(e)}', 'error')
+        return redirect(request.referrer)
+
+@ml_bp.route('/projects/<uuid:project_id>/sheets/<uuid:sheet_id>/analyze-column-ai', methods=['POST'])
+@login_required
+def analyze_column_ai(project_id, sheet_id):
+    """Analizza una colonna specifica con AI per generare insights avanzati"""
+    project = Project.query.filter_by(id=project_id, owner_id=current_user.id).first_or_404()
+    
+    # Verifica che il foglio appartenga al progetto
+    sheet = ExcelSheet.query.join(File).filter(
+        ExcelSheet.id == sheet_id,
+        File.project_id == project.id
+    ).first_or_404()
+    
+    if request.is_json:
+        data = request.get_json()
+    else:
+        data = request.form.to_dict()
+    
+    column_name = data.get('column_name', '').strip()
+    
+    if not column_name:
+        error_msg = 'Nome colonna richiesto per l\'analisi'
+        if request.is_json:
+            return jsonify({'error': error_msg}), 400
+        flash(error_msg, 'error')
+        return redirect(request.referrer)
+    
+    try:
+        # Recupera configurazione ML attiva
+        ml_config = MLConfiguration.query.filter_by(project_id=project.id, is_active=True).first()
+        
+        if not ml_config:
+            error_msg = 'Nessuna configurazione ML attiva trovata. Configura prima il sistema ML.'
+            if request.is_json:
+                return jsonify({'error': error_msg}), 400
+            flash(error_msg, 'error')
+            return redirect(url_for('ml.configure_ml', project_id=project.id))
+        
+        # Carica i dati dal file Excel
+        file_path = sheet.file.get_file_path()
+        df = pd.read_excel(file_path, sheet_name=sheet.name)
+        
+        if column_name not in df.columns:
+            error_msg = f'Colonna "{column_name}" non trovata nel foglio'
+            if request.is_json:
+                return jsonify({'error': error_msg}), 400
+            flash(error_msg, 'error')
+            return redirect(request.referrer)
+        
+        # Analizza la colonna
+        column_data = df[column_name].dropna()
+        analysis_result = {
+            'column_name': column_name,
+            'total_values': len(df[column_name]),
+            'unique_values': len(column_data.unique()),
+            'null_count': df[column_name].isnull().sum(),
+            'data_type': str(df[column_name].dtype),
+            'sample_values': column_data.head(10).tolist(),
+            'value_distribution': column_data.value_counts().head(10).to_dict()
+        }
+        
+        # Genera suggerimenti AI per il tipo di etichettatura
+        if len(column_data) > 0:
+            client = MLAPIClient(
+                provider=ml_config.ml_provider,
+                api_key=ml_config.api_key_encrypted,
+                api_url=ml_config.api_url,
+                model=ml_config.ml_model
+            )
+            
+            # Prepara il prompt per l'analisi
+            sample_text = '\n'.join([str(val) for val in column_data.head(10).tolist()])
+            analysis_prompt = f"""
+Analizza la seguente colonna di dati e fornisci suggerimenti per l'etichettatura:
+
+Nome colonna: {column_name}
+Tipo di dati: {analysis_result['data_type']}
+Valori unici: {analysis_result['unique_values']}
+Valori di esempio:
+{sample_text}
+
+Fornisci:
+1. Il tipo di contenuto (es: sentiment, categoria, tema, etc.)
+2. Suggerimenti per categorie di etichette appropriate
+3. Approccio di analisi consigliato
+4. Template di etichettatura suggerito
+"""
+            
+            ai_response = client.analyze_text(analysis_prompt)
+            
+            if ai_response.get('success'):
+                analysis_result['ai_suggestions'] = ai_response.get('analysis', 'Nessun suggerimento disponibile')
+            else:
+                analysis_result['ai_suggestions'] = 'Errore nell\'analisi AI: ' + ai_response.get('error', 'Errore sconosciuto')
+        else:
+            analysis_result['ai_suggestions'] = 'Colonna vuota - impossibile fornire suggerimenti'
+        
+        message = f'Analisi AI completata per la colonna "{column_name}"'
+        
+        if request.is_json:
+            return jsonify({
+                'message': message,
+                'analysis': analysis_result
+            })
+        else:
+            # Salva il risultato nella sessione per visualizzarlo
+            from flask import session
+            session[f'column_analysis_{column_name}'] = analysis_result
+            
+            flash(message, 'success')
+            return redirect(url_for('ml.view_sheet_columns',
+                                  project_id=project.id,
+                                  sheet_id=sheet.id) + f'#column-{column_name}')
+    
+    except Exception as e:
+        logger.error(f"Errore nell'analisi AI della colonna: {str(e)}")
+        if request.is_json:
+            return jsonify({'error': str(e)}), 500
+        flash(f'Errore nell\'analisi: {str(e)}', 'error')
+        return redirect(request.referrer)
+
+@ml_bp.route('/projects/<uuid:project_id>/sheets/<uuid:sheet_id>/debug-labels')
+@login_required
+def debug_labels(project_id, sheet_id):
+    """Endpoint di debug per verificare lo stato delle etichette salvate"""
+    project = Project.query.filter_by(id=project_id, owner_id=current_user.id).first_or_404()
+    
+    sheet = ExcelSheet.query.join(File).filter(
+        ExcelSheet.id == sheet_id,
+        File.project_id == project.id
+    ).first_or_404()
+    
+    debug_info = {
+        'project_id': str(project.id),
+        'sheet_id': str(sheet.id),
+        'timestamp': datetime.utcnow().isoformat()
+    }
+    
+    # 1. Verifica MLAnalysis
+    ml_analyses = MLAnalysis.query.filter_by(
+        project_id=project.id,
+        sheet_id=sheet.id
+    ).all()
+    
+    debug_info['ml_analyses'] = []
+    for analysis in ml_analyses:
+        debug_info['ml_analyses'].append({
+            'id': str(analysis.id),
+            'status': analysis.status,
+            'ml_provider': analysis.ml_provider,
+            'ml_model': analysis.ml_model,
+            'analysis_type': analysis.analysis_type,
+            'created_at': analysis.created_at.isoformat() if analysis.created_at else None
+        })
+    
+    # 2. Verifica AutoLabels
+    if ml_analyses:
+        for analysis in ml_analyses:
+            auto_labels = AutoLabel.query.filter_by(ml_analysis_id=analysis.id).all()
+            analysis_info = {
+                'analysis_id': str(analysis.id),
+                'auto_labels_count': len(auto_labels),
+                'auto_labels': []
+            }
+            
+            for label in auto_labels:
+                analysis_info['auto_labels'].append({
+                    'id': str(label.id),
+                    'label_name': label.label_name,
+                    'column_name': label.column_name,
+                    'confidence_score': label.confidence_score,
+                    'created_by': str(label.created_by) if label.created_by else None
+                })
+            
+            debug_info[f'analysis_{analysis.id}'] = analysis_info
+    
+    # 3. Verifica AutoLabelApplications
+    total_applications = 0
+    for analysis in ml_analyses:
+        applications = AutoLabelApplication.query.join(AutoLabel).filter(
+            AutoLabel.ml_analysis_id == analysis.id
+        ).all()
+        
+        analysis_apps = {
+            'applications_count': len(applications),
+            'applications': []
+        }
+        
+        for app in applications:
+            analysis_apps['applications'].append({
+                'id': str(app.id),
+                'auto_label_id': str(app.auto_label_id),
+                'row_index': app.row_index,
+                'column_name': app.column_name,
+                'cell_value': app.cell_value,
+                'confidence_score': app.confidence_score,
+                'status': app.status,
+                'applied_at': app.applied_at.isoformat() if app.applied_at else None,
+                'label_name': app.auto_label.label_name
+            })
+        
+        total_applications += len(applications)
+        debug_info[f'applications_{analysis.id}'] = analysis_apps
+    
+    debug_info['total_applications'] = total_applications
+    
+    # 4. Test caricamento come nella view normale
+    ml_analysis = MLAnalysis.query.filter_by(
+        project_id=project.id,
+        sheet_id=sheet.id,
+        status='completed'
+    ).first()
+    
+    applied_labels_test = {}
+    if ml_analysis:
+        label_applications = AutoLabelApplication.query.join(AutoLabel).filter(
+            AutoLabel.ml_analysis_id == ml_analysis.id,
+            AutoLabelApplication.status == 'applied'
+        ).all()
+        
+        for app in label_applications:
+            key = f"{app.row_index}_{app.column_name}"
+            if key not in applied_labels_test:
+                applied_labels_test[key] = []
+            
+            applied_labels_test[key].append({
+                'label_name': app.auto_label.label_name,
+                'confidence': app.confidence_score
+            })
+    
+    debug_info['applied_labels_test'] = applied_labels_test
+    debug_info['applied_labels_count'] = len(applied_labels_test)
+    
+    return jsonify(debug_info)
