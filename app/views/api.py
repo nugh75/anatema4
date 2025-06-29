@@ -255,372 +255,564 @@ def api_sheet_data(file_id, sheet_id):
 @api_bp.route('/projects/<uuid:project_id>/labels')
 @jwt_or_login_required
 def api_project_labels(project_id):
-    """Get project labels"""
+    """Get all labels for a project (store centralizzato)"""
     user = get_current_api_user()
     project = Project.query.filter_by(id=project_id, owner_id=user.id).first_or_404()
     
+    # Get all labels for this project
     labels = Label.query.filter_by(project_id=project.id)\
-        .order_by(Label.name).all()
+        .order_by(Label.usage_count.desc(), Label.name).all()
+    
+    # Get usage statistics
+    from app.models_labeling import LabelApplication
+    total_applications = LabelApplication.query.filter_by(project_id=project.id).count()
     
     return jsonify({
-        'project': project.to_dict(),
-        'labels': [l.to_dict() for l in labels]
+        'success': True,
+        'labels': [l.to_dict() for l in labels],
+        'statistics': {
+            'total_labels': len(labels),
+            'total_applications': total_applications,
+            'project_id': str(project.id)
+        }
     })
 
 @api_bp.route('/projects/<uuid:project_id>/labels', methods=['POST'])
 @jwt_or_login_required
-def api_create_label(project_id):
-    """Create new label"""
+def api_create_project_label(project_id):
+    """Create new label for project (manual creation)"""
     user = get_current_api_user()
     project = Project.query.filter_by(id=project_id, owner_id=user.id).first_or_404()
     
     data = request.get_json()
     name = data.get('name', '').strip()
     description = data.get('description', '').strip()
-    color = data.get('color', '#1976d2').strip()
+    color = data.get('color', '#1976d2')
     categories = data.get('categories', [])
     
     if not name:
         return jsonify({'error': 'Nome etichetta richiesto'}), 400
     
-    # Check if label name already exists in this project
+    if not description:
+        return jsonify({'error': 'Descrizione etichetta richiesta'}), 400
+    
+    # Check if label name already exists for this project
     existing = Label.query.filter_by(project_id=project.id, name=name).first()
     if existing:
-        return jsonify({'error': 'Etichetta con questo nome già esistente'}), 400
+        return jsonify({'error': 'Etichetta con questo nome già esistente nel progetto'}), 400
     
+    # Create new label
     label = Label(
         project_id=project.id,
         name=name,
         description=description,
         color=color,
-        categories=categories if categories else []
+        categories=categories,
+        created_by=user.id,
+        usage_count=0
     )
     
     db.session.add(label)
     db.session.commit()
     
     return jsonify({
+        'success': True,
         'message': 'Etichetta creata con successo',
         'label': label.to_dict()
     }), 201
 
-@api_bp.route('/labels/<int:label_id>/apply', methods=['POST'])
-@jwt_or_login_required
-def api_apply_label(label_id):
-    """Apply label to cell"""
+@api_bp.route('/projects/<uuid:project_id>/labels/<int:label_id>', methods=['PUT'])
+@jwt_or_login_required  
+def api_update_project_label(project_id, label_id):
+    """Update existing label"""
     user = get_current_api_user()
+    project = Project.query.filter_by(id=project_id, owner_id=user.id).first_or_404()
+    label = Label.query.filter_by(id=label_id, project_id=project.id).first_or_404()
+    
     data = request.get_json()
     
-    row_id = data.get('row_id')
-    column_index = data.get('column_index')
-    cell_value = data.get('cell_value', '')
+    # Update fields if provided
+    if 'name' in data:
+        name = data['name'].strip()
+        if not name:
+            return jsonify({'error': 'Nome etichetta non può essere vuoto'}), 400
+        
+        # Check uniqueness
+        existing = Label.query.filter_by(project_id=project.id, name=name)\
+            .filter(Label.id != label.id).first()
+        if existing:
+            return jsonify({'error': 'Etichetta con questo nome già esistente'}), 400
+        
+        label.name = name
     
-    if not row_id:
-        return jsonify({'error': 'Row ID richiesto'}), 400
+    if 'description' in data:
+        description = data['description'].strip()
+        if not description:
+            return jsonify({'error': 'Descrizione etichetta non può essere vuota'}), 400
+        label.description = description
     
-    # Verify row belongs to user's project
-    row = ExcelRow.query.join(ExcelSheet).join(File).join(Project).filter(
-        ExcelRow.id == row_id,
-        Project.owner_id == user.id
-    ).first()
+    if 'color' in data:
+        label.color = data['color']
     
-    if not row:
-        return jsonify({'error': 'Riga non trovata'}), 404
+    if 'categories' in data:
+        label.categories = data['categories']
     
-    # Verify label belongs to the same project
-    label = Label.query.filter_by(id=label_id, project_id=row.sheet.file.project_id).first()
-    
-    if not label:
-        return jsonify({'error': 'Etichetta non trovata'}), 404
-    
-    # Check if label already applied to this cell
-    existing = CellLabel.query.filter_by(
-        row_id=row_id,
-        label_id=label_id,
-        column_index=column_index
-    ).first()
-    
-    if existing:
-        return jsonify({'error': 'Etichetta già applicata a questa cella'}), 400
-    
-    # Create cell label
-    cell_label = CellLabel(
-        row_id=row_id,
-        label_id=label_id,
-        column_index=column_index,
-        cell_value=cell_value,
-        created_by=user.id
-    )
-    
-    db.session.add(cell_label)
     db.session.commit()
     
     return jsonify({
-        'message': 'Etichetta applicata con successo',
-        'cell_label': cell_label.to_dict()
-    }), 201
-
-# Search endpoint
-@api_bp.route('/search')
-@jwt_or_login_required
-def api_search():
-    """Search across user's data"""
-    user = get_current_api_user()
-    query = request.args.get('q', '').strip()
-    
-    if not query:
-        return jsonify({'results': []})
-    
-    # Search in projects
-    projects = Project.query.filter(
-        Project.owner_id == user.id,
-        Project.name.ilike(f'%{query}%')
-    ).limit(10).all()
-    
-    # Search in files
-    files = File.query.join(Project).filter(
-        Project.owner_id == user.id,
-        File.original_name.ilike(f'%{query}%')
-    ).limit(10).all()
-    
-    # Search in labels
-    labels = Label.query.join(Project).filter(
-        Project.owner_id == user.id,
-        Label.name.ilike(f'%{query}%')
-    ).limit(10).all()
-    
-    results = {
-        'projects': [p.to_dict() for p in projects],
-        'files': [f.to_dict() for f in files],
-        'labels': [l.to_dict() for l in labels]
-    }
-    
-    return jsonify({'results': results})
-
-# Labeling-specific API endpoints
-@api_bp.route('/projects/<uuid:project_id>/sheets')
-@jwt_or_login_required
-def get_project_sheets(project_id):
-    """API: Recupera fogli Excel di un progetto"""
-    user = get_current_api_user()
-    project = Project.query.filter_by(id=project_id, owner_id=user.id).first()
-    
-    if not project:
-        return jsonify({'error': 'Progetto non trovato'}), 404
-    
-    from app.models import ExcelSheet
-    # Query corretta per recuperare fogli Excel
-    sheets = ExcelSheet.query.join(File).filter(
-        File.project_id == project.id
-    ).all()
-    
-    return jsonify({
-        'project': project.to_dict(),
-        'sheets': [
-            {
-                'id': str(sheet.id),
-                'name': sheet.name,
-                'sheet_index': sheet.sheet_index,
-                'row_count': sheet.row_count,
-                'column_count': sheet.column_count,
-                'file': {
-                    'id': str(sheet.file.id),
-                    'filename': sheet.file.filename,
-                    'original_name': sheet.file.original_name,
-                    'uploaded_at': sheet.file.uploaded_at.isoformat() if sheet.file.uploaded_at else None
-                }
-            } for sheet in sheets
-        ]
+        'success': True,
+        'message': 'Etichetta aggiornata con successo',
+        'label': label.to_dict()
     })
 
-@api_bp.route('/column-preview')
+@api_bp.route('/projects/<uuid:project_id>/labels/<int:label_id>', methods=['DELETE'])
 @jwt_or_login_required
-def get_column_preview():
-    """Get column data preview for labeling"""
+def api_delete_project_label(project_id, label_id):
+    """Delete label (only if not used)"""
     user = get_current_api_user()
-    project_id = request.args.get('project_id')
-    column_name = request.args.get('column_name')
-    limit = request.args.get('limit', 10, type=int)
+    project = Project.query.filter_by(id=project_id, owner_id=user.id).first_or_404()
+    label = Label.query.filter_by(id=label_id, project_id=project.id).first_or_404()
     
-    if not project_id or not column_name:
-        return jsonify({'error': 'project_id e column_name richiesti'}), 400
+    # Check if label is used in applications
+    from app.models_labeling import LabelApplication
+    applications_count = LabelApplication.query.filter_by(label_id=label.id).count()
     
-    project = Project.query.filter_by(id=project_id, owner_id=user.id).first()
-    if not project:
-        return jsonify({'error': 'Progetto non trovato'}), 404
-    
-    try:
-        # Load project data
-        import pandas as pd
-        df = pd.read_excel(project.file_path)
-        
-        if column_name not in df.columns:
-            return jsonify({'error': 'Colonna non trovata'}), 404
-        
-        # Get sample data
-        column_data = df[column_name].head(limit).fillna('').tolist()
-        
+    if applications_count > 0:
         return jsonify({
-            'success': True,
-            'data': column_data,
-            'column_name': column_name,
-            'total_rows': len(df)
-        })
-        
-    except Exception as e:
-        return jsonify({'error': f'Errore nel caricamento dati: {str(e)}'}), 500
+            'error': f'Impossibile eliminare etichetta: utilizzata in {applications_count} applicazioni'
+        }), 400
+    
+    db.session.delete(label)
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'message': 'Etichetta eliminata con successo'
+    })
 
-@api_bp.route('/column-rows')
+# Applicazione Etichette
+@api_bp.route('/projects/<uuid:project_id>/labels/apply-manual', methods=['POST'])
 @jwt_or_login_required
-def get_column_rows():
-    """Get all rows for a specific column"""
+def api_apply_manual_labels(project_id):
+    """Apply labels manually (immediate application)"""
     user = get_current_api_user()
-    project_id = request.args.get('project_id')
-    column_name = request.args.get('column_name')
+    project = Project.query.filter_by(id=project_id, owner_id=user.id).first_or_404()
     
-    if not project_id or not column_name:
-        return jsonify({'error': 'project_id e column_name richiesti'}), 400
-    
-    project = Project.query.filter_by(id=project_id, owner_id=user.id).first()
-    if not project:
-        return jsonify({'error': 'Progetto non trovato'}), 404
-    
-    try:
-        # Load project data
-        import pandas as pd
-        df = pd.read_excel(project.file_path)
-        
-        if column_name not in df.columns:
-            return jsonify({'error': 'Colonna non trovata'}), 404
-        
-        # Get all column data
-        column_data = df[column_name].fillna('').tolist()
-        
-        return jsonify({
-            'success': True,
-            'rows': column_data,
-            'column_name': column_name,
-            'total_rows': len(column_data)
-        })
-        
-    except Exception as e:
-        return jsonify({'error': f'Errore nel caricamento dati: {str(e)}'}), 500
-
-@api_bp.route('/project-columns')
-@jwt_or_login_required
-def get_project_columns():
-    """Get all columns for a project"""
-    user = get_current_api_user()
-    project_id = request.args.get('project_id')
-    
-    if not project_id:
-        return jsonify({'error': 'project_id richiesto'}), 400
-    
-    project = Project.query.filter_by(id=project_id, owner_id=user.id).first()
-    if not project:
-        return jsonify({'error': 'Progetto non trovato'}), 404
-    
-    try:
-        # Load project data
-        import pandas as pd
-        df = pd.read_excel(project.file_path)
-        
-        columns = df.columns.tolist()
-        
-        return jsonify({
-            'success': True,
-            'items': columns,
-            'total_columns': len(columns)
-        })
-        
-    except Exception as e:
-        return jsonify({'error': f'Errore nel caricamento colonne: {str(e)}'}), 500
-
-@api_bp.route('/project-rows')
-@jwt_or_login_required
-def get_project_rows():
-    """Get row indices for a project"""
-    user = get_current_api_user()
-    project_id = request.args.get('project_id')
-    
-    if not project_id:
-        return jsonify({'error': 'project_id richiesto'}), 400
-    
-    project = Project.query.filter_by(id=project_id, owner_id=user.id).first()
-    if not project:
-        return jsonify({'error': 'Progetto non trovato'}), 404
-    
-    try:
-        # Load project data
-        import pandas as pd
-        df = pd.read_excel(project.file_path)
-        
-        # Generate row indices
-        row_indices = list(range(len(df)))
-        
-        return jsonify({
-            'success': True,
-            'items': row_indices,
-            'total_rows': len(row_indices)
-        })
-        
-    except Exception as e:
-        return jsonify({'error': f'Errore nel caricamento righe: {str(e)}'}), 500
-
-@api_bp.route('/generate-labels', methods=['POST'])
-@jwt_or_login_required
-def generate_labels():
-    """Generate labels using AI"""
-    user = get_current_api_user()
     data = request.get_json()
+    label_id = data.get('label_id')
+    target_cells = data.get('target_cells', [])  # List of {sheet_id, row_index, column_name, cell_value}
     
-    prompt = data.get('prompt', '')
-    column_data = data.get('column_data', [])
-    column_name = data.get('column_name', '')
+    if not label_id:
+        return jsonify({'error': 'ID etichetta richiesto'}), 400
     
-    if not prompt or not column_data:
-        return jsonify({'error': 'prompt e column_data richiesti'}), 400
+    if not target_cells:
+        return jsonify({'error': 'Celle target richieste'}), 400
     
-    try:
-        # Mock AI response - in real implementation, integrate with actual AI service
-        import random
-        import time
+    # Verify label exists in project
+    label = Label.query.filter_by(id=label_id, project_id=project.id).first_or_404()
+    
+    from app.models_labeling import LabelApplication
+    from datetime import datetime
+    
+    applications_created = []
+    
+    for cell in target_cells:
+        # Verify sheet belongs to project
+        sheet = ExcelSheet.query.filter_by(
+            id=cell.get('sheet_id'),
+            file_id=File.project_id.is_(project.id)
+        ).first()
         
-        # Simulate AI processing time
-        time.sleep(2)
+        if not sheet:
+            continue  # Skip invalid sheets
         
-        # Generate mock suggestions
-        suggestions = []
-        sentiment_labels = ['positivo', 'negativo', 'neutro']
-        emotion_labels = ['gioia', 'tristezza', 'rabbia', 'paura', 'sorpresa', 'neutro']
+        # Create application
+        application = LabelApplication(
+            project_id=project.id,
+            sheet_id=cell.get('sheet_id'),
+            label_id=label.id,
+            applied_by=user.id,
+            row_index=cell.get('row_index'),
+            column_name=cell.get('column_name'),
+            cell_value=cell.get('cell_value'),
+            application_type='manual',
+            is_active=True,
+            applied_at=datetime.utcnow()
+        )
         
-        for i, text in enumerate(column_data[:10]):  # Process first 10 items
-            if 'sentiment' in prompt.lower():
-                label = random.choice(sentiment_labels)
-            elif 'emoz' in prompt.lower():
-                label = random.choice(emotion_labels)
-            else:
-                label = f'categoria_{random.randint(1, 5)}'
-            
-            confidence = random.uniform(0.6, 0.95)
-            
-            suggestions.append({
-                'text': str(text),
-                'suggested_label': label,
-                'confidence': confidence,
-                'reasoning': f'Analisi basata su pattern linguistici e contesto semantico del testo "{str(text)[:50]}..."'
-            })
+        db.session.add(application)
+        applications_created.append(application)
+    
+    # Update label usage count
+    label.usage_count = (label.usage_count or 0) + len(applications_created)
+    
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'message': f'Etichette applicate manualmente a {len(applications_created)} celle',
+        'applications_created': len(applications_created),
+        'label_used': label.to_dict()
+    }), 201
+
+@api_bp.route('/projects/<uuid:project_id>/labels/apply-ai', methods=['POST'])
+@jwt_or_login_required
+def api_request_ai_labeling(project_id):
+    """Request AI labeling (requires authorization)"""
+    user = get_current_api_user()
+    project = Project.query.filter_by(id=project_id, owner_id=user.id).first_or_404()
+    
+    data = request.get_json()
+    target_cells = data.get('target_cells', [])
+    ai_prompt = data.get('ai_prompt', '')
+    
+    if not target_cells:
+        return jsonify({'error': 'Celle target richieste'}), 400
+    
+    if not ai_prompt:
+        return jsonify({'error': 'Prompt AI richiesto'}), 400
+    
+    # Simulate AI label suggestions
+    import random
+    from app.models_labeling import LabelApplication
+    from datetime import datetime
+    
+    # Get existing labels for this project to suggest from
+    existing_labels = Label.query.filter_by(project_id=project.id).all()
+    
+    pending_applications = []
+    
+    for cell in target_cells:
+        if existing_labels:
+            suggested_label = random.choice(existing_labels)
+        else:
+            # Create a temporary suggested label
+            suggested_label = None
         
-        return jsonify({
-            'success': True,
-            'suggestions': suggestions,
-            'total_processed': len(suggestions),
-            'metadata': {
-                'column_name': column_name,
-                'prompt_used': prompt,
-                'processing_time': 2.0
+        # Create pending application (requires authorization)
+        application = LabelApplication(
+            project_id=project.id,
+            sheet_id=cell.get('sheet_id'),
+            label_id=suggested_label.id if suggested_label else None,
+            applied_by=user.id,
+            row_index=cell.get('row_index'),
+            column_name=cell.get('column_name'),
+            cell_value=cell.get('cell_value'),
+            application_type='ai_pending',  # Pending authorization
+            confidence_score=random.uniform(0.7, 0.95),
+            ai_reasoning=f'AI analizzato il testo "{cell.get("cell_value", "")[:50]}..." con prompt "{ai_prompt[:50]}..."',
+            is_active=False,  # Not active until authorized
+            applied_at=datetime.utcnow()
+        )
+        
+        db.session.add(application)
+        pending_applications.append(application)
+    
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'message': f'Richieste AI create per {len(pending_applications)} celle',
+        'pending_applications': len(pending_applications),
+        'status': 'pending_authorization',
+        'note': 'Le applicazioni AI richiedono autorizzazione prima di essere attive'
+    }), 201
+
+@api_bp.route('/projects/<uuid:project_id>/labels/authorize/<uuid:application_id>', methods=['PUT'])
+@jwt_or_login_required
+def api_authorize_ai_application(project_id, application_id):
+    """Authorize or reject AI label application"""
+    user = get_current_api_user()
+    project = Project.query.filter_by(id=project_id, owner_id=user.id).first_or_404()
+    
+    from app.models_labeling import LabelApplication
+    application = LabelApplication.query.filter_by(
+        id=application_id, 
+        project_id=project.id,
+        application_type='ai_pending'
+    ).first_or_404()
+    
+    data = request.get_json()
+    action = data.get('action')  # 'approve' or 'reject'
+    
+    if action not in ['approve', 'reject']:
+        return jsonify({'error': 'Azione deve essere "approve" o "reject"'}), 400
+    
+    from datetime import datetime
+    
+    if action == 'approve':
+        application.application_type = 'ai_approved'
+        application.is_active = True
+        application.authorized_by = user.id
+        application.authorized_at = datetime.utcnow()
+        
+        # Update label usage count
+        if application.label_id:
+            label = Label.query.get(application.label_id)
+            if label:
+                label.usage_count = (label.usage_count or 0) + 1
+        
+        message = 'Applicazione AI approvata'
+    else:
+        application.application_type = 'ai_rejected'
+        application.is_active = False
+        application.authorized_by = user.id
+        application.authorized_at = datetime.utcnow()
+        
+        message = 'Applicazione AI rifiutata'
+    
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'message': message,
+        'application': {
+            'id': str(application.id),
+            'status': application.application_type,
+            'is_active': application.is_active,
+            'authorized_by': str(application.authorized_by),
+            'authorized_at': application.authorized_at.isoformat() if application.authorized_at else None
+        }
+    })
+
+# Gestione Suggerimenti
+@api_bp.route('/projects/<uuid:project_id>/suggestions')
+@jwt_or_login_required
+def api_project_suggestions(project_id):
+    """Get all pending suggestions for project"""
+    user = get_current_api_user()
+    project = Project.query.filter_by(id=project_id, owner_id=user.id).first_or_404()
+    
+    from app.models_labeling import LabelSuggestion, LabelApplication
+    
+    # Get pending label suggestions (for store)
+    label_suggestions = LabelSuggestion.query.filter_by(
+        project_id=project.id,
+        status='pending'
+    ).order_by(LabelSuggestion.created_at.desc()).all()
+    
+    # Get pending AI applications (for authorization)
+    pending_applications = LabelApplication.query.filter_by(
+        project_id=project.id,
+        application_type='ai_pending'
+    ).order_by(LabelApplication.applied_at.desc()).all()
+    
+    return jsonify({
+        'success': True,
+        'suggestions': {
+            'store_labels': [s.to_dict() for s in label_suggestions],
+            'ai_applications': [{
+                'id': str(app.id),
+                'row_index': app.row_index,
+                'column_name': app.column_name,
+                'cell_value': app.cell_value,
+                'suggested_label_id': app.label_id,
+                'confidence_score': app.confidence_score,
+                'ai_reasoning': app.ai_reasoning,
+                'applied_at': app.applied_at.isoformat()
+            } for app in pending_applications]
+        },
+        'counts': {
+            'pending_store_labels': len(label_suggestions),
+            'pending_ai_applications': len(pending_applications),
+            'total_pending': len(label_suggestions) + len(pending_applications)
+        }
+    })
+
+@api_bp.route('/projects/<uuid:project_id>/suggestions/<uuid:suggestion_id>/approve', methods=['PUT'])
+@jwt_or_login_required
+def api_approve_suggestion(project_id, suggestion_id):
+    """Approve label suggestion for store"""
+    user = get_current_api_user()
+    project = Project.query.filter_by(id=project_id, owner_id=user.id).first_or_404()
+    
+    from app.models_labeling import LabelSuggestion
+    suggestion = LabelSuggestion.query.filter_by(
+        id=suggestion_id,
+        project_id=project.id,
+        status='pending'
+    ).first_or_404()
+    
+    data = request.get_json()
+    action = data.get('action')  # 'approve' or 'reject'
+    
+    if action not in ['approve', 'reject']:
+        return jsonify({'error': 'Azione deve essere "approve" o "reject"'}), 400
+    
+    from datetime import datetime
+    
+    if action == 'approve':
+        # Create new label in store
+        label = Label(
+            project_id=project.id,
+            name=suggestion.suggested_name,
+            description=suggestion.suggested_description,
+            color='#1976d2',  # Default color
+            categories=[suggestion.suggested_category] if suggestion.suggested_category else [],
+            created_by=user.id,
+            usage_count=0
+        )
+        
+        db.session.add(label)
+        suggestion.status = 'approved'
+        suggestion.reviewed_by = user.id
+        suggestion.reviewed_at = datetime.utcnow()
+        
+        message = 'Suggerimento approvato e etichetta aggiunta al store'
+    else:
+        suggestion.status = 'rejected'
+        suggestion.reviewed_by = user.id
+        suggestion.reviewed_at = datetime.utcnow()
+        
+        message = 'Suggerimento rifiutato'
+    
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'message': message,
+        'suggestion_status': suggestion.status
+    })
+
+# AI Suggestions for Store Labels
+@api_bp.route('/projects/<uuid:project_id>/labels/ai-suggest', methods=['POST'])
+@jwt_or_login_required
+def api_ai_suggest_store_labels(project_id):
+    """AI suggests new labels for project store"""
+    user = get_current_api_user()
+    project = Project.query.filter_by(id=project_id, owner_id=user.id).first_or_404()
+    
+    data = request.get_json()
+    sample_data = data.get('sample_data', [])  # Sample cell values for analysis
+    analysis_context = data.get('context', '')  # Additional context for AI
+    
+    if not sample_data:
+        return jsonify({'error': 'Dati campione richiesti per analisi AI'}), 400
+    
+    # Simulate AI analysis for new label suggestions
+    import random
+    from app.models_labeling import LabelSuggestion
+    from datetime import datetime
+    
+    # Simulated AI suggestions based on data analysis
+    suggested_categories = ['sentiment', 'emotion', 'topic', 'intent', 'behavior']
+    suggestions_created = []
+    
+    for i in range(random.randint(2, 5)):  # Generate 2-5 suggestions
+        category = random.choice(suggested_categories)
+        
+        suggestion = LabelSuggestion(
+            project_id=project.id,
+            suggestion_type='store_label',
+            suggested_name=f'{category.title()}_AI_{i+1}',
+            suggested_description=f'Etichetta {category} suggerita da AI basata su analisi dati progetto',
+            suggested_category=category,
+            ai_confidence=random.uniform(0.7, 0.9),
+            ai_reasoning=f'Analisi AI ha identificato pattern {category} ricorrenti nei dati campione',
+            sample_values=sample_data[:5],  # Store sample values used for analysis
+            status='pending',
+            created_by=user.id,
+            created_at=datetime.utcnow()
+        )
+        
+        db.session.add(suggestion)
+        suggestions_created.append(suggestion)
+    
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'message': f'AI ha generato {len(suggestions_created)} suggerimenti per nuove etichette',
+        'suggestions_created': len(suggestions_created),
+        'note': 'I suggerimenti richiedono approvazione prima di essere aggiunti al store'
+    }), 201
+
+# TASK 2.4: Store Etichette - Statistiche Dettagliate
+@api_bp.route('/projects/<uuid:project_id>/labels/stats')
+@jwt_or_login_required
+def api_project_labels_stats(project_id):
+    """Get detailed statistics for project labels (Task 2.4)"""
+    user = get_current_api_user()
+    project = Project.query.filter_by(id=project_id, owner_id=user.id).first_or_404()
+    
+    from app.models_labeling import LabelApplication, LabelSuggestion
+    from sqlalchemy import func, desc
+    from datetime import datetime, timedelta
+    
+    # Basic counts
+    total_labels = Label.query.filter_by(project_id=project.id).count()
+    total_applications = LabelApplication.query.filter_by(project_id=project.id).count()
+    
+    # Application types breakdown
+    manual_applications = LabelApplication.query.filter_by(
+        project_id=project.id, 
+        application_type='manual'
+    ).count()
+    
+    ai_applications = LabelApplication.query.filter(
+        LabelApplication.project_id == project.id,
+        LabelApplication.application_type.in_(['ai_single', 'ai_batch'])
+    ).count()
+    
+    # Most used labels
+    most_used_labels = db.session.query(
+        Label.id, Label.name, Label.color,
+        func.count(LabelApplication.id).label('usage_count')
+    ).join(LabelApplication).filter(
+        Label.project_id == project.id
+    ).group_by(Label.id, Label.name, Label.color)\
+     .order_by(desc('usage_count')).limit(10).all()
+    
+    # Recent activity (last 7 days)
+    week_ago = datetime.utcnow() - timedelta(days=7)
+    recent_applications = LabelApplication.query.filter(
+        LabelApplication.project_id == project.id,
+        LabelApplication.applied_at >= week_ago
+    ).count()
+    
+    # Pending AI suggestions for store
+    pending_suggestions = LabelSuggestion.query.filter_by(
+        project_id=project.id,
+        suggestion_type='store_label',
+        status='pending'
+    ).count()
+    
+    # Labels with no usage
+    unused_labels = db.session.query(Label).filter(
+        Label.project_id == project.id,
+        ~Label.id.in_(
+            db.session.query(LabelApplication.label_id).filter(
+                LabelApplication.project_id == project.id
+            )
+        )
+    ).count()
+    
+    return jsonify({
+        'success': True,
+        'statistics': {
+            'overview': {
+                'total_labels': total_labels,
+                'total_applications': total_applications,
+                'unused_labels': unused_labels,
+                'pending_ai_suggestions': pending_suggestions
+            },
+            'applications': {
+                'manual': manual_applications,
+                'ai': ai_applications,
+                'recent_week': recent_applications,
+                'manual_percentage': round((manual_applications / total_applications) * 100, 1) if total_applications > 0 else 0,
+                'ai_percentage': round((ai_applications / total_applications) * 100, 1) if total_applications > 0 else 0
+            },
+            'most_used_labels': [
+                {
+                    'id': label.id,
+                    'name': label.name,
+                    'color': label.color,
+                    'usage_count': label.usage_count
+                } for label in most_used_labels
+            ],
+            'activity': {
+                'last_week_applications': recent_applications
             }
-        })
-        
-    except Exception as e:
-        return jsonify({'error': f'Errore nella generazione: {str(e)}'}), 500
+        }
+    })

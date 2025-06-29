@@ -203,46 +203,90 @@
         </div>
     </div>
 
-    <!-- Labels Section -->
+    <!-- Task 2.4: Store Etichette Centralizzato -->
     <div class="row">
         <div class="col s12">
-            <div class="card">
+            <div class="card teal lighten-5">
                 <div class="card-content">
-                    <span class="card-title">
-                        <i class="material-icons left">label</i>Etichette del Progetto
-                        <a href="{{ url_for('labels.create_label', project_id=project.id) }}" class="btn-floating btn-small waves-effect waves-light green right">
-                            <i class="material-icons">add</i>
+                    <span class="card-title teal-text">
+                        <i class="material-icons left">local_offer</i>Store Etichette Centralizzato
+                        <a href="{{ url_for('labels.list_labels', project_id=project.id) }}" class="btn waves-effect waves-light teal right">
+                            <i class="material-icons left">settings</i>Gestisci Store
                         </a>
                     </span>
                     
+                    <div class="row" style="margin-bottom: 0;">
+                        <div class="col s12 m3">
+                            <div class="center-align">
+                                <h5 class="teal-text" style="margin: 0;">{{ labels|length }}</h5>
+                                <p class="grey-text" style="margin: 0;">Etichette Totali</p>
+                            </div>
+                        </div>
+                        <div class="col s12 m3">
+                            <div class="center-align">
+                                <h5 class="green-text" style="margin: 0;">
+                                    {% set total_usage = labels|sum(attribute='cell_labels.count') %}
+                                    {{ total_usage }}
+                                </h5>
+                                <p class="grey-text" style="margin: 0;">Applicazioni Totali</p>
+                            </div>
+                        </div>
+                        <div class="col s12 m3">
+                            <div class="center-align">
+                                <h5 class="orange-text" style="margin: 0;">
+                                    {% set labels_with_categories = labels|selectattr('categories')|list|length %}
+                                    {{ labels_with_categories }}
+                                </h5>
+                                <p class="grey-text" style="margin: 0;">Con Categorie</p>
+                            </div>
+                        </div>
+                        <div class="col s12 m3">
+                            <div class="center-align">
+                                <h5 class="purple-text" style="margin: 0;">
+                                    {% set unused_labels = labels|rejectattr('cell_labels.count')|list|length %}
+                                    {{ unused_labels }}
+                                </h5>
+                                <p class="grey-text" style="margin: 0;">Non Utilizzate</p>
+                            </div>
+                        </div>
+                    </div>
+                    
                     {% if labels %}
                         <div class="row">
-                            {% for label in labels %}
-                                <div class="col s12 m6 l4">
-                                    <div class="card-panel" style="border-left: 4px solid {{ label.color }};">
-                                        <h6 style="margin-top: 0;">{{ label.name }}</h6>
-                                        {% if label.description %}
-                                            <p class="grey-text">{{ label.description }}</p>
-                                        {% endif %}
-                                        <div class="chip" style="background-color: {{ label.color }}; color: white;">
-                                            {{ label.cell_labels.count() }} utilizzi
+                            <div class="col s12">
+                                <p><strong>Etichette più utilizzate:</strong></p>
+                                <div class="collection" style="border: none; margin: 0;">
+                                    {% for label in labels[:5] %}
+                                        {% set usage_count = label.cell_labels.count() %}
+                                        <div class="collection-item transparent" style="border: none; padding: 5px 0;">
+                                            <div class="valign-wrapper">
+                                                <div class="label-color-indicator" 
+                                                     style="width: 12px; height: 12px; border-radius: 50%; background-color: {{ label.color }}; margin-right: 10px;"></div>
+                                                <span>{{ label.name }}</span>
+                                                <span class="chip {{ 'green' if usage_count > 10 else 'orange' if usage_count > 0 else 'grey' }} white-text right">
+                                                    {{ usage_count }}
+                                                </span>
+                                            </div>
                                         </div>
-                                        <div class="right-align">
-                                            <a href="{{ url_for('labels.edit_label', label_id=label.id) }}" class="btn-small waves-effect waves-light orange">
-                                                <i class="material-icons">edit</i>
-                                            </a>
-                                        </div>
-                                    </div>
+                                    {% endfor %}
                                 </div>
-                            {% endfor %}
+                            </div>
+                        </div>
+                        
+                        <div class="row" style="margin-bottom: 0;">
+                            <div class="col s12 center-align">
+                                <a href="{{ url_for('labels.list_labels', project_id=project.id) }}" class="btn-flat teal-text">
+                                    <i class="material-icons left">visibility</i>Visualizza Tutte le Etichette
+                                </a>
+                            </div>
                         </div>
                     {% else %}
-                        <div class="center-align" style="padding: 40px 20px;">
-                            <i class="material-icons large grey-text">label</i>
+                        <div class="center-align" style="padding: 20px 0;">
+                            <i class="material-icons large grey-text">local_offer</i>
                             <h6 class="grey-text">Nessuna etichetta creata</h6>
-                            <p class="grey-text">Crea la prima etichetta per iniziare a classificare i tuoi dati.</p>
-                            <a href="{{ url_for('labels.create_label', project_id=project.id) }}" class="btn waves-effect waves-light green">
-                                <i class="material-icons left">add</i>Crea Etichetta
+                            <p class="grey-text">Crea la prima etichetta per iniziare a organizzare i tuoi dati.</p>
+                            <a href="{{ url_for('labels.list_labels', project_id=project.id) }}" class="btn waves-effect waves-light teal">
+                                <i class="material-icons left">add</i>Crea Prima Etichetta
                             </a>
                         </div>
                     {% endif %}

@@ -2,13 +2,24 @@
 
 **Aggiornato**: 30 giugno 2025
 
-## 📋 Documenti Principali
+## 📋 DOCUMENTO MASTER
 
-### 🎯 Piano di Refactoring
-- **[PIANO_REFACTORING_ETICHETTATURA.md](PIANO_REFACTORING_ETICHETTATURA.md)** - Piano completo di refactoring del sistema di etichettatura
-  - Stato: Fase 1 in corso (Task 1.4 prossimo)
-  - Ultima modifica: 30 giugno 2025
-  - Progresso: 83% Fase 1 completata
+### 🎯 Piano Completo di Refactoring
+➡️ **[MASTER_REFACTORING.md](MASTER_REFACTORING.md)** - **DOCUMENTO PRINCIPALE**
+- Contiene tutto: piano completo, stato attuale, cose da fare, roadmap
+- Stato: Fase 1 in corso (Task 1.4 prossimo) 
+- Progresso: 83% Fase 1 completata
+- **CONSULTARE QUESTO PRIMO** per avere il quadro completo
+
+### 📂 Indice Generale
+➡️ **[INDICE_DOCUMENTAZIONE.md](INDICE_DOCUMENTAZIONE.md)** - Navigazione rapida a tutta la documentazione
+
+## 📋 Documenti di Dettaglio Tecnico
+
+### 🎯 Piano di Refactoring (Legacy)
+- **[PIANO_REFACTORING_ETICHETTATURA.md](PIANO_REFACTORING_ETICHETTATURA.md)** - Piano dettagliato (ora incluso nel MASTER)
+  - ⚠️ **Sostituito dal MASTER_REFACTORING.md**
+  - Mantenuto per riferimenti tecnici specifici
 
 ### 🤖 Machine Learning
 - **[README_ML.md](README_ML.md)** - Documentazione sistema ML e AI

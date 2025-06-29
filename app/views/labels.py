@@ -9,23 +9,32 @@ labels_bp = Blueprint('labels', __name__)
 @labels_bp.route('/<uuid:project_id>')
 @login_required
 def list_labels(project_id):
+    """Store Etichette Centralizzato - Task 2.4"""
     project = Project.query.filter_by(id=project_id, owner_id=current_user.id).first_or_404()
     
     page = request.args.get('page', 1, type=int)
     per_page = 20
     
     labels = Label.query.filter_by(project_id=project.id)\
-        .order_by(Label.name)\
+        .order_by(Label.usage_count.desc(), Label.name)\
         .paginate(page=page, per_page=per_page, error_out=False)
     
     # Calcola le statistiche per il template
-    total_usages = sum(label.cell_labels.count() for label in labels.items)
+    total_usages = sum(label.usage_count or label.cell_labels.count() for label in labels.items)
     average_usages = round(total_usages / labels.total, 1) if labels.total > 0 else 0
     labels_with_categories = sum(1 for label in labels.items if label.categories)
     
+    # Ottieni tutte le categorie uniche per i filtri
+    all_categories = set()
+    for label in Label.query.filter_by(project_id=project.id).all():
+        if label.categories:
+            all_categories.update(label.categories)
+    all_categories = sorted(list(all_categories))
+    
     # Aggiungi le statistiche agli oggetti label per l'uso nel template
     for label in labels.items:
-        label.usage_count = label.cell_labels.count()
+        if not hasattr(label, 'usage_count') or label.usage_count is None:
+            label.usage_count = label.cell_labels.count()
     
     if request.is_json:
         return jsonify({
@@ -46,12 +55,13 @@ def list_labels(project_id):
             }
         })
     
-    return render_template('labels/list.html', 
+    return render_template('labels/store.html', 
                          project=project, 
                          labels=labels,
                          total_usages=total_usages,
                          average_usages=average_usages,
-                         labels_with_categories=labels_with_categories)
+                         labels_with_categories=labels_with_categories,
+                         all_categories=all_categories)
 
 @labels_bp.route('/<uuid:project_id>/create', methods=['GET', 'POST'])
 @login_required
@@ -90,7 +100,9 @@ def create_label(project_id):
             name=name,
             description=description,
             color=color,
-            categories=categories if categories else []
+            categories=categories if categories else [],
+            created_by=current_user.id,  # Task 2.4: Track creator
+            usage_count=0  # Task 2.4: Initialize usage count
         )
         
         db.session.add(label)

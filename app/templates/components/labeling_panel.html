@@ -1,0 +1,255 @@
+<!-- Pannello Etichettatura Unificato - Task 2.3 -->
+<div class="col s12 m4" id="labeling-panel-container">
+    <div class="card sticky-top">
+        <div class="card-content">
+            <span class="card-title">
+                <i class="material-icons left">label</i>
+                Etichettatura
+            </span>
+            
+            <!-- Stato selezione -->
+            <div id="selection-info" class="section">
+                <h6>Selezione Corrente</h6>
+                <div class="collection">
+                    <div class="collection-item">
+                        <span class="badge" id="selected-cells-count">0</span>
+                        Celle selezionate
+                    </div>
+                    <div class="collection-item">
+                        <span class="badge" id="current-column-name">-</span>
+                        Colonna attiva
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Etichette progetto -->
+            <div id="project-labels-section" class="section">
+                <h6>Etichette Progetto</h6>
+                <div class="input-field">
+                    <select id="label-selector" disabled>
+                        <option value="" disabled selected>Caricamento etichette...</option>
+                    </select>
+                    <label for="label-selector">Seleziona etichetta</label>
+                </div>
+                
+                <!-- Anteprima etichetta selezionata -->
+                <div id="label-preview" style="display: none;">
+                    <div class="card-panel grey lighten-4">
+                        <p class="label-name" style="margin: 0; font-weight: bold;"></p>
+                        <p class="label-description" style="margin: 5px 0 0 0; font-size: 0.9em;"></p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Azioni etichettatura -->
+            <div id="labeling-actions" class="section">
+                <h6>Azioni</h6>
+                
+                <!-- Etichettatura manuale -->
+                <button class="btn waves-effect waves-light green btn-block" 
+                        id="apply-manual-label" disabled>
+                    <i class="material-icons left">done</i>
+                    Applica Manuale
+                </button>
+                
+                <!-- Etichettatura AI -->
+                <button class="btn waves-effect waves-light orange btn-block" 
+                        id="request-ai-label" disabled style="margin-top: 10px;">
+                    <i class="material-icons left">psychology</i>
+                    Suggerimenti AI
+                </button>
+                
+                <!-- Nuova etichetta -->
+                <button class="btn waves-effect waves-light blue btn-block" 
+                        id="create-new-label" style="margin-top: 10px;">
+                    <i class="material-icons left">add</i>
+                    Nuova Etichetta
+                </button>
+            </div>
+            
+            <!-- Statistiche -->
+            <div id="labeling-stats" class="section">
+                <h6>Statistiche</h6>
+                <div class="collection">
+                    <div class="collection-item">
+                        <span class="badge green white-text" id="stats-labeled">0</span>
+                        Etichettate
+                    </div>
+                    <div class="collection-item">
+                        <span class="badge orange white-text" id="stats-pending">0</span>
+                        In attesa autorizzazione
+                    </div>
+                    <div class="collection-item">
+                        <span class="badge blue white-text" id="stats-total-labels">0</span>
+                        Etichette disponibili
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Creazione Nuova Etichetta -->
+<div id="create-label-modal" class="modal">
+    <div class="modal-content">
+        <h4>Crea Nuova Etichetta</h4>
+        <form id="create-label-form">
+            <div class="row">
+                <div class="input-field col s12">
+                    <input id="label-name" type="text" maxlength="100" required>
+                    <label for="label-name">Nome Etichetta *</label>
+                    <span class="helper-text">Deve essere unico nel progetto</span>
+                </div>
+            </div>
+            <div class="row">
+                <div class="input-field col s12">
+                    <textarea id="label-description" class="materialize-textarea" required></textarea>
+                    <label for="label-description">Descrizione *</label>
+                    <span class="helper-text">Descrizione dettagliata dell'etichetta</span>
+                </div>
+            </div>
+            <div class="row">
+                <div class="input-field col s6">
+                    <input id="label-color" type="color" value="#1976d2">
+                    <label for="label-color">Colore</label>
+                </div>
+                <div class="input-field col s6">
+                    <input id="label-categories" type="text">
+                    <label for="label-categories">Categorie (opzionale)</label>
+                    <span class="helper-text">Separate da virgola</span>
+                </div>
+            </div>
+            
+            <!-- Anteprima -->
+            <div class="row">
+                <div class="col s12">
+                    <h6>Anteprima:</h6>
+                    <div class="card-panel" id="label-preview-creation">
+                        <span class="badge" id="preview-color" style="background-color: #1976d2;">Nuova Etichetta</span>
+                        <p id="preview-description" style="margin: 5px 0 0 0; font-size: 0.9em;">Descrizione dell'etichetta</p>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+    <div class="modal-footer">
+        <a href="#!" class="modal-close waves-effect waves-red btn-flat">Annulla</a>
+        <a href="#!" class="waves-effect waves-green btn" id="save-label-btn">
+            <i class="material-icons left">save</i>
+            Salva Etichetta
+        </a>
+    </div>
+</div>
+
+<!-- Modal Suggerimenti AI -->
+<div id="ai-suggestions-modal" class="modal modal-fixed-footer">
+    <div class="modal-content">
+        <h4>Suggerimenti AI</h4>
+        <div class="progress" id="ai-loading" style="display: none;">
+            <div class="indeterminate"></div>
+        </div>
+        
+        <div id="ai-suggestions-content" style="display: none;">
+            <p>L'AI ha analizzato le celle selezionate e suggerisce le seguenti etichette:</p>
+            <div id="suggestions-list">
+                <!-- Suggerimenti dinamici -->
+            </div>
+        </div>
+        
+        <div id="ai-error" style="display: none;" class="card-panel red lighten-4">
+            <span class="red-text">Errore nell'elaborazione AI. Riprova più tardi.</span>
+        </div>
+    </div>
+    <div class="modal-footer">
+        <a href="#!" class="modal-close waves-effect waves-red btn-flat">Chiudi</a>
+        <a href="#!" class="waves-effect waves-green btn" id="approve-all-suggestions" style="display: none;">
+            <i class="material-icons left">done_all</i>
+            Approva Tutti
+        </a>
+    </div>
+</div>
+
+<!-- Template per singolo suggerimento AI -->
+<template id="ai-suggestion-template">
+    <div class="card suggestion-item" data-suggestion-id="">
+        <div class="card-content">
+            <div class="row valign-wrapper">
+                <div class="col s8">
+                    <h6 class="suggestion-label-name" style="margin: 0;"></h6>
+                    <p class="suggestion-description" style="margin: 5px 0;"></p>
+                    <p class="suggestion-reasoning" style="margin: 5px 0; font-style: italic; color: #666;"></p>
+                </div>
+                <div class="col s4 right-align">
+                    <div class="confidence-score">
+                        <span class="badge orange white-text confidence-value"></span>
+                        <p style="margin: 0; font-size: 0.8em;">Confidence</p>
+                    </div>
+                </div>
+            </div>
+            <div class="card-action">
+                <a href="#" class="approve-suggestion waves-effect waves-light btn green">
+                    <i class="material-icons left">check</i>
+                    Approva
+                </a>
+                <a href="#" class="reject-suggestion waves-effect waves-light btn red">
+                    <i class="material-icons left">close</i>
+                    Rifiuta
+                </a>
+            </div>
+        </div>
+    </div>
+</template>
+
+<style>
+/* Stili per il pannello etichettatura */
+.sticky-top {
+    position: sticky;
+    top: 20px;
+    z-index: 1000;
+}
+
+.section {
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.section:last-child {
+    border-bottom: none;
+}
+
+.btn-block {
+    width: 100%;
+    margin-bottom: 5px;
+}
+
+#label-preview {
+    margin-top: 10px;
+}
+
+.suggestion-item {
+    margin-bottom: 15px;
+}
+
+.confidence-score {
+    text-align: center;
+}
+
+.confidence-value {
+    font-size: 1.1em;
+    font-weight: bold;
+}
+
+/* Responsive adjustments */
+@media only screen and (max-width: 992px) {
+    .sticky-top {
+        position: relative;
+        top: auto;
+    }
+    
+    #labeling-panel-container {
+        order: 1;
+        margin-bottom: 20px;
+    }
+}
+</style>

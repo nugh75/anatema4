@@ -1,0 +1,383 @@
+{% extends "base.html" %}
+
+{% block title %}Store Etichette - {{ project.name }} - Anatema{% endblock %}
+
+{% block content %}
+<div class="container" style="margin-top: 30px;">
+    <!-- Breadcrumb -->
+    <div class="row">
+        <div class="col s12">
+            <nav class="transparent z-depth-0">
+                <div class="nav-wrapper">
+                    <div class="col s12">
+                        <a href="{{ url_for('main.dashboard') }}" class="breadcrumb blue-text">Dashboard</a>
+                        <a href="{{ url_for('projects.list_projects') }}" class="breadcrumb blue-text">Progetti</a>
+                        <a href="{{ url_for('projects.view_project', project_id=project.id) }}" class="breadcrumb blue-text">{{ project.name }}</a>
+                        <a href="#!" class="breadcrumb grey-text">Store Etichette</a>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Header Store Etichette -->
+    <div class="row">
+        <div class="col s12">
+            <div class="card-panel teal darken-2 white-text">
+                <div class="row valign-wrapper" style="margin-bottom: 0;">
+                    <div class="col s12 m8">
+                        <h4 style="margin: 0;">
+                            <i class="material-icons left">local_offer</i>Store Etichette Centralizzato
+                        </h4>
+                        <p style="margin: 0;">
+                            Gestione completa delle etichette per il progetto {{ project.name }}
+                        </p>
+                    </div>
+                    <div class="col s12 m4 right-align">
+                        <a href="#create-label-modal" class="btn waves-effect waves-light white teal-text modal-trigger">
+                            <i class="material-icons left">add</i>Nuova Etichetta
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistiche Rapide -->
+    <div class="row">
+        <div class="col s12 m3">
+            <div class="card blue lighten-1 white-text">
+                <div class="card-content center-align">
+                    <h5 style="margin: 0;">{{ labels.total }}</h5>
+                    <p>Etichette Totali</p>
+                    <i class="material-icons large">local_offer</i>
+                </div>
+            </div>
+        </div>
+        <div class="col s12 m3">
+            <div class="card green lighten-1 white-text">
+                <div class="card-content center-align">
+                    <h5 style="margin: 0;">{{ total_usages }}</h5>
+                    <p>Applicazioni Totali</p>
+                    <i class="material-icons large">assignment_turned_in</i>
+                </div>
+            </div>
+        </div>
+        <div class="col s12 m3">
+            <div class="card orange lighten-1 white-text">
+                <div class="card-content center-align">
+                    <h5 style="margin: 0;">{{ average_usages }}</h5>
+                    <p>Media Utilizzo</p>
+                    <i class="material-icons large">trending_up</i>
+                </div>
+            </div>
+        </div>
+        <div class="col s12 m3">
+            <div class="card purple lighten-1 white-text">
+                <div class="card-content center-align">
+                    <h5 style="margin: 0;">{{ labels_with_categories }}</h5>
+                    <p>Con Categorie</p>
+                    <i class="material-icons large">folder</i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtri e Ricerca -->
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <div class="row valign-wrapper" style="margin-bottom: 0;">
+                        <div class="col s12 m6">
+                            <div class="input-field">
+                                <i class="material-icons prefix">search</i>
+                                <input id="search-labels" type="text" placeholder="Cerca etichette...">
+                                <label for="search-labels">Ricerca</label>
+                            </div>
+                        </div>
+                        <div class="col s12 m3">
+                            <div class="input-field">
+                                <select id="sort-by">
+                                    <option value="name">Nome</option>
+                                    <option value="usage">Utilizzo</option>
+                                    <option value="date">Data Creazione</option>
+                                </select>
+                                <label>Ordina per</label>
+                            </div>
+                        </div>
+                        <div class="col s12 m3">
+                            <div class="input-field">
+                                <select id="filter-category">
+                                    <option value="">Tutte le categorie</option>
+                                    {% for category in all_categories %}
+                                        <option value="{{ category }}">{{ category }}</option>
+                                    {% endfor %}
+                                </select>
+                                <label>Filtra per categoria</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabella Etichette -->
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">
+                        <i class="material-icons left">list</i>Etichette del Progetto
+                        <span class="right">
+                            <span class="chip blue white-text">{{ labels.total }} totali</span>
+                        </span>
+                    </span>
+                    
+                    {% if labels.items %}
+                        <table class="striped responsive-table">
+                            <thead>
+                                <tr>
+                                    <th>Etichetta</th>
+                                    <th>Descrizione</th>
+                                    <th>Categorie</th>
+                                    <th class="center-align">Utilizzo</th>
+                                    <th class="center-align">Creata</th>
+                                    <th class="center-align">Azioni</th>
+                                </tr>
+                            </thead>
+                            <tbody id="labels-table-body">
+                                {% for label in labels.items %}
+                                    <tr data-label-id="{{ label.id }}">
+                                        <td>
+                                            <div class="valign-wrapper">
+                                                <div class="label-color-indicator" 
+                                                     style="width: 16px; height: 16px; border-radius: 3px; background-color: {{ label.color }}; margin-right: 10px;"></div>
+                                                <strong>{{ label.name }}</strong>
+                                            </div>
+                                        </td>
+                                        <td class="label-description">
+                                            {% if label.description %}
+                                                {{ label.description[:100] }}{% if label.description|length > 100 %}...{% endif %}
+                                            {% else %}
+                                                <em class="grey-text">Nessuna descrizione</em>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if label.categories %}
+                                                {% for category in label.categories %}
+                                                    <span class="chip tiny blue lighten-3">{{ category }}</span>
+                                                {% endfor %}
+                                            {% else %}
+                                                <em class="grey-text">Nessuna categoria</em>
+                                            {% endif %}
+                                        </td>
+                                        <td class="center-align">
+                                            <span class="chip {{ 'green' if label.usage_count > 10 else 'orange' if label.usage_count > 0 else 'grey' }}">
+                                                {{ label.usage_count }}
+                                            </span>
+                                        </td>
+                                        <td class="center-align">
+                                            <small class="grey-text">{{ label.created_at.strftime('%d/%m/%Y') }}</small>
+                                        </td>
+                                        <td class="center-align">
+                                            <a href="#edit-label-modal" class="btn-small waves-effect waves-light blue modal-trigger edit-label-btn"
+                                               data-label-id="{{ label.id }}"
+                                               data-label-name="{{ label.name }}"
+                                               data-label-description="{{ label.description or '' }}"
+                                               data-label-color="{{ label.color }}"
+                                               data-label-categories="{{ label.categories|join(',') if label.categories else '' }}">
+                                                <i class="material-icons">edit</i>
+                                            </a>
+                                            {% if label.usage_count == 0 %}
+                                                <a href="#delete-label-modal" class="btn-small waves-effect waves-light red modal-trigger delete-label-btn"
+                                                   data-label-id="{{ label.id }}"
+                                                   data-label-name="{{ label.name }}">
+                                                    <i class="material-icons">delete</i>
+                                                </a>
+                                            {% else %}
+                                                <span class="btn-small disabled grey">
+                                                    <i class="material-icons">delete</i>
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        
+                        <!-- Paginazione -->
+                        {% if labels.pages > 1 %}
+                            <div class="center-align" style="margin-top: 20px;">
+                                <ul class="pagination">
+                                    {% if labels.has_prev %}
+                                        <li class="waves-effect">
+                                            <a href="{{ url_for('labels.list_labels', project_id=project.id, page=labels.prev_num) }}">
+                                                <i class="material-icons">chevron_left</i>
+                                            </a>
+                                        </li>
+                                    {% endif %}
+                                    
+                                    {% for page_num in labels.iter_pages() %}
+                                        {% if page_num %}
+                                            {% if page_num != labels.page %}
+                                                <li class="waves-effect">
+                                                    <a href="{{ url_for('labels.list_labels', project_id=project.id, page=page_num) }}">{{ page_num }}</a>
+                                                </li>
+                                            {% else %}
+                                                <li class="active blue">
+                                                    <a href="#!">{{ page_num }}</a>
+                                                </li>
+                                            {% endif %}
+                                        {% else %}
+                                            <li class="disabled">
+                                                <span>…</span>
+                                            </li>
+                                        {% endif %}
+                                    {% endfor %}
+                                    
+                                    {% if labels.has_next %}
+                                        <li class="waves-effect">
+                                            <a href="{{ url_for('labels.list_labels', project_id=project.id, page=labels.next_num) }}">
+                                                <i class="material-icons">chevron_right</i>
+                                            </a>
+                                        </li>
+                                    {% endif %}
+                                </ul>
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="center-align" style="padding: 40px 20px;">
+                            <i class="material-icons large grey-text">local_offer</i>
+                            <h6 class="grey-text">Nessuna etichetta creata</h6>
+                            <p class="grey-text">Crea la prima etichetta per iniziare a organizzare i tuoi dati.</p>
+                            <a href="#create-label-modal" class="btn waves-effect waves-light blue modal-trigger">
+                                <i class="material-icons left">add</i>Crea Prima Etichetta
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Sezione Suggerimenti AI (se presenti) -->
+    <div class="row" id="ai-suggestions-section" style="display: none;">
+        <div class="col s12">
+            <div class="card orange lighten-5">
+                <div class="card-content">
+                    <span class="card-title orange-text">
+                        <i class="material-icons left">auto_awesome</i>Suggerimenti AI per Store
+                        <span class="right">
+                            <span class="chip orange" id="pending-suggestions-count">0 in attesa</span>
+                        </span>
+                    </span>
+                    <p>L'intelligenza artificiale ha suggerito nuove etichette da aggiungere al tuo store.</p>
+                    <div id="ai-suggestions-list"></div>
+                    <div class="right-align" style="margin-top: 15px;">
+                        <a href="#!" class="btn waves-effect waves-light orange" id="approve-all-suggestions">
+                            <i class="material-icons left">check_circle</i>Approva Tutti
+                        </a>
+                        <a href="#!" class="btn waves-effect waves-light red lighten-1" id="reject-all-suggestions">
+                            <i class="material-icons left">cancel</i>Rifiuta Tutti
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Creazione Etichetta -->
+<div id="create-label-modal" class="modal">
+    <div class="modal-content">
+        <h4><i class="material-icons left">add</i>Crea Nuova Etichetta</h4>
+        <form id="create-label-form">
+            <div class="input-field">
+                <input id="create-label-name" type="text" required>
+                <label for="create-label-name">Nome Etichetta *</label>
+            </div>
+            <div class="input-field">
+                <textarea id="create-label-description" class="materialize-textarea" required></textarea>
+                <label for="create-label-description">Descrizione *</label>
+            </div>
+            <div class="input-field">
+                <input id="create-label-color" type="color" value="#1976d2">
+                <label for="create-label-color">Colore</label>
+            </div>
+            <div class="input-field">
+                <input id="create-label-categories" type="text" placeholder="Categoria1, Categoria2">
+                <label for="create-label-categories">Categorie (separate da virgola)</label>
+            </div>
+        </form>
+    </div>
+    <div class="modal-footer">
+        <a href="#!" class="modal-close waves-effect waves-red btn-flat">Annulla</a>
+        <a href="#!" class="waves-effect waves-green btn blue" id="save-new-label">
+            <i class="material-icons left">save</i>Crea Etichetta
+        </a>
+    </div>
+</div>
+
+<!-- Modal Modifica Etichetta -->
+<div id="edit-label-modal" class="modal">
+    <div class="modal-content">
+        <h4><i class="material-icons left">edit</i>Modifica Etichetta</h4>
+        <form id="edit-label-form">
+            <input type="hidden" id="edit-label-id">
+            <div class="input-field">
+                <input id="edit-label-name" type="text" required>
+                <label for="edit-label-name">Nome Etichetta *</label>
+            </div>
+            <div class="input-field">
+                <textarea id="edit-label-description" class="materialize-textarea" required></textarea>
+                <label for="edit-label-description">Descrizione *</label>
+            </div>
+            <div class="input-field">
+                <input id="edit-label-color" type="color">
+                <label for="edit-label-color">Colore</label>
+            </div>
+            <div class="input-field">
+                <input id="edit-label-categories" type="text" placeholder="Categoria1, Categoria2">
+                <label for="edit-label-categories">Categorie (separate da virgola)</label>
+            </div>
+        </form>
+        <div id="edit-usage-warning" class="card-panel orange lighten-4" style="display: none;">
+            <i class="material-icons left orange-text">warning</i>
+            <strong>Attenzione:</strong> Questa etichetta è utilizzata in <span id="usage-count"></span> applicazioni. 
+            Le modifiche si rifletteranno su tutte le applicazioni esistenti.
+        </div>
+    </div>
+    <div class="modal-footer">
+        <a href="#!" class="modal-close waves-effect waves-red btn-flat">Annulla</a>
+        <a href="#!" class="waves-effect waves-green btn blue" id="save-edit-label">
+            <i class="material-icons left">save</i>Salva Modifiche
+        </a>
+    </div>
+</div>
+
+<!-- Modal Eliminazione Etichetta -->
+<div id="delete-label-modal" class="modal">
+    <div class="modal-content">
+        <h4><i class="material-icons left red-text">warning</i>Conferma Eliminazione</h4>
+        <p>Sei sicuro di voler eliminare l'etichetta <strong id="delete-label-name"></strong>?</p>
+        <p class="red-text">
+            <i class="material-icons left">info</i>
+            Questa azione è irreversibile. L'etichetta verrà rimossa dal sistema.
+        </p>
+        <input type="hidden" id="delete-label-id">
+    </div>
+    <div class="modal-footer">
+        <a href="#!" class="modal-close waves-effect waves-green btn-flat">Annulla</a>
+        <a href="#!" class="waves-effect waves-red btn red" id="confirm-delete-label">
+            <i class="material-icons left">delete</i>Elimina
+        </a>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/label_store.js') }}"></script>
+{% endblock %}

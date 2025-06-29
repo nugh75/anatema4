@@ -297,9 +297,12 @@ class Label(db.Model):
     color = db.Column(db.String(7), default='#1976d2')  # Hex color
     categories = db.Column(ARRAY(db.String), default=[])
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_by = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'))  # Task 2.4: Track creator
+    usage_count = db.Column(db.Integer, default=0)  # Task 2.4: Cache usage count
     
     # Relationships
     cell_labels = db.relationship('CellLabel', backref='label', lazy='dynamic', cascade='all, delete-orphan')
+    creator = db.relationship('User', backref='created_labels')
     
     def to_dict(self):
         return {
@@ -308,8 +311,10 @@ class Label(db.Model):
             'description': self.description or '',
             'color': self.color,
             'categories': self.categories or [],
-            'created_at': self.created_at.isoformat(),
-            'usage_count': self.cell_labels.count()
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'created_by': self.created_by,
+            'creator_name': self.creator.username if self.creator else None,
+            'usage_count': self.usage_count or self.cell_labels.count()
         }
 
 class CellLabel(db.Model):
@@ -324,7 +329,7 @@ class CellLabel(db.Model):
     created_by = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'))
     
     # Relationships
-    creator = db.relationship('User', backref='created_labels')
+    creator = db.relationship('User', backref='created_cell_labels')
     
     def to_dict(self):
         return {

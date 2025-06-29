@@ -138,6 +138,9 @@
                 </div>
             </div>
         </div>
+        
+        <!-- Pannello Etichettatura Unificato -->
+        {% include 'components/labeling_panel.html' %}
     </div>
 </div>
 
@@ -274,27 +277,16 @@
     margin-bottom: 10px;
 }
 
-.cell-label-display {
+.cell-labels-container {
     margin-top: 10px;
 }
 
-.cell-label-chip {
+.cell-labels-container .chip {
     font-size: 0.8em;
     margin: 2px;
 }
 
-.cell-value-display {
-    background: #f5f5f5;
-    padding: 10px;
-    border-radius: 4px;
-    min-height: 60px;
-    word-wrap: break-word;
-    border: 1px solid #ddd;
-    max-height: 120px;
-    overflow-y: auto;
-}
-
-.sticky-card {
+.sticky-top {
     position: sticky;
     top: 20px;
     max-height: calc(100vh - 40px);
@@ -316,22 +308,6 @@
     margin-bottom: 10px;
 }
 
-.suggestions-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px;
-    border: 1px solid #e0e0e0;
-    border-radius: 4px;
-    margin: 5px 0;
-    cursor: pointer;
-    transition: background-color 0.3s;
-}
-
-.suggestions-item:hover {
-    background-color: #f5f5f5;
-}
-
 .confidence-badge {
     font-size: 0.8em;
     padding: 2px 8px;
@@ -342,27 +318,10 @@
 .confidence-high { background-color: #4caf50; }
 .confidence-medium { background-color: #ff9800; }
 .confidence-low { background-color: #f44336; }
-
-.row-analysis-result {
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    padding: 15px;
-    margin: 10px 0;
-    background-color: #fafafa;
-}
-
-.row-analysis-result h6 {
-    color: #1976d2;
-    margin-bottom: 10px;
-}
-
-.analysis-summary {
-    background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
-    border-radius: 8px;
-    padding: 20px;
-    margin: 15px 0;
-}
 </style>
+
+<!-- Include unified labeling script -->
+<script src="{{ url_for('static', filename='js/unified_labeling.js') }}"></script>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -371,55 +330,29 @@ document.addEventListener('DOMContentLoaded', function() {
     M.Modal.init(document.querySelectorAll('.modal'));
     M.updateTextFields();
     
-    // Dati globali
+    // Dati globali per la view specifica
     let currentRowIndex = 0;
     let rowsData = {{ rows_data | tojson }};
     let columns = {{ columns | tojson }};
-    let appliedLabels = {{ applied_labels | tojson }};
-    let selectedCellElement = null;
-    let selectedCellColumn = null;
     
-    // Inizializza dati delle righe con le etichette applicate
+    // Inizializza il sistema di etichettatura unificato
+    const unifiedLabeling = new UnifiedLabelingSystem({
+        projectId: {{ project.id }},
+        sheetId: {{ sheet.id }},
+        viewType: 'row_view',
+        apiBaseUrl: '/api/v1'
+    });
+    
+    // Inizializza dati delle righe
     function initializeRowsData() {
-        // Aggiungi informazioni sulle etichette applicate ai dati delle righe
         rowsData.forEach((row, rowIndex) => {
             row.labeled_cells = new Set();
             row.cell_labels = {};
             row.completed = false;
-            
-            // Controlla etichette applicate per questa riga
-            columns.forEach(column => {
-                const labelKey = `${rowIndex}_${column}`;
-                if (appliedLabels[labelKey]) {
-                    row.labeled_cells.add(column);
-                    row.cell_labels[column] = {
-                        name: appliedLabels[labelKey].label_name,
-                        description: appliedLabels[labelKey].label_description,
-                        confidence: appliedLabels[labelKey].confidence,
-                        applied_at: appliedLabels[labelKey].applied_at
-                    };
-                }
-            });
-            
-            // Verifica se la riga è completamente etichettata
-            row.completed = row.labeled_cells.size === columns.length;
         });
         
         updateRowCounter();
         loadCurrentRow();
-    }
-    
-    // Funzione per escape HTML per evitare errori JavaScript con caratteri speciali
-    function escapeHtml(text) {
-        if (typeof text !== 'string') return text;
-        const map = {
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            '"': '&quot;',
-            "'": '&#039;'
-        };
-        return text.replace(/[&<>"']/g, function(m) { return map[m]; });
     }
     
     function updateRowCounter() {
@@ -446,99 +379,43 @@ document.addEventListener('DOMContentLoaded', function() {
         // Crea celle per ogni colonna
         columns.forEach(column => {
             const cellValue = row.data[column] || '';
-            const isLabeled = row.labeled_cells.has(column);
-            const cellLabel = row.cell_labels[column];
             const isEmpty = !cellValue.trim();
             
             const cellDiv = document.createElement('div');
             cellDiv.className = 'col s12 m6 l4';
             
             cellDiv.innerHTML = `
-                <div class="cell-item ${isLabeled ? 'labeled' : ''} ${isEmpty ? 'empty' : ''}" 
-                     data-column="${escapeHtml(column)}">
+                <div class="cell-item ${isEmpty ? 'empty' : ''}" 
+                     data-column="${escapeHtml(column)}"
+                     data-row="${currentRowIndex}"
+                     data-value="${escapeHtml(cellValue)}">
                     <div class="cell-column-name">${escapeHtml(column)}</div>
                     <div class="cell-value">${escapeHtml(cellValue) || '(vuoto)'}</div>
-                    ${isLabeled ? `
-                        <div class="cell-label-display">
-                            <span class="chip cell-label-chip green white-text">${escapeHtml(cellLabel.name)}</span>
-                            ${cellLabel.confidence ? `<span class="chip cell-label-chip blue white-text">${Math.round(cellLabel.confidence * 100)}%</span>` : ''}
-                        </div>
-                    ` : ''}
+                    <div class="cell-labels-container">
+                        <!-- Le etichette verranno caricate dinamicamente -->
+                    </div>
                 </div>
             `;
             
             cellsContainer.appendChild(cellDiv);
         });
         
-        // Aggiungi event listeners alle celle
+        // Aggiungi event listeners alle celle per il sistema unificato
         document.querySelectorAll('.cell-item').forEach(cell => {
             cell.addEventListener('click', function() {
-                selectCell(this);
+                unifiedLabeling.selectCell(this);
             });
         });
         
-        // Aggiorna stato riga
+        // Carica etichette esistenti per la riga corrente
+        unifiedLabeling.loadLabelsForView(currentRowIndex);
+        
+        // Aggiorna stato riga e progresso
         updateRowStatus();
         updateGlobalProgress();
         
         // Mostra interfaccia
         document.getElementById('row-display').style.display = 'block';
-        
-        // Deseleziona cella
-        deselectCell();
-    }
-    
-    function selectCell(cellElement) {
-        // Rimuovi selezione precedente
-        document.querySelectorAll('.cell-item').forEach(cell => {
-            cell.classList.remove('selected');
-        });
-        
-        // Seleziona nuova cella
-        cellElement.classList.add('selected');
-        selectedCellElement = cellElement;
-        selectedCellColumn = cellElement.dataset.column;
-        
-        // Aggiorna pannello info
-        const row = rowsData[currentRowIndex];
-        const cellValue = row.data[selectedCellColumn] || '';
-        
-        document.getElementById('selected-column').textContent = selectedCellColumn;
-        document.getElementById('selected-value').textContent = cellValue || '(vuoto)';
-        document.getElementById('current-cell-info').style.display = 'block';
-        
-        // Se la cella è già etichettata, mostra l'etichetta
-        const cellLabel = row.cell_labels[selectedCellColumn];
-        if (cellLabel) {
-            document.getElementById('manual-cell-label').value = cellLabel.name;
-            document.getElementById('manual-cell-description').value = cellLabel.description || '';
-            M.updateTextFields();
-        } else {
-            document.getElementById('manual-cell-label').value = '';
-            document.getElementById('manual-cell-description').value = '';
-            M.updateTextFields();
-        }
-        
-        // Abilita pulsanti
-        document.getElementById('save-cell-label').classList.remove('disabled');
-        document.getElementById('get-cell-ai-suggestions').classList.remove('disabled');
-        
-        // Nascondi suggerimenti AI precedenti
-        document.getElementById('ai-suggestions-panel').style.display = 'none';
-    }
-    
-    function deselectCell() {
-        document.querySelectorAll('.cell-item').forEach(cell => {
-            cell.classList.remove('selected');
-        });
-        
-        selectedCellElement = null;
-        selectedCellColumn = null;
-        
-        document.getElementById('current-cell-info').style.display = 'none';
-        document.getElementById('save-cell-label').classList.add('disabled');
-        document.getElementById('get-cell-ai-suggestions').classList.add('disabled');
-        document.getElementById('ai-suggestions-panel').style.display = 'none';
     }
     
     function updateRowStatus() {
@@ -566,6 +443,19 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('total-cells-count').textContent = totalCells;
         document.getElementById('progress-percentage').textContent = percentage;
         document.getElementById('labeling-progress').style.width = percentage + '%';
+    }
+    
+    // Funzione helper per escape HTML
+    function escapeHtml(text) {
+        if (typeof text !== 'string') return text;
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        return text.replace(/[&<>"']/g, function(m) { return map[m]; });
     }
     
     // Navigazione righe
@@ -598,52 +488,51 @@ document.addEventListener('DOMContentLoaded', function() {
         this.value = '';
     });
     
-    // Salvataggio etichetta cella
-    document.getElementById('save-cell-label').addEventListener('click', function(e) {
-        e.preventDefault();
-        
-        if (!selectedCellColumn) {
-            M.toast({html: 'Seleziona prima una cella', classes: 'red'});
-            return;
-        }
-        
-        const label = document.getElementById('manual-cell-label').value.trim();
-        const description = document.getElementById('manual-cell-description').value.trim();
-        
-        if (!label) {
-            M.toast({html: 'Inserisci un nome per l\'etichetta', classes: 'red'});
-            return;
-        }
-        
-        saveCellLabel(selectedCellColumn, label, description, 1.0, 'manual');
-    });
-    
-    function saveCellLabel(column, label, description, confidence, source) {
-        const row = rowsData[currentRowIndex];
+    // Listeners per eventi del sistema di etichettatura unificato
+    document.addEventListener('labelApplied', function(event) {
+        const { cellData, labelData } = event.detail;
         
         // Aggiorna dati locali
-        row.labeled_cells.add(column);
-        row.cell_labels[column] = {
-            name: label,
-            description: description,
-            confidence: confidence,
-            source: source
-        };
+        const row = rowsData[currentRowIndex];
+        row.labeled_cells.add(cellData.column);
+        row.cell_labels[cellData.column] = labelData;
         
-        // Simula chiamata al backend
-        const data = {
-            row_index: currentRowIndex,
-            column_name: column,
-            label_name: label,
-            label_description: description
-        };
+        // Aggiorna UI
+        updateRowStatus();
+        updateGlobalProgress();
         
-        // Per ora simula successo
-        setTimeout(() => {
-            M.toast({html: `Etichetta salvata: ${label}`, classes: 'green'});
-            loadCurrentRow(); // Ricarica per aggiornare la visualizzazione
-        }, 500);
-    }
+        M.toast({html: `Etichetta "${labelData.name}" applicata`, classes: 'green'});
+    });
+    
+    document.addEventListener('labelRemoved', function(event) {
+        const { cellData } = event.detail;
+        
+        // Aggiorna dati locali
+        const row = rowsData[currentRowIndex];
+        row.labeled_cells.delete(cellData.column);
+        delete row.cell_labels[cellData.column];
+        
+        // Aggiorna UI
+        updateRowStatus();
+        updateGlobalProgress();
+        
+        M.toast({html: 'Etichetta rimossa', classes: 'orange'});
+    });
+    
+    // Azioni batch per la riga
+    document.getElementById('mark-row-complete').addEventListener('click', function(e) {
+        e.preventDefault();
+        // TODO: Implementare marcatura riga come completata
+        M.toast({html: 'Funzionalità in sviluppo', classes: 'blue'});
+    });
+    
+    document.getElementById('clear-row-labels').addEventListener('click', function(e) {
+        e.preventDefault();
+        if (confirm('Sei sicuro di voler cancellare tutte le etichette di questa riga?')) {
+            // TODO: Implementare cancellazione batch etichette riga
+            M.toast({html: 'Funzionalità in sviluppo', classes: 'blue'});
+        }
+    });
     
     // Inizializza l'applicazione
     initializeRowsData();

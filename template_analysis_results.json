@@ -1,0 +1,481 @@
+{
+  "view_columns.html": {
+    "functionality": {
+      "extends_base": true,
+      "has_forms": true,
+      "has_javascript": true,
+      "has_ajax": true,
+      "blocks": [
+        "title",
+        "content"
+      ],
+      "includes": [],
+      "variables": [
+        "sheet",
+        "url_for",
+        "url_for",
+        "project",
+        "url_for",
+        "sheet",
+        "sheet",
+        "url_for",
+        "url_for",
+        "sheet",
+        "sheet",
+        "sheet",
+        "sheet",
+        "ml_analysis",
+        "ml_analysis",
+        "ml_analysis",
+        "auto_labels",
+        "col_name",
+        "col_analysis",
+        "col_data",
+        "col_data",
+        "col_data",
+        "col_name",
+        "value",
+        "value",
+        "count",
+        "col_name",
+        "label",
+        "col_name",
+        "col_name",
+        "url_for",
+        "url_for",
+        "url_for"
+      ],
+      "filters": [
+        "length",
+        "selectattr",
+        "first",
+        "selectattr",
+        "list",
+        "format"
+      ],
+      "line_count": 468,
+      "complexity": true
+    },
+    "usages": [
+      {
+        "file": "/home/nugh75/Git/anatema2/app/views/ml.py",
+        "line": 508,
+        "match": "render_template('ml/view_columns.html'",
+        "context": "                'auto_labels': [al.to_dict() for al in auto_labels]\n            })\n        \n        return render_template('ml/view_columns.html',\n                             project=project,\n                             sheet=sheet,\n                             columns_data=columns_data,",
+        "pattern": "render_template\\([\"\\'].*view_columns.html[\"\\']"
+      },
+      {
+        "file": "/home/nugh75/Git/anatema2/app/views/ml.py",
+        "line": 508,
+        "match": "view_columns.html",
+        "context": "                'auto_labels': [al.to_dict() for al in auto_labels]\n            })\n        \n        return render_template('ml/view_columns.html',\n                             project=project,\n                             sheet=sheet,\n                             columns_data=columns_data,",
+        "pattern": "view_columns.html"
+      },
+      {
+        "file": "/home/nugh75/Git/anatema2/app/views/ml.py",
+        "line": 508,
+        "match": "template('ml/view_columns.html",
+        "context": "                'auto_labels': [al.to_dict() for al in auto_labels]\n            })\n        \n        return render_template('ml/view_columns.html',\n                             project=project,\n                             sheet=sheet,\n                             columns_data=columns_data,",
+        "pattern": "template.*view_columns.html"
+      }
+    ],
+    "routes": [
+      {
+        "file": "/home/nugh75/Git/anatema2/app/views/ml.py",
+        "function": "configure_ml",
+        "context": "def configure_ml(project_id):\n    \"\"\"Configura le impostazioni ML per un progetto\"\"\"\n    project = Project.query.filter_by(id=project_id, owner_id=current_user.id).first_or_404()\n    \n    if request.m..."
+      }
+    ],
+    "recommendation": "KEEP"
+  },
+  "view_rows.html": {
+    "functionality": {
+      "extends_base": true,
+      "has_forms": true,
+      "has_javascript": true,
+      "has_ajax": true,
+      "blocks": [
+        "title",
+        "content"
+      ],
+      "includes": [],
+      "variables": [
+        "sheet",
+        "url_for",
+        "url_for",
+        "project",
+        "url_for",
+        "sheet",
+        "sheet",
+        "url_for",
+        "url_for",
+        "pagination",
+        "pagination",
+        "url_for",
+        "pagination",
+        "pagination",
+        "url_for",
+        "column",
+        "row",
+        "row",
+        "row",
+        "column",
+        "cell_label",
+        "cell_label",
+        "cell_label",
+        "row",
+        "cell_label",
+        "row",
+        "columns",
+        "row",
+        "row",
+        "value",
+        "value",
+        "count",
+        "row",
+        "url_for",
+        "url_for",
+        "url_for",
+        "page_num",
+        "url_for",
+        "url_for",
+        "url_for"
+      ],
+      "filters": [
+        "length",
+        "length"
+      ],
+      "line_count": 555,
+      "complexity": true
+    },
+    "usages": [
+      {
+        "file": "/home/nugh75/Git/anatema2/app/views/ml.py",
+        "line": 608,
+        "match": "render_template('ml/view_rows.html'",
+        "context": "                'applied_labels': applied_labels\n            })\n        \n        return render_template('ml/view_rows.html',\n                             project=project,\n                             sheet=sheet,\n                             rows_data=rows_data,",
+        "pattern": "render_template\\([\"\\'].*view_rows.html[\"\\']"
+      },
+      {
+        "file": "/home/nugh75/Git/anatema2/app/views/ml.py",
+        "line": 608,
+        "match": "view_rows.html",
+        "context": "                'applied_labels': applied_labels\n            })\n        \n        return render_template('ml/view_rows.html',\n                             project=project,\n                             sheet=sheet,\n                             rows_data=rows_data,",
+        "pattern": "view_rows.html"
+      },
+      {
+        "file": "/home/nugh75/Git/anatema2/app/views/ml.py",
+        "line": 608,
+        "match": "template('ml/view_rows.html",
+        "context": "                'applied_labels': applied_labels\n            })\n        \n        return render_template('ml/view_rows.html',\n                             project=project,\n                             sheet=sheet,\n                             rows_data=rows_data,",
+        "pattern": "template.*view_rows.html"
+      }
+    ],
+    "routes": [
+      {
+        "file": "/home/nugh75/Git/anatema2/app/views/ml.py",
+        "function": "configure_ml",
+        "context": "def configure_ml(project_id):\n    \"\"\"Configura le impostazioni ML per un progetto\"\"\"\n    project = Project.query.filter_by(id=project_id, owner_id=current_user.id).first_or_404()\n    \n    if request.m..."
+      }
+    ],
+    "recommendation": "KEEP"
+  },
+  "select_column.html": {
+    "functionality": {
+      "extends_base": true,
+      "has_forms": false,
+      "has_javascript": true,
+      "has_ajax": false,
+      "blocks": [
+        "title",
+        "content"
+      ],
+      "includes": [],
+      "variables": [
+        "sheet",
+        "url_for",
+        "url_for",
+        "project",
+        "url_for",
+        "sheet",
+        "column",
+        "column",
+        "column",
+        "column",
+        "column",
+        "url_for",
+        "url_for",
+        "url_for"
+      ],
+      "filters": [],
+      "line_count": 121,
+      "complexity": true
+    },
+    "usages": [
+      {
+        "file": "/home/nugh75/Git/anatema2/app/views/ml.py",
+        "line": 1549,
+        "match": "render_template('ml/select_column.html'",
+        "context": "                    'available_columns': available_columns\n                })\n            \n            return render_template('ml/select_column.html',\n                                project=project,\n                                sheet=sheet,\n                                available_columns=available_columns)",
+        "pattern": "render_template\\([\"\\'].*select_column.html[\"\\']"
+      },
+      {
+        "file": "/home/nugh75/Git/anatema2/app/views/ml.py",
+        "line": 1549,
+        "match": "select_column.html",
+        "context": "                    'available_columns': available_columns\n                })\n            \n            return render_template('ml/select_column.html',\n                                project=project,\n                                sheet=sheet,\n                                available_columns=available_columns)",
+        "pattern": "select_column.html"
+      },
+      {
+        "file": "/home/nugh75/Git/anatema2/app/views/ml.py",
+        "line": 1549,
+        "match": "template('ml/select_column.html",
+        "context": "                    'available_columns': available_columns\n                })\n            \n            return render_template('ml/select_column.html',\n                                project=project,\n                                sheet=sheet,\n                                available_columns=available_columns)",
+        "pattern": "template.*select_column.html"
+      }
+    ],
+    "routes": [
+      {
+        "file": "/home/nugh75/Git/anatema2/app/views/ml.py",
+        "function": "configure_ml",
+        "context": "def configure_ml(project_id):\n    \"\"\"Configura le impostazioni ML per un progetto\"\"\"\n    project = Project.query.filter_by(id=project_id, owner_id=current_user.id).first_or_404()\n    \n    if request.m..."
+      }
+    ],
+    "recommendation": "KEEP"
+  },
+  "select_row.html": {
+    "functionality": {
+      "extends_base": true,
+      "has_forms": false,
+      "has_javascript": true,
+      "has_ajax": false,
+      "blocks": [
+        "title",
+        "content"
+      ],
+      "includes": [],
+      "variables": [
+        "sheet",
+        "url_for",
+        "url_for",
+        "project",
+        "url_for",
+        "sheet",
+        "total_rows",
+        "row",
+        "row",
+        "row",
+        "url_for",
+        "total_rows",
+        "url_for",
+        "url_for",
+        "url_for",
+        "total_rows",
+        "total_rows",
+        "url_for",
+        "total_rows",
+        "url_for",
+        "total_rows"
+      ],
+      "filters": [],
+      "line_count": 190,
+      "complexity": true
+    },
+    "usages": [
+      {
+        "file": "/home/nugh75/Git/anatema2/app/views/ml.py",
+        "line": 1661,
+        "match": "render_template('ml/select_row.html'",
+        "context": "                    'total_rows': len(df)\n                })\n            \n            return render_template('ml/select_row.html',\n                                project=project,\n                                sheet=sheet,\n                                available_rows=available_rows,",
+        "pattern": "render_template\\([\"\\'].*select_row.html[\"\\']"
+      },
+      {
+        "file": "/home/nugh75/Git/anatema2/app/views/ml.py",
+        "line": 1661,
+        "match": "select_row.html",
+        "context": "                    'total_rows': len(df)\n                })\n            \n            return render_template('ml/select_row.html',\n                                project=project,\n                                sheet=sheet,\n                                available_rows=available_rows,",
+        "pattern": "select_row.html"
+      },
+      {
+        "file": "/home/nugh75/Git/anatema2/app/views/ml.py",
+        "line": 1661,
+        "match": "template('ml/select_row.html",
+        "context": "                    'total_rows': len(df)\n                })\n            \n            return render_template('ml/select_row.html',\n                                project=project,\n                                sheet=sheet,\n                                available_rows=available_rows,",
+        "pattern": "template.*select_row.html"
+      }
+    ],
+    "routes": [
+      {
+        "file": "/home/nugh75/Git/anatema2/app/views/ml.py",
+        "function": "configure_ml",
+        "context": "def configure_ml(project_id):\n    \"\"\"Configura le impostazioni ML per un progetto\"\"\"\n    project = Project.query.filter_by(id=project_id, owner_id=current_user.id).first_or_404()\n    \n    if request.m..."
+      }
+    ],
+    "recommendation": "KEEP"
+  },
+  "single_column_view.html": {
+    "functionality": {
+      "extends_base": true,
+      "has_forms": true,
+      "has_javascript": true,
+      "has_ajax": true,
+      "blocks": [
+        "title",
+        "content"
+      ],
+      "includes": [],
+      "variables": [
+        "selected_column",
+        "sheet",
+        "url_for",
+        "url_for",
+        "project",
+        "url_for",
+        "selected_column",
+        "selected_column",
+        "column_data",
+        "column_data",
+        "column_data",
+        "applied_labels",
+        "url_for",
+        "url_for",
+        "url_for",
+        "row_index",
+        "value",
+        "row_index",
+        "value",
+        "applied_labels",
+        "row_index",
+        "selected_column",
+        "value",
+        "row_index",
+        "selected_column",
+        "value",
+        "url_for"
+      ],
+      "filters": [
+        "length",
+        "format",
+        "length"
+      ],
+      "line_count": 540,
+      "complexity": true
+    },
+    "usages": [
+      {
+        "file": "/home/nugh75/Git/anatema2/app/views/ml.py",
+        "line": 1602,
+        "match": "render_template('ml/single_column_view.html'",
+        "context": "                'applied_labels': applied_labels\n            })\n        \n        return render_template('ml/single_column_view.html',\n                            project=project,\n                            sheet=sheet,\n                            column_data=col_data,",
+        "pattern": "render_template\\([\"\\'].*single_column_view.html[\"\\']"
+      },
+      {
+        "file": "/home/nugh75/Git/anatema2/app/views/ml.py",
+        "line": 1602,
+        "match": "single_column_view.html",
+        "context": "                'applied_labels': applied_labels\n            })\n        \n        return render_template('ml/single_column_view.html',\n                            project=project,\n                            sheet=sheet,\n                            column_data=col_data,",
+        "pattern": "single_column_view.html"
+      },
+      {
+        "file": "/home/nugh75/Git/anatema2/app/views/ml.py",
+        "line": 1602,
+        "match": "template('ml/single_column_view.html",
+        "context": "                'applied_labels': applied_labels\n            })\n        \n        return render_template('ml/single_column_view.html',\n                            project=project,\n                            sheet=sheet,\n                            column_data=col_data,",
+        "pattern": "template.*single_column_view.html"
+      }
+    ],
+    "routes": [
+      {
+        "file": "/home/nugh75/Git/anatema2/app/views/ml.py",
+        "function": "configure_ml",
+        "context": "def configure_ml(project_id):\n    \"\"\"Configura le impostazioni ML per un progetto\"\"\"\n    project = Project.query.filter_by(id=project_id, owner_id=current_user.id).first_or_404()\n    \n    if request.m..."
+      }
+    ],
+    "recommendation": "KEEP"
+  },
+  "single_row_view.html": {
+    "functionality": {
+      "extends_base": true,
+      "has_forms": true,
+      "has_javascript": true,
+      "has_ajax": true,
+      "blocks": [
+        "title",
+        "content"
+      ],
+      "includes": [],
+      "variables": [
+        "selected_row_index",
+        "sheet",
+        "url_for",
+        "url_for",
+        "project",
+        "url_for",
+        "selected_row_index",
+        "selected_row_index",
+        "columns",
+        "row_data",
+        "applied_labels",
+        "url_for",
+        "url_for",
+        "url_for",
+        "column",
+        "selected_row_index",
+        "cell_value",
+        "column",
+        "cell_value",
+        "cell_label",
+        "selected_row_index",
+        "column",
+        "cell_value",
+        "selected_row_index",
+        "column",
+        "cell_value",
+        "url_for"
+      ],
+      "filters": [
+        "length",
+        "select",
+        "list",
+        "length",
+        "length",
+        "format",
+        "list",
+        "length"
+      ],
+      "line_count": 565,
+      "complexity": true
+    },
+    "usages": [
+      {
+        "file": "/home/nugh75/Git/anatema2/app/views/ml.py",
+        "line": 1728,
+        "match": "render_template('ml/single_row_view.html'",
+        "context": "                'applied_labels': applied_labels\n            })\n        \n        return render_template('ml/single_row_view.html',\n                            project=project,\n                            sheet=sheet,\n                            row_data=row_data,",
+        "pattern": "render_template\\([\"\\'].*single_row_view.html[\"\\']"
+      },
+      {
+        "file": "/home/nugh75/Git/anatema2/app/views/ml.py",
+        "line": 1728,
+        "match": "single_row_view.html",
+        "context": "                'applied_labels': applied_labels\n            })\n        \n        return render_template('ml/single_row_view.html',\n                            project=project,\n                            sheet=sheet,\n                            row_data=row_data,",
+        "pattern": "single_row_view.html"
+      },
+      {
+        "file": "/home/nugh75/Git/anatema2/app/views/ml.py",
+        "line": 1728,
+        "match": "template('ml/single_row_view.html",
+        "context": "                'applied_labels': applied_labels\n            })\n        \n        return render_template('ml/single_row_view.html',\n                            project=project,\n                            sheet=sheet,\n                            row_data=row_data,",
+        "pattern": "template.*single_row_view.html"
+      }
+    ],
+    "routes": [
+      {
+        "file": "/home/nugh75/Git/anatema2/app/views/ml.py",
+        "function": "configure_ml",
+        "context": "def configure_ml(project_id):\n    \"\"\"Configura le impostazioni ML per un progetto\"\"\"\n    project = Project.query.filter_by(id=project_id, owner_id=current_user.id).first_or_404()\n    \n    if request.m..."
+      }
+    ],
+    "recommendation": "KEEP"
+  }
+}

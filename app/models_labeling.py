@@ -205,6 +205,12 @@ class LabelApplication(db.Model):
     ai_session_id = db.Column(UUID(as_uuid=True))  # Link a sessione di applicazione AI
     ai_reasoning = db.Column(db.Text)
     
+    # Authorization fields (Task 2.1/2.3)
+    authorized_by = db.Column(UUID(as_uuid=True), db.ForeignKey('users.id'))  # Chi ha autorizzato (per AI)
+    authorized_at = db.Column(db.DateTime)  # Quando è stata autorizzata (per AI)
+    approval_status = db.Column(db.String(20), default='approved')  # 'pending', 'approved', 'rejected'
+    authorization_status = db.Column(db.String(20), default='not_required')  # 'not_required', 'pending', 'authorized', 'rejected'
+    
     # Status
     is_active = db.Column(db.Boolean, default=True)  # Per permettere "rimozione" logica
     
@@ -212,7 +218,8 @@ class LabelApplication(db.Model):
     project = db.relationship('Project', backref='label_applications')
     sheet = db.relationship('ExcelSheet', backref='label_applications')
     label = db.relationship('Label', backref='applications')
-    applier = db.relationship('User', backref='applied_label_applications')
+    applier = db.relationship('User', backref='applied_label_applications', foreign_keys=[applied_by])
+    authorizer = db.relationship('User', backref='authorized_label_applications', foreign_keys=[authorized_by])
     
     def to_dict(self):
         return {
@@ -229,6 +236,10 @@ class LabelApplication(db.Model):
             'confidence_score': self.confidence_score,
             'ai_session_id': str(self.ai_session_id) if self.ai_session_id else None,
             'ai_reasoning': self.ai_reasoning,
+            'authorized_by': str(self.authorized_by) if self.authorized_by else None,
+            'authorized_at': self.authorized_at.isoformat() if self.authorized_at else None,
+            'approval_status': self.approval_status,
+            'authorization_status': self.authorization_status,
             'is_active': self.is_active,
             'applied_by': str(self.applied_by),
             'applied_at': self.applied_at.isoformat()

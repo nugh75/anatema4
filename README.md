@@ -1,8 +1,65 @@
-# Anatema - Sistema di Etichettatura Dati
+# Anat## 📋 STATO PROGETTO - REFACTORING IN CORSO
+
+### 🚧 **Sistema di Etichettatura Umano/Macchina - In Ristrutturazione**
+
+Il progetto è attualmente in fase di **refactoring maggiore** per semplificare e unificare il sistema di etichettatura.
+
+#### 📖 **Documentazione Completa**
+➡️ **[docs/MASTER_REFACTORING.md](docs/MASTER_REFACTORING.md)** - **LEGGI QUESTO PRIMO**
+- 🎯 Piano completo di refactoring
+- 📊 Stato attuale (Fase 1 - 83% completato)
+- 🚀 Prossimi passi (Task 1.4 in preparazione)
+- ✅ Problemi risolti e fix applicati
+
+#### 📂 **Indice Documentazione**
+➡️ **[docs/INDICE_DOCUMENTAZIONE.md](docs/INDICE_DOCUMENTAZIONE.md)** - Navigazione rapida a tutta la documentazione  
+➡️ **[docs/README.md](docs/README.md)** - Indice documenti tecnici specifici
+
+#### 🎯 **Progresso Attuale**
+- **Fase 1**: Pulizia e Ristrutturazione Base (**83% completato** ✅)
+- **Prossimo**: Task 1.4 - Rimozione view obsolete 
+- **Target**: Sistema etichette unificato e UX semplificata
+
+---
+
+## 📁 Struttura Documentazione
+
+```
+docs/
+├── MASTER_REFACTORING.md          # 📋 Documento principale (leggi questo primo)
+├── INDICE_DOCUMENTAZIONE.md       # 🗂️ Navigazione rapida
+├── README.md                      # 📖 Indice documenti tecnici
+├── ANALISI_FRAMMENTAZIONE_ETICHETTE.md  # 🔍 Problema etichette frammentate
+├── DATABASE_STRUCTURE.md          # 🗄️ Struttura completa DB
+└── [altri file tecnici...]        # 🔧 Dettagli implementazione
+```chettatura Dati
 
 ![Anatema Logo](app/static/images/logo.png)
 
 Anatema è un sistema web avanzato per l'etichettatura e l'analisi di dati Excel, costruito con Flask e Material Design. Permette agli utenti di organizzare, etichettare e analizzare i propri dati in modo intuitivo e professionale.
+
+## � STATO PROGETTO - REFACTORING IN CORSO
+
+### 🚧 **Sistema di Etichettatura Umano/Macchina - In Ristrutturazione**
+
+Il progetto è attualmente in fase di **refactoring maggiore** per semplificare e unificare il sistema di etichettatura.
+
+#### 📖 **Documentazione Completa**
+➡️ **[MASTER_REFACTORING.md](MASTER_REFACTORING.md)** - **LEGGI QUESTO PRIMO**
+- 🎯 Piano completo di refactoring
+- 📊 Stato attuale (Fase 1 - 83% completato)
+- �🚀 Prossimi passi (Task 1.4 in preparazione)
+- ✅ Problemi risolti e fix applicati
+
+#### 📂 **Indice Documentazione**
+➡️ **[INDICE_DOCUMENTAZIONE.md](INDICE_DOCUMENTAZIONE.md)** - Navigazione rapida a tutta la documentazione
+
+#### 🎯 **Progresso Attuale**
+- **Fase 1**: Pulizia e Ristrutturazione Base (**83% completato** ✅)
+- **Prossimo**: Task 1.4 - Rimozione view obsolete 
+- **Target**: Sistema etichette unificato e UX semplificata
+
+---
 
 ## 🚀 Caratteristiche Principali
 
@@ -12,21 +69,23 @@ Anatema è un sistema web avanzato per l'etichettatura e l'analisi di dati Excel
 - **Visualizzazione Dati**: Interfaccia tabellare per esplorare i dati caricati
 - **Gestione Multi-Sheet**: Supporto completo per file Excel con più fogli
 
-### 🤖 Machine Learning (NUOVO!)
+### 🤖 Etichettatura Umano/Macchina (IN REFACTORING)
+- **Sistema Unificato**: Etichettatura manuale e automatica in un unico flusso (🔄 In sviluppo)
+- **View Semplificate**: Solo 2 view principali - Colonne e Righe (✅ Dashboard completato)
+- **AI Integration**: Suggerimenti automatici e batch processing (✅ Fix applicati)
+- **Etichette Multiple**: Supporto per più etichette per cella (🔄 Pianificato Fase 3-4)
+
+#### Funzionalità AI Attuali
 - **Analisi Automatica**: Rilevamento automatico di tipi di colonna e domande aperte
 - **Clustering Semantico**: Raggruppamento intelligente di risposte simili
-- **Analisi Sentiment**: Classificazione automatica del sentiment (positivo/negativo/neutro)
-- **Etichettatura Intelligente**: Generazione automatica di etichette basate su AI
+- **Analisi Sentiment**: Classificazione automatica del sentiment
 - **Integrazione API**: Supporto per OpenRouter (Claude, GPT) e Ollama (modelli locali)
-- **Configurazione Flessibile**: Parametri personalizzabili per ogni progetto
 
-### 🏷️ Sistema di Etichettatura
+### 🏷️ Sistema di Etichettatura (LEGACY - IN MIGRAZIONE)
 - **Etichette Personalizzate**: Crea etichette con colori e categorie personalizzate
 - **Etichettatura Automatica**: Applica etichette generate da ML con un click
-- **Etichettatura Manuale**: Applica etichette a celle specifiche per organizzare i contenuti
-- **Gestione Categorie**: Organizza le etichette in categorie per una migliore strutturazione
-- **Statistiche Utilizzo**: Monitora l'utilizzo delle etichette nei progetti
-- **Validazione Intelligente**: Revisiona e approva etichette generate automaticamente
+- **Etichettatura Manuale**: Applica etichette a celle specifiche
+- **⚠️ Nota**: Sistema in migrazione verso architettura unificata (vedi MASTER_REFACTORING.md)
 
 ### 📁 Organizzazione Progetti
 - **Progetti Strutturati**: Organizza i dati in progetti logici e separati
