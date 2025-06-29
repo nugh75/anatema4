@@ -1,9 +1,9 @@
 # Master Plan: Refactoring Sistema Etichettatura Umano/Macchina
 
 **Documento Master - Contiene tutto il piano, stato attuale e roadmap**  
-**Aggiornato**: 30 giugno 2025, ore 22:00  
-**Versione**: 2.2 - Task 2.3 Completato  
-**Stato**: Fase 1 Completata (100%) - Task 2.4 Store Etichette prossimo
+**Aggiornato**: 30 giugno 2025, ore 23:05  
+**Versione**: 2.5 - Task 2.4 Completato al 100%  
+**Stato**: Fase 1 Completata (100%) - Fase 2 all'83% - Task 2.5 prossimo
 
 ---
 
