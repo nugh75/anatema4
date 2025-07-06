@@ -50,7 +50,7 @@
                     <span class="card-title">Azioni Rapide</span>
                     <div class="row">
                         <div class="col s12">
-                            <form method="POST" action="{{ url_for('labeling.auto_approve_high_confidence', project_id=project.id) }}">
+                            <form method="POST" action="{{ url_for('labels.auto_approve_high_confidence', project_id=project.id) }}">
                                 <button type="submit" class="btn green waves-effect waves-light btn-small" style="width: 100%; margin-bottom: 5px;">
                                     <i class="material-icons left">done_all</i>
                                     Auto-Approva (≥90%)
@@ -202,7 +202,7 @@
                         <i class="material-icons large grey-text">check_circle</i>
                         <h5 class="grey-text">Nessun suggerimento pendente</h5>
                         <p>Tutti i suggerimenti sono stati revisionati!</p>
-                        <a href="{{ url_for('labeling.dashboard', project_id=project.id) }}" class="btn blue waves-effect waves-light">
+                        <a href="{{ url_for('labeling.project_dashboard', project_id=project.id) }}" class="btn blue waves-effect waves-light">
                             <i class="material-icons left">dashboard</i>Torna al Dashboard
                         </a>
                     </div>
@@ -281,7 +281,7 @@ function batchApprove() {
     
     const form = document.createElement('form');
     form.method = 'POST';
-    form.action = '{{ url_for("labeling.batch_approve_suggestions", project_id=project.id) }}';
+    form.action = '{{ url_for("labels.batch_approve_suggestions", project_id=project.id) }}';
     
     selectedIds.forEach(id => {
         const input = document.createElement('input');
@@ -316,7 +316,7 @@ function confirmBatchReject() {
     
     const form = document.createElement('form');
     form.method = 'POST';
-    form.action = '{{ url_for("labeling.batch_reject_suggestions", project_id=project.id) }}';
+    form.action = '{{ url_for("labels.batch_reject_suggestions", project_id=project.id) }}';
     
     // Aggiungi ID selezionati
     window.selectedRejectIds.forEach(id => {

@@ -1,9 +1,11 @@
 /**
  * Label Store Management - Task 2.4
- * JavaScript per gestione store etichette centralizzato
+ * JavaScript per gestione etichette centralizzato
  */
 
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('🔵 Label Store JavaScript loaded successfully');
+    
     // Initialize Materialize components
     M.Modal.init(document.querySelectorAll('.modal'));
     M.FormSelect.init(document.querySelectorAll('select'));
@@ -11,27 +13,115 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Get project ID from URL
     const projectId = window.location.pathname.split('/')[2];
+    console.log('🔵 Project ID extracted:', projectId);
+
+    // Check authentication status on page load
+    async function checkAuthStatus() {
+        try {
+            const response = await fetch('/api/auth/status', {
+                credentials: 'same-origin'
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                console.log('🔵 User authenticated:', data);
+                return true;
+            } else {
+                console.log('❌ User not authenticated');
+                // Show login message
+                M.toast({html: 'Devi effettuare il login per gestire le etichette', classes: 'orange'});
+                return false;
+            }
+        } catch (error) {
+            console.error('❌ Auth check failed:', error);
+            return false;
+        }
+    }
 
     // Initialize event listeners
+    console.log('🔵 Initializing event listeners...');
     initializeEventListeners();
     loadAISuggestions();
+    console.log('🔵 Event listeners initialized successfully');
     setupFiltersAndSearch();
+    
+    // Check auth status
+    checkAuthStatus();
+    
+    // Add global test function for debugging
+    window.testLabelAPI = function() {
+        console.log('🧪 Testing Label API...');
+        console.log('Project ID:', projectId);
+        
+        // Test auth status
+        fetch('/api/auth/status', { credentials: 'same-origin' })
+            .then(response => {
+                console.log('Auth status:', response.status);
+                return response.json();
+            })
+            .then(data => console.log('Auth data:', data))
+            .catch(err => console.error('Auth error:', err));
+            
+        // Test labels API
+        fetch(`/api/projects/${projectId}/labels`, { credentials: 'same-origin' })
+            .then(response => {
+                console.log('Labels status:', response.status);
+                return response.json();
+            })
+            .then(data => console.log('Labels data:', data))
+            .catch(err => console.error('Labels error:', err));
+    };
 
     function initializeEventListeners() {
+        console.log('🔵 Setting up event listeners...');
+        
+        // Debug: Check if main table exists
+        const labelsTable = document.getElementById('labels-table-body');
+        if (labelsTable) {
+            console.log(`✅ Labels table found with ${labelsTable.children.length} rows`);
+        } else {
+            console.log('❌ Labels table not found');
+        }
+        
         // Create label
-        document.getElementById('save-new-label')?.addEventListener('click', handleCreateLabel);
+        const saveNewBtn = document.getElementById('save-new-label');
+        if (saveNewBtn) {
+            saveNewBtn.addEventListener('click', handleCreateLabel);
+            console.log('✅ Create label button listener added');
+        }
         
         // Edit label
-        document.querySelectorAll('.edit-label-btn').forEach(btn => {
+        const editBtns = document.querySelectorAll('.edit-label-btn');
+        console.log(`🔵 Found ${editBtns.length} edit buttons`);
+        editBtns.forEach(btn => {
             btn.addEventListener('click', handleEditLabelClick);
         });
-        document.getElementById('save-edit-label')?.addEventListener('click', handleEditLabel);
+        
+        const saveEditBtn = document.getElementById('save-edit-label');
+        if (saveEditBtn) {
+            saveEditBtn.addEventListener('click', handleEditLabel);
+            console.log('✅ Edit label button listener added');
+        }
+        
+        // View cell values
+        const viewCellsBtns = document.querySelectorAll('.view-cells-btn');
+        console.log(`🔵 Found ${viewCellsBtns.length} view cells buttons`);
+        viewCellsBtns.forEach(btn => {
+            btn.addEventListener('click', handleViewCellsClick);
+        });
         
         // Delete label
-        document.querySelectorAll('.delete-label-btn').forEach(btn => {
+        const deleteBtns = document.querySelectorAll('.delete-label-btn');
+        console.log(`🔵 Found ${deleteBtns.length} delete buttons`);
+        deleteBtns.forEach(btn => {
             btn.addEventListener('click', handleDeleteLabelClick);
         });
-        document.getElementById('confirm-delete-label')?.addEventListener('click', handleDeleteLabel);
+        
+        const confirmDeleteBtn = document.getElementById('confirm-delete-label');
+        if (confirmDeleteBtn) {
+            confirmDeleteBtn.addEventListener('click', handleDeleteLabel);
+            console.log('✅ Delete confirmation button listener added');
+        }
         
         // AI Suggestions
         document.getElementById('approve-all-suggestions')?.addEventListener('click', handleApproveAllSuggestions);
@@ -59,23 +149,36 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     async function handleCreateLabel() {
+        console.log('🔵 handleCreateLabel called'); // Debug
+        
         const name = document.getElementById('create-label-name').value.trim();
         const description = document.getElementById('create-label-description').value.trim();
         const color = document.getElementById('create-label-color').value;
         const categoriesText = document.getElementById('create-label-categories').value.trim();
         const categories = categoriesText ? categoriesText.split(',').map(c => c.trim()).filter(c => c) : [];
 
+        console.log('🔵 Form data:', { name, description, color, categories }); // Debug
+        console.log('🔵 Project ID:', projectId); // Debug
+
         if (!name || !description) {
+            console.log('❌ Validation failed: missing name or description');
             M.toast({html: 'Nome e descrizione sono obbligatori', classes: 'red'});
             return;
         }
 
+        console.log('🔵 Starting API call...');
+        
         try {
-            const response = await fetch(`/api/projects/${projectId}/labels`, {
+            const apiUrl = `/api/projects/${projectId}/labels`;
+            console.log('🔵 API URL:', apiUrl);
+            
+            const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
                 },
+                credentials: 'same-origin',
                 body: JSON.stringify({
                     name: name,
                     description: description,
@@ -84,10 +187,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 })
             });
 
+            console.log('🔵 Response status:', response.status);
+            console.log('🔵 Response headers:', Object.fromEntries(response.headers.entries()));
+            
             const data = await response.json();
+            console.log('🔵 Response data:', data); // Debug
 
-            if (data.success) {
-                M.toast({html: 'Etichetta creata con successo!', classes: 'green'});
+            if (response.ok && (data.success || data.message)) {
+                console.log('✅ Label created successfully');
+                M.toast({html: data.message || 'Etichetta creata con successo!', classes: 'green'});
                 
                 // Reset form
                 document.getElementById('create-label-form').reset();
@@ -97,17 +205,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 modal.close();
                 
                 // Reload page to show new label
-                setTimeout(() => window.location.reload(), 1000);
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
             } else {
-                M.toast({html: data.error || 'Errore nella creazione', classes: 'red'});
+                console.log('❌ API error:', data);
+                M.toast({html: data.error || 'Errore nella creazione dell\'etichetta', classes: 'red'});
             }
         } catch (error) {
-            console.error('Error creating label:', error);
+            console.error('❌ Network error:', error);
             M.toast({html: 'Errore di connessione', classes: 'red'});
         }
     }
 
     function handleEditLabelClick(event) {
+        console.log('🔵 Edit label clicked');
         const btn = event.currentTarget;
         const labelId = btn.dataset.labelId;
         const labelName = btn.dataset.labelName;
@@ -129,9 +241,20 @@ document.addEventListener('DOMContentLoaded', function() {
         checkLabelUsage(labelId);
     }
 
+    function handleViewCellsClick(event) {
+        console.log('🔵 View cells clicked');
+        const btn = event.currentTarget;
+        const labelId = btn.dataset.labelId;
+        const labelName = btn.dataset.labelName;
+        
+        handleViewCellValues(labelId, labelName);
+    }
+
     async function checkLabelUsage(labelId) {
         try {
-            const response = await fetch(`/api/projects/${projectId}/labels/${labelId}/usage`);
+            const response = await fetch(`/api/projects/${projectId}/labels/${labelId}/usage`, {
+                credentials: 'same-origin'
+            });
             if (response.ok) {
                 const data = await response.json();
                 const usageCount = data.usage_count || 0;
@@ -169,7 +292,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
                 },
+                credentials: 'same-origin',
                 body: JSON.stringify({
                     name: name,
                     description: description,
@@ -180,8 +305,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const data = await response.json();
 
-            if (data.success) {
-                M.toast({html: 'Etichetta aggiornata con successo!', classes: 'green'});
+            if (response.ok && (data.success || data.message)) {
+                M.toast({html: data.message || 'Etichetta aggiornata con successo!', classes: 'green'});
                 
                 // Close modal
                 const modal = M.Modal.getInstance(document.getElementById('edit-label-modal'));
@@ -199,6 +324,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function handleDeleteLabelClick(event) {
+        console.log('🔵 Delete label clicked');
         const btn = event.currentTarget;
         const labelId = btn.dataset.labelId;
         const labelName = btn.dataset.labelName;
@@ -212,7 +338,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
         try {
             const response = await fetch(`/api/projects/${projectId}/labels/${labelId}`, {
-                method: 'DELETE'
+                method: 'DELETE',
+                credentials: 'same-origin',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
             });
 
             const data = await response.json();
@@ -243,7 +373,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     async function loadAISuggestions() {
         try {
-            const response = await fetch(`/api/projects/${projectId}/suggestions?type=store_label&status=pending`);
+            const response = await fetch(`/api/projects/${projectId}/suggestions?type=store_label&status=pending`, {
+                credentials: 'same-origin'
+            });
             if (response.ok) {
                 const data = await response.json();
                 const suggestions = data.suggestions || [];
@@ -299,7 +431,11 @@ document.addEventListener('DOMContentLoaded', function() {
     async function handleApproveSuggestion(suggestionId) {
         try {
             const response = await fetch(`/api/projects/${projectId}/suggestions/${suggestionId}/approve`, {
-                method: 'PUT'
+                method: 'PUT',
+                credentials: 'same-origin',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
             });
 
             const data = await response.json();
@@ -327,7 +463,11 @@ document.addEventListener('DOMContentLoaded', function() {
     async function handleRejectSuggestion(suggestionId) {
         try {
             const response = await fetch(`/api/projects/${projectId}/suggestions/${suggestionId}/reject`, {
-                method: 'PUT'
+                method: 'PUT',
+                credentials: 'same-origin',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
             });
 
             const data = await response.json();
@@ -385,83 +525,184 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    function handleSearch(event) {
-        const searchTerm = event.target.value.toLowerCase();
-        const rows = document.querySelectorAll('#labels-table-body tr');
-        
-        rows.forEach(row => {
-            const labelName = row.querySelector('strong').textContent.toLowerCase();
-            const labelDescription = row.querySelector('.label-description').textContent.toLowerCase();
-            
-            if (labelName.includes(searchTerm) || labelDescription.includes(searchTerm)) {
-                row.style.display = '';
+    async function handleViewCellValues(labelId, labelName, page = 1) {
+        try {
+            const response = await fetch(`/api/projects/${projectId}/labels/${labelId}/cell-values?page=${page}`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'same-origin'
+            });
+
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                showCellValuesModal(data.label, data.cell_values, data.pagination);
             } else {
-                row.style.display = 'none';
+                M.toast({html: data.error || 'Errore nel caricamento valori', classes: 'red'});
             }
-        });
+        } catch (error) {
+            console.error('Error loading cell values:', error);
+            M.toast({html: 'Errore di connessione', classes: 'red'});
+        }
     }
 
-    function handleSort(event) {
-        const sortBy = event.target.value;
-        const tbody = document.getElementById('labels-table-body');
-        const rows = Array.from(tbody.querySelectorAll('tr'));
+    function showCellValuesModal(label, cellValues, pagination) {
+        // Update modal content
+        document.getElementById('cell-values-label-name').textContent = label.name;
+        document.getElementById('cell-values-count').textContent = `${pagination.total} valori`;
         
-        rows.sort((a, b) => {
-            let valueA, valueB;
+        const valuesContainer = document.getElementById('cell-values-list');
+        valuesContainer.innerHTML = '';
+        
+        if (cellValues.length === 0) {
+            document.getElementById('cell-values-empty').style.display = 'block';
+            document.getElementById('cell-values-pagination').style.display = 'none';
+        } else {
+            document.getElementById('cell-values-empty').style.display = 'none';
             
-            switch (sortBy) {
-                case 'name':
-                    valueA = a.querySelector('strong').textContent.toLowerCase();
-                    valueB = b.querySelector('strong').textContent.toLowerCase();
-                    return valueA.localeCompare(valueB);
-                
-                case 'usage':
-                    valueA = parseInt(a.querySelector('.chip').textContent) || 0;
-                    valueB = parseInt(b.querySelector('.chip').textContent) || 0;
-                    return valueB - valueA; // Descending
-                
-                case 'date':
-                    valueA = a.querySelector('small').textContent;
-                    valueB = b.querySelector('small').textContent;
-                    return new Date(valueB) - new Date(valueA); // Most recent first
-                
-                default:
-                    return 0;
+            // Create table for values
+            const table = document.createElement('table');
+            table.className = 'striped responsive-table';
+            table.innerHTML = `
+                <thead>
+                    <tr>
+                        <th>Valore</th>
+                        <th>File</th>
+                        <th>Foglio</th>
+                        <th>Colonna</th>
+                        <th>Riga</th>
+                        <th>Tipo</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            `;
+            
+            const tbody = table.querySelector('tbody');
+            cellValues.forEach((value, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><strong>${escapeHtml(value.cell_value)}</strong></td>
+                    <td>${escapeHtml(value.file_name)}</td>
+                    <td>${escapeHtml(value.sheet_name)}</td>
+                    <td>${escapeHtml(value.column_name)}</td>
+                    <td>${value.row_number}</td>
+                    <td><span class="chip ${value.source_type === 'manual' ? 'blue' : 'green'}">${value.source_type}</span></td>
+                `;
+                tbody.appendChild(row);
+            });
+            
+            valuesContainer.appendChild(table);
+            
+            // Handle pagination if needed
+            if (pagination.pages > 1) {
+                document.getElementById('cell-values-pagination').style.display = 'block';
+                createPagination(pagination);
+            } else {
+                document.getElementById('cell-values-pagination').style.display = 'none';
             }
-        });
+        }
         
-        // Reappend sorted rows
-        rows.forEach(row => tbody.appendChild(row));
+        // Show modal
+        const modal = M.Modal.getInstance(document.getElementById('view-cells-modal'));
+        modal.open();
     }
 
-    function handleCategoryFilter(event) {
-        const filterCategory = event.target.value.toLowerCase();
-        const rows = document.querySelectorAll('#labels-table-body tr');
+    function createPagination(pagination) {
+        const paginationList = document.getElementById('cell-values-pagination-list');
+        paginationList.innerHTML = '';
         
-        rows.forEach(row => {
-            if (!filterCategory) {
-                row.style.display = '';
+        // Previous button
+        if (pagination.has_prev) {
+            const prevLi = document.createElement('li');
+            prevLi.className = 'waves-effect';
+            prevLi.innerHTML = `<a href="#" data-page="${pagination.prev_num}"><i class="material-icons">chevron_left</i></a>`;
+            paginationList.appendChild(prevLi);
+        }
+        
+        // Page numbers
+        for (let i = Math.max(1, pagination.page - 2); i <= Math.min(pagination.pages, pagination.page + 2); i++) {
+            const pageLi = document.createElement('li');
+            if (i === pagination.page) {
+                pageLi.className = 'active teal';
+                pageLi.innerHTML = `<a href="#!">${i}</a>`;
+            } else {
+                pageLi.className = 'waves-effect';
+                pageLi.innerHTML = `<a href="#" data-page="${i}">${i}</a>`;
+            }
+            paginationList.appendChild(pageLi);
+        }
+        
+        // Next button
+        if (pagination.has_next) {
+            const nextLi = document.createElement('li');
+            nextLi.className = 'waves-effect';
+            nextLi.innerHTML = `<a href="#" data-page="${pagination.next_num}"><i class="material-icons">chevron_right</i></a>`;
+            paginationList.appendChild(nextLi);
+        }
+        
+        // Add event listeners for pagination
+        paginationList.querySelectorAll('a[data-page]').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const page = this.dataset.page;
+                const labelId = document.querySelector('#view-cells-modal').dataset.labelId;
+                const labelName = document.querySelector('#view-cells-modal').dataset.labelName;
+                handleViewCellValues(labelId, labelName, page);
+            });
+        });
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // Add event listener for cell values buttons
+    document.addEventListener('click', function(event) {
+        if (event.target.classList.contains('view-cells-btn')) {
+            const labelId = event.target.dataset.labelId;
+            const labelName = event.target.dataset.labelName;
+            handleViewCellValues(labelId, labelName);
+        }
+    });
+    
+    // Re-initialize event listeners for dynamically loaded content
+    function reinitializeEventListeners() {
+        console.log('🔵 Re-initializing event listeners...');
+        initializeEventListeners();
+    }
+    
+    // Delegate events for dynamic content
+    function setupEventDelegation() {
+        console.log('🔵 Setting up event delegation...');
+        
+        // Use event delegation for buttons that might be added dynamically
+        document.addEventListener('click', function(event) {
+            // Edit label button
+            if (event.target.closest('.edit-label-btn')) {
+                console.log('🔵 Edit button clicked via delegation');
+                handleEditLabelClick(event);
                 return;
             }
             
-            const categoryChips = row.querySelectorAll('.chip');
-            const hasCategory = Array.from(categoryChips).some(chip => 
-                chip.textContent.toLowerCase().includes(filterCategory)
-            );
+            // View cells button  
+            if (event.target.closest('.view-cells-btn')) {
+                console.log('🔵 View cells button clicked via delegation');
+                handleViewCellsClick(event);
+                return;
+            }
             
-            row.style.display = hasCategory ? '' : 'none';
+            // Delete label button
+            if (event.target.closest('.delete-label-btn')) {
+                console.log('🔵 Delete button clicked via delegation');
+                handleDeleteLabelClick(event);
+                return;
+            }
         });
+        
+        console.log('✅ Event delegation setup complete');
     }
 
-    function debounce(func, wait) {
-        let timeout;
-        return function executedFunction(...args) {
-            const later = () => {
-                clearTimeout(timeout);
-                func(...args);
-            };
-            clearTimeout(timeout);
-            timeout = setTimeout(later, wait);
-        };
-    }
-});
+});  // Close DOMContentLoaded event listener

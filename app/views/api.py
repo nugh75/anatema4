@@ -4,6 +4,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.database import db
 from app.models import User, Project, File, Label, ExcelSheet, ExcelRow, ExcelColumn, CellLabel
 from functools import wraps
+from datetime import datetime
 
 api_bp = Blueprint('api', __name__)
 
@@ -63,6 +64,21 @@ def api_me():
     """Get current user info"""
     user = get_current_api_user()
     return jsonify({'user': user.to_dict()})
+
+@api_bp.route('/auth/status', methods=['GET'])
+def api_auth_status():
+    """Check authentication status"""
+    if current_user.is_authenticated:
+        return jsonify({
+            'authenticated': True,
+            'user': {
+                'id': str(current_user.id),
+                'username': current_user.username,
+                'email': current_user.email
+            }
+        })
+    else:
+        return jsonify({'authenticated': False}), 401
 
 # Projects endpoints
 @api_bp.route('/projects')
@@ -322,40 +338,40 @@ def api_create_project_label(project_id):
     }), 201
 
 @api_bp.route('/projects/<uuid:project_id>/labels/<int:label_id>', methods=['PUT'])
-@jwt_or_login_required  
-def api_update_project_label(project_id, label_id):
-    """Update existing label"""
+@jwt_or_login_required
+def api_update_label(project_id, label_id):
+    """Update a specific label"""
     user = get_current_api_user()
     project = Project.query.filter_by(id=project_id, owner_id=user.id).first_or_404()
     label = Label.query.filter_by(id=label_id, project_id=project.id).first_or_404()
     
     data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'error': 'Dati JSON richiesti'}), 400
     
-    # Update fields if provided
-    if 'name' in data:
-        name = data['name'].strip()
-        if not name:
-            return jsonify({'error': 'Nome etichetta non può essere vuoto'}), 400
-        
-        # Check uniqueness
-        existing = Label.query.filter_by(project_id=project.id, name=name)\
-            .filter(Label.id != label.id).first()
-        if existing:
-            return jsonify({'error': 'Etichetta con questo nome già esistente'}), 400
-        
-        label.name = name
+    name = data.get('name', '').strip()
+    description = data.get('description', '').strip()
+    color = data.get('color', '#1976d2').strip()
+    categories = data.get('categories', [])
     
-    if 'description' in data:
-        description = data['description'].strip()
-        if not description:
-            return jsonify({'error': 'Descrizione etichetta non può essere vuota'}), 400
-        label.description = description
+    if not name:
+        return jsonify({'success': False, 'error': 'Nome etichetta richiesto'}), 400
     
-    if 'color' in data:
-        label.color = data['color']
+    # Check if label name already exists in this project (excluding current label)
+    existing = Label.query.filter(
+        Label.project_id == project.id,
+        Label.name == name,
+        Label.id != label.id
+    ).first()
     
-    if 'categories' in data:
-        label.categories = data['categories']
+    if existing:
+        return jsonify({'success': False, 'error': 'Etichetta con questo nome già esistente'}), 400
+    
+    # Update label
+    label.name = name
+    label.description = description
+    label.color = color
+    label.categories = categories if categories else []
     
     db.session.commit()
     
@@ -367,27 +383,27 @@ def api_update_project_label(project_id, label_id):
 
 @api_bp.route('/projects/<uuid:project_id>/labels/<int:label_id>', methods=['DELETE'])
 @jwt_or_login_required
-def api_delete_project_label(project_id, label_id):
-    """Delete label (only if not used)"""
+def api_delete_label(project_id, label_id):
+    """Delete a specific label"""
     user = get_current_api_user()
     project = Project.query.filter_by(id=project_id, owner_id=user.id).first_or_404()
     label = Label.query.filter_by(id=label_id, project_id=project.id).first_or_404()
     
-    # Check if label is used in applications
-    from app.models_labeling import LabelApplication
-    applications_count = LabelApplication.query.filter_by(label_id=label.id).count()
-    
-    if applications_count > 0:
+    # Check if label is in use
+    usage_count = CellLabel.query.filter_by(label_id=label.id).count()
+    if usage_count > 0:
         return jsonify({
-            'error': f'Impossibile eliminare etichetta: utilizzata in {applications_count} applicazioni'
+            'success': False, 
+            'error': f'Impossibile eliminare: etichetta utilizzata in {usage_count} celle'
         }), 400
     
+    label_name = label.name
     db.session.delete(label)
     db.session.commit()
     
     return jsonify({
         'success': True,
-        'message': 'Etichetta eliminata con successo'
+        'message': f'Etichetta "{label_name}" eliminata con successo'
     })
 
 # Applicazione Etichette
@@ -583,12 +599,14 @@ def api_project_suggestions(project_id):
     user = get_current_api_user()
     project = Project.query.filter_by(id=project_id, owner_id=user.id).first_or_404()
     
-    from app.models_labeling import LabelSuggestion, LabelApplication
+    from app.models_labeling import LabelSuggestion, LabelApplication, LabelGeneration
     
     # Get pending label suggestions (for store)
-    label_suggestions = LabelSuggestion.query.filter_by(
-        project_id=project.id,
-        status='pending'
+    label_suggestions = LabelSuggestion.query.join(
+        LabelGeneration, LabelSuggestion.generation_id == LabelGeneration.id
+    ).filter(
+        LabelGeneration.project_id == project.id,
+        LabelSuggestion.status == 'pending'
     ).order_by(LabelSuggestion.created_at.desc()).all()
     
     # Get pending AI applications (for authorization)
@@ -824,15 +842,17 @@ def api_notifications_count():
     """Get notification count for current user"""
     user = get_current_api_user()
     
-    from app.models_labeling import LabelSuggestion, LabelApplication
+    from app.models_labeling import LabelSuggestion, LabelApplication, LabelGeneration
     
     # Count pending suggestions across all user's projects
     user_projects = Project.query.filter_by(owner_id=user.id).all()
     project_ids = [p.id for p in user_projects]
     
     # Store label suggestions count
-    pending_store_suggestions = LabelSuggestion.query.filter(
-        LabelSuggestion.project_id.in_(project_ids),
+    pending_store_suggestions = LabelSuggestion.query.join(
+        LabelGeneration, LabelSuggestion.generation_id == LabelGeneration.id
+    ).filter(
+        LabelGeneration.project_id.in_(project_ids),
         LabelSuggestion.status == 'pending'
     ).count()
     
@@ -851,4 +871,104 @@ def api_notifications_count():
             'pending_ai_applications': pending_ai_applications,
             'total': total_notifications
         }
+    })
+
+@api_bp.route('/projects/<uuid:project_id>/labels/<int:label_id>/cell-values')
+@jwt_or_login_required
+def api_label_cell_values(project_id, label_id):
+    """Get all cell values for a specific label"""
+    user = get_current_api_user()
+    project = Project.query.filter_by(id=project_id, owner_id=user.id).first_or_404()
+    label = Label.query.filter_by(id=label_id, project_id=project.id).first_or_404()
+    
+    # Get cell values from all labeling systems
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 50, type=int)
+    
+    # Query cell_labels (original system)
+    cell_labels_query = db.session.query(CellLabel.cell_value)\
+        .filter_by(label_id=label.id)\
+        .filter(CellLabel.cell_value.isnot(None))\
+        .filter(CellLabel.cell_value != '')
+    
+    # Query label_applications (unified system)  
+    from app.models_labeling import LabelApplication
+    label_apps_query = db.session.query(LabelApplication.cell_value)\
+        .filter_by(label_id=label.id)\
+        .filter(LabelApplication.cell_value.isnot(None))\
+        .filter(LabelApplication.cell_value != '')
+    
+    # Union all values
+    all_values_query = cell_labels_query.union(label_apps_query)\
+        .distinct()
+    
+    # Apply pagination
+    values_paginated = all_values_query.paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    
+    # Extract actual values
+    cell_values = [row[0] for row in values_paginated.items]
+    
+    return jsonify({
+        'success': True,
+        'label': label.to_dict(),
+        'cell_values': cell_values,
+        'pagination': {
+            'page': values_paginated.page,
+            'pages': values_paginated.pages,
+            'per_page': values_paginated.per_page,
+            'total': values_paginated.total,
+            'has_next': values_paginated.has_next,
+            'has_prev': values_paginated.has_prev
+        }
+    })
+
+@api_bp.route('/projects/<uuid:project_id>/labels/<int:label_id>/usage')
+@jwt_or_login_required
+def api_label_usage_stats(project_id, label_id):
+    """Get usage statistics for a specific label"""
+    user = get_current_api_user()
+    project = Project.query.filter_by(id=project_id, owner_id=user.id).first_or_404()
+    label = Label.query.filter_by(id=label_id, project_id=project.id).first_or_404()
+    
+    # Count applications from all systems
+    cell_labels_count = CellLabel.query.filter_by(label_id=label.id).count()
+    
+    from app.models_labeling import LabelApplication
+    label_apps_count = LabelApplication.query.filter_by(label_id=label.id).count()
+    
+    total_usage = cell_labels_count + label_apps_count
+    
+    return jsonify({
+        'success': True,
+        'label_id': label.id,
+        'usage_count': total_usage,
+        'cell_labels_count': cell_labels_count,
+        'label_applications_count': label_apps_count,
+        'can_delete': total_usage == 0
+    })
+
+@api_bp.route('/test-auth', methods=['GET'])
+@jwt_or_login_required
+def test_auth():
+    """Test endpoint per verificare l'autenticazione"""
+    user = get_current_api_user()
+    return jsonify({
+        'success': True,
+        'message': 'Autenticazione funzionante',
+        'user': {
+            'id': str(user.id),
+            'username': user.username,
+            'email': user.email
+        }
+    })
+
+@api_bp.route('/test-no-auth', methods=['GET'])
+def test_no_auth():
+    """Test endpoint senza autenticazione"""
+    return jsonify({
+        'success': True,
+        'message': 'Endpoint funzionante senza autenticazione',
+        'timestamp': datetime.utcnow().isoformat()
     })

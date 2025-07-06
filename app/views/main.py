@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, jsonify, redirect, url_for
+from flask import Blueprint, render_template, request, jsonify, redirect, url_for, send_from_directory
 from flask_login import login_required, current_user
 from app.database import db
 from app.models import Project, File, Label
@@ -82,3 +82,8 @@ def help():
 @main_bp.route('/about')
 def about():
     return render_template('main/about.html')
+
+@main_bp.route('/test_frontend.html')
+def test_frontend():
+    """Pagina di test per CRUD etichette"""
+    return send_from_directory('.', 'test_frontend.html')

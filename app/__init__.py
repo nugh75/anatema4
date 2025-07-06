@@ -25,7 +25,13 @@ def create_app(config_name=None):
     migrate.init_app(app, db)
     login_manager.init_app(app)
     jwt.init_app(app)
-    CORS(app)
+    
+    # Configure CORS with specific settings
+    CORS(app, 
+         origins=['http://localhost:5000', 'http://127.0.0.1:5000'],
+         supports_credentials=True,
+         allow_headers=['Content-Type', 'X-Requested-With', 'Authorization'],
+         methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'])
     
     # Configure login manager
     login_manager.login_view = 'auth.login'
@@ -43,6 +49,7 @@ def create_app(config_name=None):
     from app.views.projects import projects_bp
     from app.views.files import files_bp
     from app.views.labels import labels_bp
+    from app.views.labeling import labeling_bp
     from app.views.api import api_bp
     from app.views.ml import ml_bp  # Keep original name for compatibility
     from app.views.admin import admin_bp
@@ -52,6 +59,7 @@ def create_app(config_name=None):
     app.register_blueprint(projects_bp, url_prefix='/projects')
     app.register_blueprint(files_bp, url_prefix='/files')
     app.register_blueprint(labels_bp, url_prefix='/labels')
+    app.register_blueprint(labeling_bp, url_prefix='/labeling')
     app.register_blueprint(api_bp, url_prefix='/api')
     app.register_blueprint(ml_bp, url_prefix='/ml')  # Keep /ml URL prefix
     app.register_blueprint(admin_bp, url_prefix='/admin')

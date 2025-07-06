@@ -190,6 +190,13 @@
                                                data-label-categories="{{ label.categories|join(',') if label.categories else '' }}">
                                                 <i class="material-icons">edit</i>
                                             </a>
+                                            
+                                            <a href="#view-cells-modal" class="btn-small waves-effect waves-light teal modal-trigger view-cells-btn"
+                                               data-label-id="{{ label.id }}"
+                                               data-label-name="{{ label.name }}">
+                                                <i class="material-icons">visibility</i>
+                                            </a>
+                                            
                                             {% if label.usage_count == 0 %}
                                                 <a href="#delete-label-modal" class="btn-small waves-effect waves-light red modal-trigger delete-label-btn"
                                                    data-label-id="{{ label.id }}"
@@ -197,7 +204,8 @@
                                                     <i class="material-icons">delete</i>
                                                 </a>
                                             {% else %}
-                                                <span class="btn-small disabled grey">
+                                                <span class="btn-small disabled grey"
+                                                      title="Impossibile eliminare: etichetta in uso">
                                                     <i class="material-icons">delete</i>
                                                 </span>
                                             {% endif %}
@@ -376,8 +384,70 @@
     </div>
 </div>
 
+<!-- Modal Visualizzazione Valori Celle -->
+<div id="view-cells-modal" class="modal modal-fixed-footer">
+    <div class="modal-content">
+        <h4><i class="material-icons left teal-text">visibility</i>Valori Celle per Etichetta</h4>
+        <div class="row">
+            <div class="col s12">
+                <div class="card-panel teal lighten-5">
+                    <div class="row valign-wrapper" style="margin-bottom: 0;">
+                        <div class="col s8">
+                            <h6 style="margin: 0;">
+                                <strong id="cell-values-label-name"></strong>
+                            </h6>
+                        </div>
+                        <div class="col s4 right-align">
+                            <span class="chip teal" id="cell-values-count">0 valori</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col s12">
+                <div id="cell-values-container">
+                    <div class="center-align" id="cell-values-loading" style="display: none;">
+                        <div class="preloader-wrapper small active">
+                            <div class="spinner-layer spinner-teal-only">
+                                <div class="circle-clipper left">
+                                    <div class="circle"></div>
+                                </div>
+                                <div class="gap-patch">
+                                    <div class="circle"></div>
+                                </div>
+                                <div class="circle-clipper right">
+                                    <div class="circle"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <p>Caricamento valori...</p>
+                    </div>
+                    
+                    <div id="cell-values-list"></div>
+                    
+                    <div class="center-align" id="cell-values-empty" style="display: none;">
+                        <i class="material-icons large grey-text">info</i>
+                        <p class="grey-text">Nessun valore trovato per questa etichetta</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Paginazione -->
+        <div class="center-align" id="cell-values-pagination" style="display: none;">
+            <ul class="pagination" id="cell-values-pagination-list"></ul>
+        </div>
+    </div>
+    <div class="modal-footer">
+        <a href="#!" class="modal-close waves-effect waves-green btn-flat">Chiudi</a>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/label_store.js') }}"></script>
+<!-- Solo l'integrazione Materialize corretta con fix CORS -->
+<script src="{{ url_for('static', filename='js/materialize_integration.js') }}?v=20250706224000"></script>
 {% endblock %}

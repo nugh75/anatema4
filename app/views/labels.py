@@ -335,7 +335,11 @@ def batch_approve_suggestions(project_id):
     """Approva un batch di suggerimenti AI"""
     project = Project.query.filter_by(id=project_id, owner_id=current_user.id).first_or_404()
     
-    data = request.get_json()
+    if request.is_json:
+        data = request.get_json()
+    else:
+        data = request.form.to_dict()
+    
     suggestion_ids = data.get('suggestion_ids', [])
     
     if not suggestion_ids:
@@ -399,7 +403,11 @@ def batch_reject_suggestions(project_id):
     """Rifiuta un batch di suggerimenti AI"""
     project = Project.query.filter_by(id=project_id, owner_id=current_user.id).first_or_404()
     
-    data = request.get_json()
+    if request.is_json:
+        data = request.get_json()
+    else:
+        data = request.form.to_dict()
+    
     suggestion_ids = data.get('suggestion_ids', [])
     rejection_reason = data.get('reason', 'Non specificato')
     
@@ -447,7 +455,11 @@ def batch_authorize_applications(project_id):
     """Autorizza un batch di applicazioni AI"""
     project = Project.query.filter_by(id=project_id, owner_id=current_user.id).first_or_404()
     
-    data = request.get_json()
+    if request.is_json:
+        data = request.get_json()
+    else:
+        data = request.form.to_dict()
+    
     application_ids = data.get('application_ids', [])
     
     if not application_ids:
@@ -494,12 +506,14 @@ def pending_suggestions_overview(project_id):
     """Pagina overview dei suggerimenti pendenti"""
     project = Project.query.filter_by(id=project_id, owner_id=current_user.id).first_or_404()
     
-    from app.models_labeling import LabelSuggestion, LabelApplication
+    from app.models_labeling import LabelSuggestion, LabelApplication, LabelGeneration
     
     # Suggerimenti per store labels
-    store_suggestions = LabelSuggestion.query.filter_by(
-        project_id=project.id,
-        status='pending'
+    store_suggestions = LabelSuggestion.query.join(
+        LabelGeneration, LabelSuggestion.generation_id == LabelGeneration.id
+    ).filter(
+        LabelGeneration.project_id == project.id,
+        LabelSuggestion.status == 'pending'
     ).order_by(LabelSuggestion.ai_confidence.desc()).all()
     
     # Applicazioni AI pendenti
@@ -508,10 +522,20 @@ def pending_suggestions_overview(project_id):
         authorization_status='pending'
     ).order_by(LabelApplication.confidence_score.desc()).all()
     
+    # Calcola statistiche per il template
+    stats = {
+        'total_pending': len(store_suggestions) + len(pending_applications),
+        'store_suggestions_count': len(store_suggestions),
+        'pending_applications_count': len(pending_applications),
+        'high_confidence_count': len([s for s in store_suggestions if s.ai_confidence and s.ai_confidence >= 0.8]),
+        'low_confidence_count': len([s for s in store_suggestions if s.ai_confidence and s.ai_confidence < 0.6])
+    }
+    
     return render_template('labeling/pending_suggestions_overview.html',
                          project=project,
                          store_suggestions=store_suggestions,
-                         pending_applications=pending_applications)
+                         pending_applications=pending_applications,
+                         stats=stats)
 
 @labels_bp.route('/<uuid:project_id>/suggestions/auto-approve-high-confidence', methods=['POST'])
 @login_required
@@ -519,14 +543,20 @@ def auto_approve_high_confidence(project_id):
     """Approva automaticamente i suggerimenti ad alta confidenza"""
     project = Project.query.filter_by(id=project_id, owner_id=current_user.id).first_or_404()
     
-    data = request.get_json()
-    min_confidence = data.get('min_confidence', 0.85)  # Default 85%
+    if request.is_json:
+        data = request.get_json()
+    else:
+        data = request.form.to_dict()
     
-    from app.models_labeling import LabelSuggestion
+    min_confidence = float(data.get('min_confidence', 0.85))  # Default 85%
+    
+    from app.models_labeling import LabelSuggestion, LabelGeneration
     
     # Trova suggerimenti ad alta confidenza
-    high_confidence_suggestions = LabelSuggestion.query.filter(
-        LabelSuggestion.project_id == project.id,
+    high_confidence_suggestions = LabelSuggestion.query.join(
+        LabelGeneration, LabelSuggestion.generation_id == LabelGeneration.id
+    ).filter(
+        LabelGeneration.project_id == project.id,
         LabelSuggestion.status == 'pending',
         LabelSuggestion.ai_confidence >= min_confidence
     ).all()
