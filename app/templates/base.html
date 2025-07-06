@@ -37,6 +37,11 @@
                     <li><a href="{{ url_for('projects.list_projects') }}">
                         <i class="material-icons left">folder</i>Progetti
                     </a></li>
+                    <!-- Task 2.5 - AI Notifications Badge -->
+                    <li><a href="#" id="ai-notifications-trigger">
+                        <i class="material-icons left">notifications</i>AI
+                        <span class="badge red white-text" id="ai-notifications-count" style="display: none;">0</span>
+                    </a></li>
                     {% if current_user.is_admin() %}
                     <li><a href="{{ url_for('admin.dashboard') }}">
                         <i class="material-icons left">admin_panel_settings</i>Amministrazione
@@ -168,6 +173,56 @@
     
     <!-- Custom JavaScript -->
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    
+    <!-- Task 2.5 - AI Notifications System -->
+    {% if current_user.is_authenticated %}
+    <script>
+    // AI Notifications System
+    function loadAINotifications() {
+        fetch('/api/notifications/count')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const count = data.notifications.total;
+                    const badge = document.getElementById('ai-notifications-count');
+                    
+                    if (count > 0) {
+                        badge.textContent = count;
+                        badge.style.display = 'inline-block';
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('Error loading AI notifications:', error);
+            });
+    }
+    
+    // Load notifications on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        loadAINotifications();
+        
+        // Refresh every 30 seconds
+        setInterval(loadAINotifications, 30000);
+        
+        // Handle notifications click
+        document.getElementById('ai-notifications-trigger').addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // Show notifications dropdown or redirect to suggestions overview
+            const currentPath = window.location.pathname;
+            if (currentPath.includes('/projects/')) {
+                const projectId = currentPath.split('/')[2];
+                window.location.href = `/labels/${projectId}/suggestions/pending`;
+            } else {
+                // If not in a project context, show a list of projects with pending suggestions
+                M.toast({html: 'Seleziona un progetto per visualizzare i suggerimenti pendenti', classes: 'blue'});
+            }
+        });
+    });
+    </script>
+    {% endif %}
     
     {% block extra_js %}{% endblock %}
 </body>

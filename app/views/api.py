@@ -816,3 +816,39 @@ def api_project_labels_stats(project_id):
             }
         }
     })
+
+# Task 2.5 - Notifications System
+@api_bp.route('/notifications/count')
+@jwt_or_login_required
+def api_notifications_count():
+    """Get notification count for current user"""
+    user = get_current_api_user()
+    
+    from app.models_labeling import LabelSuggestion, LabelApplication
+    
+    # Count pending suggestions across all user's projects
+    user_projects = Project.query.filter_by(owner_id=user.id).all()
+    project_ids = [p.id for p in user_projects]
+    
+    # Store label suggestions count
+    pending_store_suggestions = LabelSuggestion.query.filter(
+        LabelSuggestion.project_id.in_(project_ids),
+        LabelSuggestion.status == 'pending'
+    ).count()
+    
+    # AI applications requiring authorization
+    pending_ai_applications = LabelApplication.query.filter(
+        LabelApplication.project_id.in_(project_ids),
+        LabelApplication.authorization_status == 'pending'
+    ).count()
+    
+    total_notifications = pending_store_suggestions + pending_ai_applications
+    
+    return jsonify({
+        'success': True,
+        'notifications': {
+            'pending_store_suggestions': pending_store_suggestions,
+            'pending_ai_applications': pending_ai_applications,
+            'total': total_notifications
+        }
+    })

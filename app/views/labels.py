@@ -327,3 +327,247 @@ def remove_label(cell_label_id):
     else:
         flash('Etichetta rimossa con successo!', 'success')
         return redirect(request.referrer or url_for('main.dashboard'))
+
+# Task 2.5 - Batch Processing Routes
+@labels_bp.route('/<uuid:project_id>/suggestions/batch/approve', methods=['POST'])
+@login_required
+def batch_approve_suggestions(project_id):
+    """Approva un batch di suggerimenti AI"""
+    project = Project.query.filter_by(id=project_id, owner_id=current_user.id).first_or_404()
+    
+    data = request.get_json()
+    suggestion_ids = data.get('suggestion_ids', [])
+    
+    if not suggestion_ids:
+        return jsonify({'error': 'Nessun suggerimento selezionato'}), 400
+    
+    from app.models_labeling import LabelSuggestion
+    approved_count = 0
+    errors = []
+    
+    for suggestion_id in suggestion_ids:
+        try:
+            suggestion = LabelSuggestion.query.filter_by(
+                id=suggestion_id,
+                status='pending'
+            ).first()
+            
+            if not suggestion:
+                errors.append(f'Suggerimento {suggestion_id} non trovato o già processato')
+                continue
+            
+            # Approva il suggerimento
+            suggestion.status = 'approved'
+            suggestion.reviewed_by = current_user.id
+            suggestion.reviewed_at = datetime.utcnow()
+            
+            # Crea la label nel store se non esiste
+            existing_label = Label.query.filter_by(
+                project_id=project.id,
+                name=suggestion.suggested_name
+            ).first()
+            
+            if not existing_label:
+                new_label = Label(
+                    project_id=project.id,
+                    name=suggestion.suggested_name,
+                    description=suggestion.suggested_description,
+                    color=suggestion.suggested_color,
+                    categories=[suggestion.suggested_category] if suggestion.suggested_category else [],
+                    created_by=current_user.id,
+                    created_at=datetime.utcnow()
+                )
+                db.session.add(new_label)
+            
+            approved_count += 1
+            
+        except Exception as e:
+            errors.append(f'Errore processando suggerimento {suggestion_id}: {str(e)}')
+    
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'approved_count': approved_count,
+        'errors': errors,
+        'message': f'Approvati {approved_count} suggerimenti'
+    })
+
+@labels_bp.route('/<uuid:project_id>/suggestions/batch/reject', methods=['POST'])
+@login_required
+def batch_reject_suggestions(project_id):
+    """Rifiuta un batch di suggerimenti AI"""
+    project = Project.query.filter_by(id=project_id, owner_id=current_user.id).first_or_404()
+    
+    data = request.get_json()
+    suggestion_ids = data.get('suggestion_ids', [])
+    rejection_reason = data.get('reason', 'Non specificato')
+    
+    if not suggestion_ids:
+        return jsonify({'error': 'Nessun suggerimento selezionato'}), 400
+    
+    from app.models_labeling import LabelSuggestion
+    rejected_count = 0
+    errors = []
+    
+    for suggestion_id in suggestion_ids:
+        try:
+            suggestion = LabelSuggestion.query.filter_by(
+                id=suggestion_id,
+                status='pending'
+            ).first()
+            
+            if not suggestion:
+                errors.append(f'Suggerimento {suggestion_id} non trovato o già processato')
+                continue
+            
+            # Rifiuta il suggerimento
+            suggestion.status = 'rejected'
+            suggestion.reviewed_by = current_user.id
+            suggestion.reviewed_at = datetime.utcnow()
+            suggestion.review_notes = rejection_reason
+            
+            rejected_count += 1
+            
+        except Exception as e:
+            errors.append(f'Errore processando suggerimento {suggestion_id}: {str(e)}')
+    
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'rejected_count': rejected_count,
+        'errors': errors,
+        'message': f'Rifiutati {rejected_count} suggerimenti'
+    })
+
+@labels_bp.route('/<uuid:project_id>/applications/batch/authorize', methods=['POST'])
+@login_required
+def batch_authorize_applications(project_id):
+    """Autorizza un batch di applicazioni AI"""
+    project = Project.query.filter_by(id=project_id, owner_id=current_user.id).first_or_404()
+    
+    data = request.get_json()
+    application_ids = data.get('application_ids', [])
+    
+    if not application_ids:
+        return jsonify({'error': 'Nessuna applicazione selezionata'}), 400
+    
+    from app.models_labeling import LabelApplication
+    authorized_count = 0
+    errors = []
+    
+    for application_id in application_ids:
+        try:
+            application = LabelApplication.query.filter_by(
+                id=application_id,
+                project_id=project.id,
+                authorization_status='pending'
+            ).first()
+            
+            if not application:
+                errors.append(f'Applicazione {application_id} non trovata o già processata')
+                continue
+            
+            # Autorizza l'applicazione
+            application.authorization_status = 'authorized'
+            application.authorized_by = current_user.id
+            application.authorized_at = datetime.utcnow()
+            
+            authorized_count += 1
+            
+        except Exception as e:
+            errors.append(f'Errore processando applicazione {application_id}: {str(e)}')
+    
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'authorized_count': authorized_count,
+        'errors': errors,
+        'message': f'Autorizzate {authorized_count} applicazioni'
+    })
+
+@labels_bp.route('/<uuid:project_id>/suggestions/pending')
+@login_required
+def pending_suggestions_overview(project_id):
+    """Pagina overview dei suggerimenti pendenti"""
+    project = Project.query.filter_by(id=project_id, owner_id=current_user.id).first_or_404()
+    
+    from app.models_labeling import LabelSuggestion, LabelApplication
+    
+    # Suggerimenti per store labels
+    store_suggestions = LabelSuggestion.query.filter_by(
+        project_id=project.id,
+        status='pending'
+    ).order_by(LabelSuggestion.ai_confidence.desc()).all()
+    
+    # Applicazioni AI pendenti
+    pending_applications = LabelApplication.query.filter_by(
+        project_id=project.id,
+        authorization_status='pending'
+    ).order_by(LabelApplication.confidence_score.desc()).all()
+    
+    return render_template('labeling/pending_suggestions_overview.html',
+                         project=project,
+                         store_suggestions=store_suggestions,
+                         pending_applications=pending_applications)
+
+@labels_bp.route('/<uuid:project_id>/suggestions/auto-approve-high-confidence', methods=['POST'])
+@login_required
+def auto_approve_high_confidence(project_id):
+    """Approva automaticamente i suggerimenti ad alta confidenza"""
+    project = Project.query.filter_by(id=project_id, owner_id=current_user.id).first_or_404()
+    
+    data = request.get_json()
+    min_confidence = data.get('min_confidence', 0.85)  # Default 85%
+    
+    from app.models_labeling import LabelSuggestion
+    
+    # Trova suggerimenti ad alta confidenza
+    high_confidence_suggestions = LabelSuggestion.query.filter(
+        LabelSuggestion.project_id == project.id,
+        LabelSuggestion.status == 'pending',
+        LabelSuggestion.ai_confidence >= min_confidence
+    ).all()
+    
+    approved_count = 0
+    for suggestion in high_confidence_suggestions:
+        try:
+            # Approva il suggerimento
+            suggestion.status = 'approved'
+            suggestion.reviewed_by = current_user.id
+            suggestion.reviewed_at = datetime.utcnow()
+            suggestion.review_notes = f'Auto-approvato per alta confidenza ({suggestion.ai_confidence:.2%})'
+            
+            # Crea la label nel store se non esiste
+            existing_label = Label.query.filter_by(
+                project_id=project.id,
+                name=suggestion.suggested_name
+            ).first()
+            
+            if not existing_label:
+                new_label = Label(
+                    project_id=project.id,
+                    name=suggestion.suggested_name,
+                    description=suggestion.suggested_description,
+                    color=suggestion.suggested_color,
+                    categories=[suggestion.suggested_category] if suggestion.suggested_category else [],
+                    created_by=current_user.id,
+                    created_at=datetime.utcnow()
+                )
+                db.session.add(new_label)
+            
+            approved_count += 1
+            
+        except Exception as e:
+            continue
+    
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'approved_count': approved_count,
+        'min_confidence': min_confidence,
+        'message': f'Auto-approvati {approved_count} suggerimenti ad alta confidenza'
+    })
