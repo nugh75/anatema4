@@ -2291,3 +2291,328 @@ def _get_ml_integration_template(analysis_type, column_name):
     
     # Restituisci template specifico o default sentiment
     return templates_map.get(analysis_type, templates_map['sentiment'])
+# ================================
+# BATCH PROCESSING E NOTIFICHE (Task 2.5)
+# ================================
+
+@labeling_bp.route('/projects/<uuid:project_id>/suggestions/pending')
+@login_required
+def pending_suggestions_overview(project_id):
+    """Overview dei suggerimenti pendenti con batch processing"""
+    project = Project.query.filter_by(id=project_id, owner_id=current_user.id).first_or_404()
+    
+    # Suggerimenti pendenti raggruppati per generazione
+    pending_suggestions = db.session.query(LabelSuggestion, LabelGeneration, LabelTemplate)\
+        .join(LabelGeneration, LabelSuggestion.generation_id == LabelGeneration.id)\
+        .join(LabelTemplate, LabelGeneration.template_id == LabelTemplate.id)\
+        .filter(LabelGeneration.project_id == project.id)\
+        .filter(LabelSuggestion.status == 'pending')\
+        .order_by(LabelSuggestion.ai_confidence.desc(), LabelSuggestion.created_at.desc())\
+        .all()
+    
+    # Raggruppa per generazione
+    grouped_suggestions = {}
+    for suggestion, generation, template in pending_suggestions:
+        if generation.id not in grouped_suggestions:
+            grouped_suggestions[generation.id] = {
+                'generation': generation,
+                'template': template,
+                'suggestions': []
+            }
+        grouped_suggestions[generation.id]['suggestions'].append(suggestion)
+    
+    # Statistiche rapide
+    stats = {
+        'total_pending': len(pending_suggestions),
+        'high_confidence': len([s for s, g, t in pending_suggestions if s.ai_confidence >= 0.8]),
+        'medium_confidence': len([s for s, g, t in pending_suggestions if 0.6 <= s.ai_confidence < 0.8]),
+        'low_confidence': len([s for s, g, t in pending_suggestions if s.ai_confidence < 0.6]),
+        'generations_count': len(grouped_suggestions)
+    }
+    
+    if request.is_json:
+        return jsonify({
+            'project': project.to_dict(),
+            'stats': stats,
+            'grouped_suggestions': {
+                str(gen_id): {
+                    'generation': data['generation'].to_dict(),
+                    'template': data['template'].to_dict(),
+                    'suggestions': [s.to_dict() for s in data['suggestions']]
+                }
+                for gen_id, data in grouped_suggestions.items()
+            }
+        })
+    
+    return render_template('labeling/pending_suggestions_overview.html',
+                         project=project,
+                         stats=stats,
+                         grouped_suggestions=grouped_suggestions)
+
+@labeling_bp.route('/projects/<uuid:project_id>/suggestions/batch-approve', methods=['POST'])
+@login_required
+def batch_approve_suggestions(project_id):
+    """Approva suggerimenti in batch"""
+    project = Project.query.filter_by(id=project_id, owner_id=current_user.id).first_or_404()
+    
+    try:
+        if request.is_json:
+            data = request.get_json()
+        else:
+            data = request.form.to_dict()
+        
+        suggestion_ids = data.get('suggestion_ids', [])
+        if isinstance(suggestion_ids, str):
+            suggestion_ids = [suggestion_ids]
+        
+        if not suggestion_ids:
+            error_msg = 'Nessun suggerimento selezionato'
+            if request.is_json:
+                return jsonify({'error': error_msg}), 400
+            flash(error_msg, 'error')
+            return redirect(request.referrer)
+        
+        # Verifica che i suggerimenti appartengano al progetto
+        suggestions = LabelSuggestion.query.join(LabelGeneration).filter(
+            LabelSuggestion.id.in_(suggestion_ids),
+            LabelGeneration.project_id == project.id,
+            LabelSuggestion.status == 'pending'
+        ).all()
+        
+        if not suggestions:
+            error_msg = 'Nessun suggerimento valido trovato'
+            if request.is_json:
+                return jsonify({'error': error_msg}), 400
+            flash(error_msg, 'error')
+            return redirect(request.referrer)
+        
+        # Approva tutti i suggerimenti
+        approved_count = 0
+        created_labels = []
+        
+        for suggestion in suggestions:
+            try:
+                # Crea etichetta
+                label = Label(
+                    project_id=project.id,
+                    name=suggestion.suggested_name,
+                    description=suggestion.suggested_description,
+                    color=suggestion.suggested_color,
+                    categories=[suggestion.suggested_category] if suggestion.suggested_category else []
+                )
+                
+                db.session.add(label)
+                db.session.flush()
+                
+                # Aggiorna suggerimento
+                suggestion.status = 'approved'
+                suggestion.reviewed_by = current_user.id
+                suggestion.reviewed_at = datetime.utcnow()
+                suggestion.review_notes = f'Approvato in batch il {datetime.utcnow().strftime("%Y-%m-%d %H:%M")}'
+                suggestion.created_label_id = label.id
+                
+                # Aggiorna contatori generazione
+                generation = suggestion.generation
+                generation.approved_suggestions += 1
+                
+                created_labels.append(label)
+                approved_count += 1
+                
+            except Exception as e:
+                logger.error(f"Errore nell'approvazione suggerimento {suggestion.id}: {str(e)}")
+                continue
+        
+        if approved_count > 0:
+            db.session.commit()
+            message = f'{approved_count} suggerimenti approvati e {len(created_labels)} etichette create'
+            
+            if request.is_json:
+                return jsonify({
+                    'message': message,
+                    'approved_count': approved_count,
+                    'created_labels': [label.to_dict() for label in created_labels]
+                })
+            
+            flash(message, 'success')
+        else:
+            db.session.rollback()
+            error_msg = 'Nessun suggerimento è stato approvato'
+            if request.is_json:
+                return jsonify({'error': error_msg}), 400
+            flash(error_msg, 'error')
+        
+        return redirect(request.referrer or url_for('labeling.pending_suggestions_overview', project_id=project.id))
+        
+    except Exception as e:
+        logger.error(f"Errore nell'approvazione batch: {str(e)}")
+        db.session.rollback()
+        if request.is_json:
+            return jsonify({'error': str(e)}), 500
+        flash(f'Errore nell\'approvazione batch: {str(e)}', 'error')
+        return redirect(request.referrer)
+
+@labeling_bp.route('/projects/<uuid:project_id>/suggestions/batch-reject', methods=['POST'])
+@login_required
+def batch_reject_suggestions(project_id):
+    """Rifiuta suggerimenti in batch"""
+    project = Project.query.filter_by(id=project_id, owner_id=current_user.id).first_or_404()
+    
+    try:
+        if request.is_json:
+            data = request.get_json()
+        else:
+            data = request.form.to_dict()
+        
+        suggestion_ids = data.get('suggestion_ids', [])
+        if isinstance(suggestion_ids, str):
+            suggestion_ids = [suggestion_ids]
+        
+        reject_reason = data.get('reject_reason', 'Rifiutato in batch')
+        
+        if not suggestion_ids:
+            error_msg = 'Nessun suggerimento selezionato'
+            if request.is_json:
+                return jsonify({'error': error_msg}), 400
+            flash(error_msg, 'error')
+            return redirect(request.referrer)
+        
+        # Verifica che i suggerimenti appartengano al progetto
+        suggestions = LabelSuggestion.query.join(LabelGeneration).filter(
+            LabelSuggestion.id.in_(suggestion_ids),
+            LabelGeneration.project_id == project.id,
+            LabelSuggestion.status == 'pending'
+        ).all()
+        
+        rejected_count = 0
+        
+        for suggestion in suggestions:
+            suggestion.status = 'rejected'
+            suggestion.reviewed_by = current_user.id
+            suggestion.reviewed_at = datetime.utcnow()
+            suggestion.review_notes = reject_reason
+            
+            # Aggiorna contatori generazione
+            generation = suggestion.generation
+            generation.rejected_suggestions += 1
+            
+            rejected_count += 1
+        
+        if rejected_count > 0:
+            db.session.commit()
+            message = f'{rejected_count} suggerimenti rifiutati'
+            
+            if request.is_json:
+                return jsonify({
+                    'message': message,
+                    'rejected_count': rejected_count
+                })
+            
+            flash(message, 'info')
+        else:
+            error_msg = 'Nessun suggerimento è stato rifiutato'
+            if request.is_json:
+                return jsonify({'error': error_msg}), 400
+            flash(error_msg, 'error')
+        
+        return redirect(request.referrer or url_for('labeling.pending_suggestions_overview', project_id=project.id))
+        
+    except Exception as e:
+        logger.error(f"Errore nel rifiuto batch: {str(e)}")
+        db.session.rollback()
+        if request.is_json:
+            return jsonify({'error': str(e)}), 500
+        flash(f'Errore nel rifiuto batch: {str(e)}', 'error')
+        return redirect(request.referrer)
+
+@labeling_bp.route('/projects/<uuid:project_id>/suggestions/auto-approve', methods=['POST'])
+@login_required
+def auto_approve_high_confidence(project_id):
+    """Auto-approva suggerimenti con alta confidenza"""
+    project = Project.query.filter_by(id=project_id, owner_id=current_user.id).first_or_404()
+    
+    try:
+        if request.is_json:
+            data = request.get_json()
+        else:
+            data = request.form.to_dict()
+        
+        min_confidence = float(data.get('min_confidence', 0.9))
+        
+        # Trova suggerimenti con alta confidenza
+        high_confidence_suggestions = LabelSuggestion.query.join(LabelGeneration).filter(
+            LabelGeneration.project_id == project.id,
+            LabelSuggestion.status == 'pending',
+            LabelSuggestion.ai_confidence >= min_confidence
+        ).all()
+        
+        if not high_confidence_suggestions:
+            message = f'Nessun suggerimento con confidenza >= {min_confidence:.0%} trovato'
+            if request.is_json:
+                return jsonify({'message': message, 'approved_count': 0})
+            flash(message, 'info')
+            return redirect(request.referrer)
+        
+        # Auto-approva
+        approved_count = 0
+        created_labels = []
+        
+        for suggestion in high_confidence_suggestions:
+            try:
+                # Crea etichetta
+                label = Label(
+                    project_id=project.id,
+                    name=suggestion.suggested_name,
+                    description=suggestion.suggested_description,
+                    color=suggestion.suggested_color,
+                    categories=[suggestion.suggested_category] if suggestion.suggested_category else []
+                )
+                
+                db.session.add(label)
+                db.session.flush()
+                
+                # Aggiorna suggerimento
+                suggestion.status = 'approved'
+                suggestion.reviewed_by = current_user.id
+                suggestion.reviewed_at = datetime.utcnow()
+                suggestion.review_notes = f'Auto-approvato (confidenza: {suggestion.ai_confidence:.1%})'
+                suggestion.created_label_id = label.id
+                
+                # Aggiorna contatori generazione
+                generation = suggestion.generation
+                generation.approved_suggestions += 1
+                
+                created_labels.append(label)
+                approved_count += 1
+                
+            except Exception as e:
+                logger.error(f"Errore nell'auto-approvazione suggerimento {suggestion.id}: {str(e)}")
+                continue
+        
+        if approved_count > 0:
+            db.session.commit()
+            message = f'{approved_count} suggerimenti auto-approvati con confidenza >= {min_confidence:.0%}'
+            
+            if request.is_json:
+                return jsonify({
+                    'message': message,
+                    'approved_count': approved_count,
+                    'created_labels': [label.to_dict() for label in created_labels]
+                })
+            
+            flash(message, 'success')
+        else:
+            db.session.rollback()
+            error_msg = 'Nessun suggerimento è stato auto-approvato'
+            if request.is_json:
+                return jsonify({'error': error_msg}), 400
+            flash(error_msg, 'error')
+        
+        return redirect(request.referrer or url_for('labeling.pending_suggestions_overview', project_id=project.id))
+        
+    except Exception as e:
+        logger.error(f"Errore nell'auto-approvazione: {str(e)}")
+        db.session.rollback()
+        if request.is_json:
+            return jsonify({'error': str(e)}), 500
+        flash(f'Errore nell\'auto-approvazione: {str(e)}', 'error')
+        return redirect(request.referrer)

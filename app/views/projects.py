@@ -94,6 +94,14 @@ def view_project(project_id):
     labels = Label.query.filter_by(project_id=project.id)\
         .order_by(Label.name).all()
     
+    # Update usage_count for each label to ensure accuracy
+    for label in labels:
+        if label.usage_count is None or label.usage_count == 0:
+            label.usage_count = label.cell_labels.count()
+    
+    # Save updates if needed
+    db.session.commit()
+    
     if request.is_json:
         return jsonify({
             'project': project.to_dict(),

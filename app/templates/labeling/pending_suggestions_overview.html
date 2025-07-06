@@ -1,0 +1,383 @@
+{% extends "base.html" %}
+
+{% block title %}Suggerimenti Pendenti - Anatema{% endblock %}
+
+{% block content %}
+<div class="container" style="margin-top: 30px;">
+    <div class="row">
+        <div class="col s12">
+            <h4 class="blue-text text-darken-2">
+                <i class="material-icons left">rate_review</i>
+                Suggerimenti AI Pendenti
+                <span class="new badge red white-text" data-badge-caption="da approvare">{{ stats.total_pending }}</span>
+            </h4>
+            <p class="grey-text">Approva o rifiuta i suggerimenti generati dall'AI</p>
+        </div>
+    </div>
+
+    <!-- Statistiche e Azioni Batch -->
+    <div class="row">
+        <div class="col s12 m8">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">Statistiche Confidenza</span>
+                    <div class="row">
+                        <div class="col s4">
+                            <div class="center-align">
+                                <h5 class="green-text">{{ stats.high_confidence }}</h5>
+                                <p>Alta (≥80%)</p>
+                            </div>
+                        </div>
+                        <div class="col s4">
+                            <div class="center-align">
+                                <h5 class="orange-text">{{ stats.medium_confidence }}</h5>
+                                <p>Media (60-79%)</p>
+                            </div>
+                        </div>
+                        <div class="col s4">
+                            <div class="center-align">
+                                <h5 class="red-text">{{ stats.low_confidence }}</h5>
+                                <p>Bassa (<60%)</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col s12 m4">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">Azioni Rapide</span>
+                    <div class="row">
+                        <div class="col s12">
+                            <form method="POST" action="{{ url_for('labeling.auto_approve_high_confidence', project_id=project.id) }}">
+                                <button type="submit" class="btn green waves-effect waves-light btn-small" style="width: 100%; margin-bottom: 5px;">
+                                    <i class="material-icons left">done_all</i>
+                                    Auto-Approva (≥90%)
+                                </button>
+                                <input type="hidden" name="min_confidence" value="0.9">
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Controlli Batch -->
+    <div class="row">
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">Controlli Batch</span>
+                    <div class="row">
+                        <div class="col s12">
+                            <a href="#" onclick="selectAll()" class="btn-flat waves-effect">
+                                <i class="material-icons left">select_all</i>Seleziona Tutto
+                            </a>
+                            <a href="#" onclick="selectNone()" class="btn-flat waves-effect">
+                                <i class="material-icons left">clear</i>Deseleziona Tutto
+                            </a>
+                            <a href="#" onclick="selectHighConfidence()" class="btn-flat waves-effect">
+                                <i class="material-icons left">star</i>Seleziona Alta Confidenza
+                            </a>
+                            <span class="right">
+                                <button id="batch-approve-btn" class="btn green waves-effect waves-light" disabled onclick="batchApprove()">
+                                    <i class="material-icons left">done</i>Approva Selezionati
+                                </button>
+                                <button id="batch-reject-btn" class="btn red waves-effect waves-light" disabled onclick="batchReject()">
+                                    <i class="material-icons left">clear</i>Rifiuta Selezionati
+                                </button>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Suggerimenti raggruppati per generazione -->
+    {% if grouped_suggestions %}
+        {% for generation_id, data in grouped_suggestions.items() %}
+        <div class="row">
+            <div class="col s12">
+                <div class="card">
+                    <div class="card-content">
+                        <span class="card-title">
+                            {{ data.template.name }}
+                            <span class="grey-text">- {{ data.generation.column_name }}</span>
+                            <span class="new badge blue white-text">{{ data.suggestions|length }}</span>
+                        </span>
+                        <p class="grey-text">
+                            <i class="material-icons tiny">access_time</i>
+                            {{ data.generation.created_at.strftime('%d/%m/%Y %H:%M') }}
+                            <span class="right">
+                                <i class="material-icons tiny">smart_toy</i>
+                                {{ data.generation.ai_model or 'AI' }}
+                            </span>
+                        </p>
+                        
+                        <div class="divider" style="margin: 15px 0;"></div>
+                        
+                        <!-- Suggerimenti della generazione -->
+                        {% for suggestion in data.suggestions %}
+                        <div class="suggestion-item" data-suggestion-id="{{ suggestion.id }}">
+                            <div class="row valign-wrapper" style="margin-bottom: 10px;">
+                                <div class="col s1">
+                                    <label>
+                                        <input type="checkbox" class="suggestion-checkbox" value="{{ suggestion.id }}" onchange="updateBatchButtons()">
+                                        <span></span>
+                                    </label>
+                                </div>
+                                <div class="col s6">
+                                    <div class="suggestion-content">
+                                        <div class="suggestion-name">
+                                            <span class="chip" style="background-color: {{ suggestion.suggested_color }}; color: white;">
+                                                {{ suggestion.suggested_name }}
+                                            </span>
+                                        </div>
+                                        <div class="suggestion-description">
+                                            <small class="grey-text">{{ suggestion.suggested_description }}</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col s2">
+                                    <div class="center-align">
+                                        {% set confidence_percent = (suggestion.ai_confidence * 100) | round(0) %}
+                                        <div class="confidence-score">
+                                            {% if confidence_percent >= 80 %}
+                                                <span class="badge green white-text">{{ confidence_percent }}%</span>
+                                            {% elif confidence_percent >= 60 %}
+                                                <span class="badge orange white-text">{{ confidence_percent }}%</span>
+                                            {% else %}
+                                                <span class="badge red white-text">{{ confidence_percent }}%</span>
+                                            {% endif %}
+                                        </div>
+                                        <small class="grey-text">Confidenza</small>
+                                    </div>
+                                </div>
+                                <div class="col s3">
+                                    <div class="right">
+                                        <a href="#" onclick="approveIndividual('{{ suggestion.id }}')" class="btn-small green waves-effect waves-light">
+                                            <i class="material-icons">done</i>
+                                        </a>
+                                        <a href="#" onclick="rejectIndividual('{{ suggestion.id }}')" class="btn-small red waves-effect waves-light">
+                                            <i class="material-icons">clear</i>
+                                        </a>
+                                        <a href="#" onclick="showReasoning('{{ suggestion.id }}')" class="btn-small blue waves-effect waves-light">
+                                            <i class="material-icons">info</i>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Ragionamento AI (nascosto di default) -->
+                            <div id="reasoning-{{ suggestion.id }}" class="reasoning-section" style="display: none;">
+                                <div class="card-panel blue lighten-5">
+                                    <h6><i class="material-icons left tiny">psychology</i>Ragionamento AI</h6>
+                                    <p>{{ suggestion.ai_reasoning or 'Nessun ragionamento disponibile' }}</p>
+                                    {% if suggestion.sample_values %}
+                                    <div class="divider"></div>
+                                    <h6>Valori di esempio:</h6>
+                                    <ul>
+                                        {% for value in suggestion.sample_values[:3] %}
+                                        <li>{{ value }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="row">
+            <div class="col s12">
+                <div class="card">
+                    <div class="card-content center-align">
+                        <i class="material-icons large grey-text">check_circle</i>
+                        <h5 class="grey-text">Nessun suggerimento pendente</h5>
+                        <p>Tutti i suggerimenti sono stati revisionati!</p>
+                        <a href="{{ url_for('labeling.dashboard', project_id=project.id) }}" class="btn blue waves-effect waves-light">
+                            <i class="material-icons left">dashboard</i>Torna al Dashboard
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Modal per rifiuto batch -->
+<div id="reject-modal" class="modal">
+    <div class="modal-content">
+        <h4>Rifiuta Suggerimenti</h4>
+        <p>Specificare il motivo del rifiuto:</p>
+        <div class="input-field">
+            <textarea id="reject-reason" class="materialize-textarea" placeholder="Motivo del rifiuto..."></textarea>
+            <label for="reject-reason">Motivo (opzionale)</label>
+        </div>
+    </div>
+    <div class="modal-footer">
+        <a href="#!" class="modal-close waves-effect waves-light btn-flat">Annulla</a>
+        <a href="#!" class="modal-close waves-effect waves-light btn red" onclick="confirmBatchReject()">Rifiuta</a>
+    </div>
+</div>
+
+<script>
+// Gestione checkbox e batch operations
+function updateBatchButtons() {
+    const checkboxes = document.querySelectorAll('.suggestion-checkbox:checked');
+    const batchApproveBtn = document.getElementById('batch-approve-btn');
+    const batchRejectBtn = document.getElementById('batch-reject-btn');
+    
+    if (checkboxes.length > 0) {
+        batchApproveBtn.disabled = false;
+        batchRejectBtn.disabled = false;
+    } else {
+        batchApproveBtn.disabled = true;
+        batchRejectBtn.disabled = true;
+    }
+}
+
+function selectAll() {
+    document.querySelectorAll('.suggestion-checkbox').forEach(cb => {
+        cb.checked = true;
+    });
+    updateBatchButtons();
+}
+
+function selectNone() {
+    document.querySelectorAll('.suggestion-checkbox').forEach(cb => {
+        cb.checked = false;
+    });
+    updateBatchButtons();
+}
+
+function selectHighConfidence() {
+    document.querySelectorAll('.suggestion-checkbox').forEach(cb => {
+        const suggestionItem = cb.closest('.suggestion-item');
+        const confidenceBadge = suggestionItem.querySelector('.confidence-score .badge');
+        if (confidenceBadge && confidenceBadge.classList.contains('green')) {
+            cb.checked = true;
+        } else {
+            cb.checked = false;
+        }
+    });
+    updateBatchButtons();
+}
+
+function batchApprove() {
+    const selectedIds = Array.from(document.querySelectorAll('.suggestion-checkbox:checked')).map(cb => cb.value);
+    
+    if (selectedIds.length === 0) {
+        M.toast({html: 'Seleziona almeno un suggerimento'});
+        return;
+    }
+    
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '{{ url_for("labeling.batch_approve_suggestions", project_id=project.id) }}';
+    
+    selectedIds.forEach(id => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'suggestion_ids';
+        input.value = id;
+        form.appendChild(input);
+    });
+    
+    document.body.appendChild(form);
+    form.submit();
+}
+
+function batchReject() {
+    const selectedIds = Array.from(document.querySelectorAll('.suggestion-checkbox:checked')).map(cb => cb.value);
+    
+    if (selectedIds.length === 0) {
+        M.toast({html: 'Seleziona almeno un suggerimento'});
+        return;
+    }
+    
+    // Salva gli ID selezionati per il modal
+    window.selectedRejectIds = selectedIds;
+    
+    // Apri modal per motivo
+    const modal = M.Modal.getInstance(document.getElementById('reject-modal'));
+    modal.open();
+}
+
+function confirmBatchReject() {
+    const reason = document.getElementById('reject-reason').value || 'Rifiutato in batch';
+    
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '{{ url_for("labeling.batch_reject_suggestions", project_id=project.id) }}';
+    
+    // Aggiungi ID selezionati
+    window.selectedRejectIds.forEach(id => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'suggestion_ids';
+        input.value = id;
+        form.appendChild(input);
+    });
+    
+    // Aggiungi motivo
+    const reasonInput = document.createElement('input');
+    reasonInput.type = 'hidden';
+    reasonInput.name = 'reject_reason';
+    reasonInput.value = reason;
+    form.appendChild(reasonInput);
+    
+    document.body.appendChild(form);
+    form.submit();
+}
+
+// Azioni individuali
+function approveIndividual(suggestionId) {
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/suggestions/' + suggestionId + '/approve';
+    
+    document.body.appendChild(form);
+    form.submit();
+}
+
+function rejectIndividual(suggestionId) {
+    const reason = prompt('Motivo del rifiuto (opzionale):') || 'Rifiutato manualmente';
+    
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/suggestions/' + suggestionId + '/reject';
+    
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'notes';
+    input.value = reason;
+    form.appendChild(input);
+    
+    document.body.appendChild(form);
+    form.submit();
+}
+
+function showReasoning(suggestionId) {
+    const reasoningDiv = document.getElementById('reasoning-' + suggestionId);
+    if (reasoningDiv.style.display === 'none') {
+        reasoningDiv.style.display = 'block';
+    } else {
+        reasoningDiv.style.display = 'none';
+    }
+}
+
+// Inizializza componenti Materialize
+document.addEventListener('DOMContentLoaded', function() {
+    M.Modal.init(document.querySelectorAll('.modal'));
+    M.Tooltip.init(document.querySelectorAll('.tooltipped'));
+});
+</script>
+{% endblock %}

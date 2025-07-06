@@ -9,10 +9,29 @@
             <h4 class="blue-text text-darken-2">
                 <i class="material-icons left">label</i>
                 Dashboard Etichettatura
+                <!-- Notification Badge per suggerimenti pendenti -->
+                {% if stats.pending_suggestions > 0 %}
+                <span class="new badge red white-text" data-badge-caption="richieste pendenti">{{ stats.pending_suggestions }}</span>
+                {% endif %}
             </h4>
             <p class="grey-text">Sistema avanzato di etichettatura assistita da AI in due fasi</p>
         </div>
     </div>
+
+    <!-- Alert per richieste pendenti -->
+    {% if stats.pending_suggestions > 0 %}
+    <div class="row">
+        <div class="col s12">
+            <div class="card-panel amber lighten-4 amber-text text-darken-3">
+                <i class="material-icons left">notifications_active</i>
+                <strong>Attenzione:</strong> Hai {{ stats.pending_suggestions }} suggerimenti AI in attesa di approvazione.
+                <a href="{{ url_for('labeling.pending_suggestions_overview', project_id=project.id) }}" class="btn-flat amber-text text-darken-4">
+                    <i class="material-icons left">rate_review</i>APPROVA ORA
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Statistics Cards -->
     <div class="row">

@@ -225,7 +225,7 @@
                         <div class="col s12 m3">
                             <div class="center-align">
                                 <h5 class="green-text" style="margin: 0;">
-                                    {% set total_usage = labels|sum(attribute='cell_labels.count') %}
+                                    {% set total_usage = labels|sum(attribute='usage_count') %}
                                     {{ total_usage }}
                                 </h5>
                                 <p class="grey-text" style="margin: 0;">Applicazioni Totali</p>
@@ -243,7 +243,7 @@
                         <div class="col s12 m3">
                             <div class="center-align">
                                 <h5 class="purple-text" style="margin: 0;">
-                                    {% set unused_labels = labels|rejectattr('cell_labels.count')|list|length %}
+                                    {% set unused_labels = labels|rejectattr('usage_count')|list|length %}
                                     {{ unused_labels }}
                                 </h5>
                                 <p class="grey-text" style="margin: 0;">Non Utilizzate</p>
@@ -257,7 +257,7 @@
                                 <p><strong>Etichette più utilizzate:</strong></p>
                                 <div class="collection" style="border: none; margin: 0;">
                                     {% for label in labels[:5] %}
-                                        {% set usage_count = label.cell_labels.count() %}
+                                        {% set usage_count = label.usage_count or 0 %}
                                         <div class="collection-item transparent" style="border: none; padding: 5px 0;">
                                             <div class="valign-wrapper">
                                                 <div class="label-color-indicator" 

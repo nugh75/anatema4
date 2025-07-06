@@ -2,6 +2,122 @@
 
 {% block title %}Revisione Suggerimenti AI - Anatema{% endblock %}
 
+{% block extra_css %}
+<style>
+/* Circular Progress Bar per Confidence Score */
+.confidence-display {
+    margin: 10px 0;
+}
+
+.circular-progress {
+    position: relative;
+    width: 60px;
+    height: 60px;
+    margin: 0 auto;
+}
+
+.progress-circle {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.progress-bar {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 3px solid #e0e0e0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.confidence-text {
+    font-size: 11px;
+    font-weight: bold;
+    color: #333;
+    z-index: 1;
+}
+
+.confidence-label {
+    display: block;
+    margin-top: 5px;
+    font-size: 10px;
+}
+
+/* Suggested Label Styling */
+.suggested-label {
+    margin: 10px 0;
+}
+
+.suggested-label .chip {
+    font-size: 14px;
+    padding: 8px 12px;
+    font-weight: 500;
+}
+
+/* Reasoning Section */
+.reasoning-section {
+    margin-top: 15px;
+}
+
+.reasoning-content {
+    margin-top: 10px;
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Suggestion Card Improvements */
+.suggestion-card {
+    border-left: 4px solid #1976d2;
+    margin-bottom: 15px;
+    transition: all 0.3s ease;
+}
+
+.suggestion-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.suggestion-card[data-status="approved"] {
+    border-left-color: #4caf50;
+}
+
+.suggestion-card[data-status="rejected"] {
+    border-left-color: #f44336;
+}
+
+.suggestion-card[data-status="pending"] {
+    border-left-color: #ff9800;
+}
+
+/* Filter Section */
+.filter-section {
+    background: #f5f5f5;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+/* Bulk Actions */
+.bulk-actions {
+    background: #e3f2fd;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container" style="margin-top: 30px;">
     <div class="row">
@@ -129,24 +245,89 @@
                             </span>
                         </div>
                         
-                        <!-- Confidence Score -->
+                        <!-- Confidence Score Enhanced -->
                         <div class="col s12 m2">
                             <div class="center-align">
-                                <div class="progress">
-                                    <div class="determinate {{ 'green' if (suggestion.ai_confidence or 0) > 0.8 else 'orange' if (suggestion.ai_confidence or 0) > 0.5 else 'red' }}"
-                                         style="width: {{ ((suggestion.ai_confidence or 0) * 100)|round }}%"></div>
+                                {% set confidence_percent = ((suggestion.ai_confidence or 0) * 100)|round %}
+                                <div class="confidence-display">
+                                    <div class="circular-progress">
+                                        <div class="progress-circle">
+                                            <div class="progress-bar {{ 'green' if confidence_percent >= 80 else 'orange' if confidence_percent >= 60 else 'red' }}"
+                                                 style="background: conic-gradient(
+                                                     {{ '#4caf50' if confidence_percent >= 80 else '#ff9800' if confidence_percent >= 60 else '#f44336' }} 0deg,
+                                                     {{ '#4caf50' if confidence_percent >= 80 else '#ff9800' if confidence_percent >= 60 else '#f44336' }} {{ confidence_percent * 3.6 }}deg,
+                                                     #e0e0e0 {{ confidence_percent * 3.6 }}deg
+                                                 );">
+                                                <span class="confidence-text">{{ confidence_percent }}%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <small class="confidence-label">
+                                        {% if confidence_percent >= 80 %}
+                                            <i class="material-icons tiny green-text">star</i>Alta
+                                        {% elif confidence_percent >= 60 %}
+                                            <i class="material-icons tiny orange-text">star_half</i>Media
+                                        {% else %}
+                                            <i class="material-icons tiny red-text">star_border</i>Bassa
+                                        {% endif %}
+                                    </small>
                                 </div>
-                                <small>{{ ((suggestion.ai_confidence or 0) * 100)|round }}% confidenza</small>
                             </div>
                         </div>
                         
-                        <!-- Original Text -->
+                        <!-- Original Text and AI Reasoning -->
                         <div class="col s12 m8">
-                            <p><strong>Etichetta Suggerita:</strong></p>
-                            <blockquote>{{ suggestion.suggested_name }}</blockquote>
-                            {% if suggestion.suggested_description %}
-                            <p><strong>Descrizione:</strong> {{ suggestion.suggested_description }}</p>
-                            {% endif %}
+                            <div class="suggestion-details">
+                                <p><strong>Etichetta Suggerita:</strong></p>
+                                <div class="suggested-label">
+                                    <span class="chip" style="background-color: {{ suggestion.suggested_color or '#1976d2' }}; color: white;">
+                                        {{ suggestion.suggested_name }}
+                                    </span>
+                                </div>
+                                {% if suggestion.suggested_description %}
+                                <p><strong>Descrizione:</strong> {{ suggestion.suggested_description }}</p>
+                                {% endif %}
+                                
+                                <!-- AI Reasoning Toggle -->
+                                <div class="reasoning-section">
+                                    <a href="#" class="btn-flat waves-effect" onclick="toggleReasoning('{{ suggestion.id }}')">
+                                        <i class="material-icons left">psychology</i>
+                                        Mostra Ragionamento AI
+                                    </a>
+                                    <div id="reasoning-{{ suggestion.id }}" class="reasoning-content" style="display: none;">
+                                        <div class="card-panel blue lighten-5" style="margin-top: 10px;">
+                                            <h6><i class="material-icons left tiny">smart_toy</i>Ragionamento AI</h6>
+                                            <p>{{ suggestion.ai_reasoning or 'Nessun ragionamento disponibile per questo suggerimento.' }}</p>
+                                            
+                                            {% if suggestion.sample_values %}
+                                            <div class="divider" style="margin: 10px 0;"></div>
+                                            <h6>Valori di esempio analizzati:</h6>
+                                            <ul class="collection">
+                                                {% for value in suggestion.sample_values[:3] %}
+                                                <li class="collection-item">{{ value }}</li>
+                                                {% endfor %}
+                                            </ul>
+                                            {% endif %}
+                                            
+                                            <div class="divider" style="margin: 10px 0;"></div>
+                                            <div class="row">
+                                                <div class="col s6">
+                                                    <small class="grey-text">
+                                                        <i class="material-icons tiny">access_time</i>
+                                                        Generato: {{ suggestion.created_at.strftime('%d/%m/%Y %H:%M') }}
+                                                    </small>
+                                                </div>
+                                                <div class="col s6 right-align">
+                                                    <small class="grey-text">
+                                                        <i class="material-icons tiny">memory</i>
+                                                        Modello: {{ suggestion.generation.ai_model or 'AI Standard' }}
+                                                    </small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     
@@ -312,6 +493,98 @@ function bulkApproveHighConfidence() {
     const forms = document.querySelectorAll('.suggestion-form');
     let count = 0;
     
+    forms.forEach(form => {
+        const card = form.closest('.suggestion-card');
+        const confidence = parseFloat(card.dataset.confidence) || 0;
+        
+        if (confidence > 0.8) {
+            const submitBtn = form.querySelector('button[name="action"][value="approve"]');
+            if (submitBtn) {
+                submitBtn.click();
+                count++;
+            }
+        }
+    });
+    
+    if (count === 0) {
+        M.toast({html: 'Nessun suggerimento con alta confidenza trovato'});
+    }
+}
+
+function bulkRejectLowConfidence() {
+    const forms = document.querySelectorAll('.suggestion-form');
+    let count = 0;
+    
+    forms.forEach(form => {
+        const card = form.closest('.suggestion-card');
+        const confidence = parseFloat(card.dataset.confidence) || 0;
+        
+        if (confidence < 0.5) {
+            const submitBtn = form.querySelector('button[name="action"][value="reject"]');
+            if (submitBtn) {
+                submitBtn.click();
+                count++;
+            }
+        }
+    });
+    
+    if (count === 0) {
+        M.toast({html: 'Nessun suggerimento con bassa confidenza trovato'});
+    }
+}
+
+function resetSuggestion(suggestionId) {
+    const finalLabelInput = document.getElementById(`final_label_${suggestionId}`);
+    const notesInput = document.getElementById(`notes_${suggestionId}`);
+    
+    if (finalLabelInput) {
+        finalLabelInput.value = finalLabelInput.getAttribute('data-original') || '';
+        M.updateTextFields();
+    }
+    
+    if (notesInput) {
+        notesInput.value = '';
+        M.textareaAutoResize(notesInput);
+    }
+}
+
+function toggleReasoning(suggestionId) {
+    const reasoningDiv = document.getElementById(`reasoning-${suggestionId}`);
+    const toggleBtn = reasoningDiv.previousElementSibling;
+    const icon = toggleBtn.querySelector('.material-icons');
+    
+    if (reasoningDiv.style.display === 'none') {
+        reasoningDiv.style.display = 'block';
+        icon.textContent = 'psychology';
+        toggleBtn.innerHTML = '<i class="material-icons left">expand_less</i>Nascondi Ragionamento AI';
+    } else {
+        reasoningDiv.style.display = 'none';
+        icon.textContent = 'psychology';
+        toggleBtn.innerHTML = '<i class="material-icons left">psychology</i>Mostra Ragionamento AI';
+    }
+}
+
+// Auto-save form data
+document.addEventListener('DOMContentLoaded', function() {
+    const forms = document.querySelectorAll('.suggestion-form');
+    
+    forms.forEach(form => {
+        const inputs = form.querySelectorAll('input, textarea');
+        inputs.forEach(input => {
+            input.addEventListener('input', function() {
+                localStorage.setItem(`suggestion_${form.id}_${input.name}`, input.value);
+            });
+            
+            // Restore saved data
+            const savedValue = localStorage.getItem(`suggestion_${form.id}_${input.name}`);
+            if (savedValue) {
+                input.value = savedValue;
+            }
+        });
+    });
+});
+</script>
+{% endblock %}
     forms.forEach(form => {
         const card = form.closest('.suggestion-card');
         const confidence = parseFloat(card.dataset.confidence) || 0;
